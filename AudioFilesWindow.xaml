@@ -1,0 +1,85 @@
+<Window x:Class="OsuTag.AudioFilesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select Audio Files" 
+        Width="400" 
+        Height="300"
+        Background="#0a0e27"
+        Foreground="#ffffff"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#00d4ff" Padding="20,0">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Select Audio Files" FontSize="16" FontWeight="Bold" Foreground="#0a0e27"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Audio Files List -->
+        <Border Grid.Row="1" Background="#1a1f3a" Margin="20" CornerRadius="8" Padding="15">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding UniqueAudioFiles}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#0f1428" CornerRadius="6" Padding="12,10" Margin="0,0,0,8"
+                                    MouseEnter="AudioFile_MouseEnter" MouseLeave="AudioFile_MouseLeave"
+                                    MouseLeftButtonDown="AudioFile_Click" Cursor="Hand">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <DataTrigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                                            To="#1a4d2e" Duration="0:0:0.3">
+                                                                <ColorAnimation.EasingFunction>
+                                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                                </ColorAnimation.EasingFunction>
+                                                            </ColorAnimation>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.EnterActions>
+                                                <DataTrigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                                            To="#0f1428" Duration="0:0:0.3">
+                                                                <ColorAnimation.EasingFunction>
+                                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                                </ColorAnimation.EasingFunction>
+                                                            </ColorAnimation>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.ExitActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" Foreground="#ffffff" TextTrimming="CharacterEllipsis" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding IsSelected, StringFormat='Selected: {0}'}" FontSize="9" Foreground="#00d4ff" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="20" VerticalAlignment="Center">
+            <Button Content="Close" Click="Close_Click" Background="#1a1f3a" Foreground="#00d4ff" 
+                    BorderBrush="#00d4ff" BorderThickness="1" Padding="20,8" Margin="0,0,10,0" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>

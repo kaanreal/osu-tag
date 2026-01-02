@@ -1,0 +1,1252 @@
+<Window x:Class="OsuTag.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:OsuTag.Converters"
+        Title="osu!tag v1.0 - Kaan" 
+        Width="1400" 
+        Height="900"
+        Background="#0A0E14"
+        Foreground="#E6E6E8"
+        WindowStartupLocation="CenterScreen"
+        MinWidth="1200"
+        MinHeight="700"
+        Loaded="Window_Loaded">
+    
+    <Window.Resources>
+        <!-- Converters -->
+        <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        
+        <!-- Modern Color Palette - Reduced contrast, softer tones -->
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#0A0E14"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#151921"/>
+        <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#1A1F2B"/>
+        <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#1E2432"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#242936"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#5B9FED"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#78B2F2"/>
+        <SolidColorBrush x:Key="AccentSubtleBrush" Color="#2D4A6B"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#52C565"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E6E6E8"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9B9DA3"/>
+        <SolidColorBrush x:Key="TextTertiaryBrush" Color="#6B6D75"/>
+        
+        <!-- Premium Button Styles with smooth animations -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="#ffffff"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="8" 
+                                Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="Shadow" 
+                                                  Color="#5B9FED" 
+                                                  BlurRadius="12" 
+                                                  ShadowDepth="0" 
+                                                  Opacity="0.3"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#78B2F2" 
+                                                          Duration="0:0:0.15">
+                                                <ColorAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </ColorAnimation.EasingFunction>
+                                            </ColorAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="Shadow" 
+                                                           Storyboard.TargetProperty="Opacity" 
+                                                           To="0.5" 
+                                                           Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#5B9FED" 
+                                                          Duration="0:0:0.15">
+                                                <ColorAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </ColorAnimation.EasingFunction>
+                                            </ColorAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="Shadow" 
+                                                           Storyboard.TargetProperty="Opacity" 
+                                                           To="0.3" 
+                                                           Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Border" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.4"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Secondary Button Style - Minimal borders -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="8" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#1E2432" 
+                                                          Duration="0:0:0.15">
+                                                <ColorAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </ColorAnimation.EasingFunction>
+                                            </ColorAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="Transparent" 
+                                                          Duration="0:0:0.15">
+                                                <ColorAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </ColorAnimation.EasingFunction>
+                                            </ColorAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="Border" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.4"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Modern Text Input - Minimal borders, focus glow -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="8">
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="FocusGlow" 
+                                                  Color="#5B9FED" 
+                                                  BlurRadius="16" 
+                                                  ShadowDepth="0" 
+                                                  Opacity="0"/>
+                            </Border.Effect>
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="4,2"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#1A1F2B" 
+                                                          Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#151921" 
+                                                          Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#1A1F2B" 
+                                                          Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetName="FocusGlow" 
+                                                           Storyboard.TargetProperty="Opacity" 
+                                                           To="0.25" 
+                                                           Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
+                                                          To="#151921" 
+                                                          Duration="0:0:0.15"/>
+                                            <DoubleAnimation Storyboard.TargetName="FocusGlow" 
+                                                           Storyboard.TargetProperty="Opacity" 
+                                                           To="0" 
+                                                           Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="72"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header - Floating feel, no borders -->
+        <Border Grid.Row="0" 
+                Background="{StaticResource SurfaceElevatedBrush}" 
+                Margin="0,0,0,0"
+                Opacity="0">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" 
+                                  BlurRadius="24" 
+                                  ShadowDepth="4" 
+                                  Opacity="0.15" 
+                                  Direction="270"/>
+            </Border.Effect>
+            <Border.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                           From="0" To="1" 
+                                           Duration="0:0:0.5" 
+                                           BeginTime="0:0:0.1">
+                                <DoubleAnimation.EasingFunction>
+                                    <QuadraticEase EasingMode="EaseOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Border.Triggers>
+            <Grid Margin="32,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Title -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="osu!tag Beatmap Converter" 
+                               FontSize="19" 
+                               FontWeight="SemiBold" 
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Opacity="0">
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                       From="0" To="1" 
+                                                       Duration="0:0:0.4" 
+                                                       BeginTime="0:0:0.2"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                    <TextBlock Text="Convert beatmaps to Spotify-ready MP3s" 
+                               FontSize="11" 
+                               Foreground="{StaticResource TextTertiaryBrush}" 
+                               Margin="0,3,0,0"
+                               Opacity="0">
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                       From="0" To="1" 
+                                                       Duration="0:0:0.4" 
+                                                       BeginTime="0:0:0.3"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                </StackPanel>
+                
+                <!-- Actions -->
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center"
+                            Opacity="0">
+                    <StackPanel.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.4" 
+                                                   BeginTime="0:0:0.4"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </StackPanel.Triggers>
+                    <Button Content="Select All" 
+                            Style="{StaticResource SecondaryButton}" 
+                            Command="{Binding SelectAllCommand}" 
+                            Margin="0,0,8,0"/>
+                    <Button Content="Deselect All" 
+                            Style="{StaticResource SecondaryButton}" 
+                            Command="{Binding DeselectAllCommand}" 
+                            Margin="0,0,16,0"/>
+                    <Button Content="Convert" 
+                            Style="{StaticResource PrimaryButton}" 
+                            Command="{Binding StartConversionCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Main Content -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Beatmap Cards Area -->
+            <Grid Grid.Column="0" Margin="32,28,20,32">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Welcome Screen - shown when no maps loaded -->
+                <Border Grid.RowSpan="3"
+                        Visibility="{Binding MapsLoaded, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                        Background="Transparent">
+                    <Grid>
+                        <!-- Scanning Overlay -->
+                        <Border Background="{StaticResource SurfaceElevatedBrush}"
+                                CornerRadius="16"
+                                Padding="40"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="4" Opacity="0.2"/>
+                            </Border.Effect>
+                            <StackPanel Width="400">
+                                <TextBlock Text="🔍 Scanning Maps..."
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,20"/>
+                                <TextBlock Text="{Binding ScanStatusMessage}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,16"/>
+                                <ProgressBar Value="{Binding ScanProgress}" 
+                                             Height="8"
+                                             Maximum="100"
+                                             Background="{StaticResource SurfaceBrush}"
+                                             Foreground="{StaticResource AccentBrush}"
+                                             BorderThickness="0"/>
+                                <TextBlock Text="{Binding ScanProgress, StringFormat='{}{0}%'}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Welcome Content (when not scanning) -->
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                            <TextBlock Text="🎵"
+                                       FontSize="64"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,20"/>
+                            <TextBlock Text="Welcome to osu!tag"
+                                       FontSize="32"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Convert your osu! beatmaps to tagged MP3s"
+                                       FontSize="14"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,12,0,40"/>
+                            <Button Content="📁 Browse for Songs Folder"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding BrowseCommand}"
+                                    HorizontalAlignment="Center"
+                                    Padding="32,14"
+                                    FontSize="15"/>
+                            <Button Content="Use Default osu! Path"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Command="{Binding UseDefaultPathCommand}"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,16,0,0"
+                                    Padding="24,10"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <!-- Path Selection - Only visible when maps are loaded -->
+                <Border Grid.Row="0" 
+                        Background="{StaticResource SurfaceElevatedBrush}" 
+                        CornerRadius="12" 
+                        Padding="20" 
+                        Margin="0,0,0,24"
+                        Visibility="{Binding MapsLoaded, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                          BlurRadius="16" 
+                                          ShadowDepth="2" 
+                                          Opacity="0.1"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.15"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBox Grid.Column="0" 
+                                 Text="{Binding SelectedPath}" 
+                                 IsReadOnly="True" 
+                                 Style="{StaticResource ModernTextBox}" 
+                                 Margin="0,0,12,0" 
+                                 VerticalContentAlignment="Center"/>
+                        <Button Grid.Column="1" 
+                                Content="Browse..." 
+                                Style="{StaticResource SecondaryButton}" 
+                                Command="{Binding BrowseCommand}" 
+                                Margin="0,0,8,0"/>
+                        <Button Grid.Column="2" 
+                                Content="Default Path" 
+                                Style="{StaticResource SecondaryButton}" 
+                                Command="{Binding UseDefaultPathCommand}"
+                                Margin="0,0,8,0"/>
+                        <Button Grid.Column="3" 
+                                Content="🔄 Rescan" 
+                                Style="{StaticResource SecondaryButton}" 
+                                Command="{Binding RescanCommand}"
+                                ToolTip="Scan for new beatmaps only"
+                                Visibility="{Binding MapsLoaded, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Search Bar -->
+                <Border Grid.Row="1" 
+                        Background="{StaticResource SurfaceElevatedBrush}" 
+                        CornerRadius="10" 
+                        Margin="0,0,0,24"
+                        Padding="0"
+                        Visibility="{Binding MapsLoaded, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                          BlurRadius="16" 
+                                          ShadowDepth="2" 
+                                          Opacity="0.1"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.2"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <Grid>
+                        <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}" 
+                                 Style="{StaticResource ModernTextBox}" 
+                                 VerticalContentAlignment="Center"
+                                 Padding="16,12"/>
+                        <TextBlock Text="🔍 Search by song, artist, difficulty, tags..." 
+                                   FontSize="13" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" 
+                                   IsHitTestVisible="False"
+                                   Margin="20,0,0,0"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SearchQuery}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SearchQuery}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+                
+                <!-- Cards Grid - No heavy border, open feel -->
+                <ScrollViewer x:Name="CardsScrollViewer"
+                              Grid.Row="2" 
+                              VerticalScrollBarVisibility="Auto" 
+                              HorizontalScrollBarVisibility="Disabled" 
+                              Visibility="{Binding MapsLoaded, Converter={StaticResource BoolToVisibilityConverter}}"
+                              Padding="4,0,0,0"
+                              ScrollChanged="CardsScrollViewer_ScrollChanged"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ItemsControl x:Name="CardsContainer" ItemsSource="{Binding MapGroups}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- Polaroid-Style Beatmap Card -->
+                                <Border x:Name="CardBorder" 
+                                        CornerRadius="6" 
+                                        Width="200" 
+                                        Height="260" 
+                                        Margin="0,0,24,24" 
+                                        Padding="12,12,12,24"
+                                        Cursor="Hand" 
+                                        MouseEnter="MapItem_MouseEnter" 
+                                        MouseLeave="MapItem_MouseLeave"
+                                        MouseMove="MapItem_MouseMove"
+                                        MouseLeftButtonDown="MapItem_Click"
+                                        Opacity="0"
+                                        RenderTransformOrigin="0.5,0.5">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" 
+                                                          BlurRadius="16" 
+                                                          ShadowDepth="3" 
+                                                          Opacity="0.15"/>
+                                    </Border.Effect>
+                                    <Border.RenderTransform>
+                                        <TransformGroup>
+                                            <RotateTransform x:Name="CardRotateX" Angle="0"/>
+                                            <RotateTransform x:Name="CardRotateY" Angle="0"/>
+                                            <TranslateTransform x:Name="CardTranslate" Y="0"/>
+                                        </TransformGroup>
+                                    </Border.RenderTransform>
+                                    <Border.Triggers>
+                                        <EventTrigger RoutedEvent="Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                                   From="0" To="1" 
+                                                                   Duration="0:0:0.15" 
+                                                                   BeginTime="0:0:0">
+                                                        <DoubleAnimation.EasingFunction>
+                                                            <QuadraticEase EasingMode="EaseOut"/>
+                                                        </DoubleAnimation.EasingFunction>
+                                                    </DoubleAnimation>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                    </Border.Triggers>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#F8F8F6"/>
+                                            <Style.Triggers>
+                                                <!-- Selected State - Full green background -->
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter Property="Background" Value="#C8E6C9"/>
+                                                    <Setter Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="#4CAF50" 
+                                                                              BlurRadius="20" 
+                                                                              ShadowDepth="0" 
+                                                                              Opacity="0.35"/>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="176"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        
+                                        <!-- Cover Image - Dominates like polaroid photo -->
+                                        <Border Grid.Row="0" 
+                                                Background="#E8E8E6"
+                                                CornerRadius="2" 
+                                                ClipToBounds="True" 
+                                                Visibility="{Binding IsExpanded, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                            <Image Source="{Binding CoverPath, FallbackValue={x:Null}, TargetNullValue={x:Null}}" 
+                                                   Stretch="UniformToFill"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                        </Border>
+                                        
+                                        <!-- Info Section - Polaroid bottom area -->
+                                        <StackPanel Grid.Row="1" 
+                                                    Margin="4,10,4,0" 
+                                                    Visibility="{Binding IsExpanded, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                            <TextBlock Text="{Binding Title}" 
+                                                       FontSize="12" 
+                                                       FontWeight="SemiBold" 
+                                                       Foreground="#2A2A2A" 
+                                                       TextTrimming="CharacterEllipsis" 
+                                                       TextWrapping="NoWrap"
+                                                       MaxHeight="16"/>
+                                            <TextBlock Text="{Binding Artist}" 
+                                                       FontSize="13" 
+                                                       FontWeight="Medium"
+                                                       Foreground="#5B9FED" 
+                                                       TextTrimming="CharacterEllipsis" 
+                                                       Margin="0,4,0,0"/>
+                                            <TextBlock Text="{Binding Creator}" 
+                                                       FontSize="9" 
+                                                       Foreground="#8A8A8A" 
+                                                       TextTrimming="CharacterEllipsis" 
+                                                       Margin="0,2,0,0"/>
+                                            
+                                            <!-- Multiple Files Indicator -->
+                                            <Border Visibility="{Binding HasMultipleDifferentAudios, Converter={StaticResource BoolToVisibilityConverter}}" 
+                                                    Background="#E8EDF5" 
+                                                    CornerRadius="3" 
+                                                    Padding="6,2" 
+                                                    HorizontalAlignment="Left" 
+                                                    Margin="0,6,0,0">
+                                                <TextBlock FontSize="9" 
+                                                           FontWeight="Medium" 
+                                                           Foreground="#5B9FED">
+                                                    <Run Text="{Binding UniqueAudioCount, Mode=OneWay}"/>
+                                                    <Run Text="files"/>
+                                                </TextBlock>
+                                            </Border>
+                                        </StackPanel>
+                                        
+                                        <!-- Expanded Selection View (Audio Files or Difficulties) -->
+                                        <Border Grid.Row="0" 
+                                                Grid.RowSpan="2"
+                                                Background="#F8F8F6"
+                                                CornerRadius="2"
+                                                Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibilityConverter}}" 
+                                                Opacity="0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                                                       From="0" To="1" 
+                                                                                       Duration="0:0:0.25">
+                                                                            <DoubleAnimation.EasingFunction>
+                                                                                <QuadraticEase EasingMode="EaseOut"/>
+                                                                            </DoubleAnimation.EasingFunction>
+                                                                        </DoubleAnimation>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Margin="12">
+                                            <!-- Title changes based on what we're showing -->
+                                            <TextBlock FontSize="10" 
+                                                       FontWeight="SemiBold" 
+                                                       Foreground="#6A6A6A" 
+                                                       Margin="0,0,0,10">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Select Audio Files"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasMultipleDifferentRates}" Value="True">
+                                                                <Setter Property="Text" Value="Select Difficulties"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                                                <!-- Audio Files List -->
+                                                <ItemsControl ItemsSource="{Binding UniqueAudioFiles}"
+                                                              Visibility="{Binding HasMultipleDifferentAudios, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border x:Name="AudioFileBorder"
+                                                                    CornerRadius="4" 
+                                                                    Padding="10,8" 
+                                                                    Margin="0,0,0,5" 
+                                                                    Cursor="Hand"
+                                                                    MouseEnter="AudioFile_MouseEnter"
+                                                                    MouseLeave="AudioFile_MouseLeave"
+                                                                    MouseLeftButtonDown="AudioFile_Click">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="#ECECEA"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                                            </DataTrigger>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding IsSelected}" Value="False"/>
+                                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter Property="Background" Value="#E0E0DE"/>
+                                                                            </MultiDataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <TextBlock Text="{Binding DisplayName}" 
+                                                                           FontSize="10" 
+                                                                           Foreground="#2A2A2A">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                    <Setter Property="Foreground" Value="#4CAF50"/>
+                                                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                            <!-- Difficulties List (for different rates) -->
+                                            <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto"
+                                                          Visibility="{Binding HasMultipleDifferentRates, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <ItemsControl ItemsSource="{Binding Difficulties}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border CornerRadius="4" 
+                                                                    Padding="10,8" 
+                                                                    Margin="0,0,0,5" 
+                                                                    Cursor="Hand"
+                                                                    MouseLeftButtonDown="Difficulty_Click">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="#ECECEA"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                <Setter Property="Background" Value="#C8E6C9"/>
+                                                                            </DataTrigger>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding IsSelected}" Value="False"/>
+                                                                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter Property="Background" Value="#E0E0DE"/>
+                                                                            </MultiDataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="{Binding DifficultyName}" 
+                                                                               FontSize="10" 
+                                                                               Foreground="#2A2A2A"
+                                                                               TextTrimming="CharacterEllipsis">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="#4CAF50"/>
+                                                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding Difficulty.Rate, StringFormat='Rate: {0}'}" 
+                                                                               FontSize="9" 
+                                                                               Foreground="#5B9FED" 
+                                                                               Margin="0,2,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+            
+            <!-- Sidebar - Elevated panels, no heavy borders -->
+            <Grid Grid.Column="1" Margin="20,28,32,32">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Settings Button -->
+                <Button Grid.Row="0"
+                        Content="⚙ Settings" 
+                        Style="{StaticResource PrimaryButton}"
+                        Click="Settings_Click"
+                        Margin="0,0,0,20"
+                        HorizontalAlignment="Stretch"
+                        Opacity="0">
+                    <Button.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.2"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Button.Triggers>
+                </Button>
+                
+                <!-- Status Section -->
+                <Border Grid.Row="1" 
+                        Background="{StaticResource SurfaceElevatedBrush}" 
+                        CornerRadius="12" 
+                        Padding="20" 
+                        Margin="0,0,0,20"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                          BlurRadius="16" 
+                                          ShadowDepth="2" 
+                                          Opacity="0.1"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <StackPanel>
+                        <TextBlock Text="Status" 
+                                   FontSize="11" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" 
+                                   Margin="0,0,0,14"/>
+                        <TextBlock Text="{Binding PathStatusMessage}" 
+                                   FontSize="13" 
+                                   Foreground="{StaticResource SuccessBrush}" 
+                                   TextWrapping="Wrap"
+                                   LineHeight="20"/>
+                        <TextBlock Text="{Binding ErrorMessage}" 
+                                   FontSize="13" 
+                                   Foreground="#FF6B6B" 
+                                   TextWrapping="Wrap" 
+                                   Margin="0,12,0,0" 
+                                   LineHeight="20"
+                                   Visibility="{Binding ErrorMessage, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Output Path Section -->
+                <Border Grid.Row="2" 
+                        Background="{StaticResource SurfaceElevatedBrush}" 
+                        CornerRadius="12" 
+                        Padding="20" 
+                        Margin="0,0,0,20"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                          BlurRadius="16" 
+                                          ShadowDepth="2" 
+                                          Opacity="0.1"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.4"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <StackPanel>
+                        <TextBlock Text="Output Path" 
+                                   FontSize="11" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" 
+                                   Margin="0,0,0,14"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding OutputPath, UpdateSourceTrigger=PropertyChanged}" 
+                                     FontSize="13" 
+                                     Padding="12,10"
+                                     Background="{StaticResource SurfaceBrush}"
+                                     Foreground="{StaticResource TextPrimaryBrush}"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     BorderThickness="1"
+                                     VerticalContentAlignment="Center"
+                                     Margin="0,0,10,0">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TextBox">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="6">
+                                                        <ScrollViewer x:Name="PART_ContentHost" 
+                                                                    Padding="{TemplateBinding Padding}"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                            <Button Grid.Column="1"
+                                    Content="📁"
+                                    FontSize="16"
+                                    Padding="12,10"
+                                    Background="{StaticResource SurfaceHoverBrush}"
+                                    Foreground="{StaticResource TextPrimaryBrush}"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    Click="BrowseOutputPath_Click">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="Border"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="6"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" 
+                                                                        VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="{StaticResource SurfaceElevatedBrush}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Progress Section -->
+                <Border Grid.Row="3" 
+                        Background="{StaticResource SurfaceElevatedBrush}" 
+                        CornerRadius="12" 
+                        Padding="20" 
+                        Margin="0,0,0,20"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                          BlurRadius="16" 
+                                          ShadowDepth="2" 
+                                          Opacity="0.1"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.5"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <StackPanel>
+                        <TextBlock Text="Progress" 
+                                   FontSize="11" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" 
+                                   Margin="0,0,0,14"/>
+                        <Grid Height="8" Margin="0,0,0,12">
+                            <Border Background="{StaticResource SurfaceBrush}" 
+                                    CornerRadius="8"/>
+                            <ProgressBar Value="{Binding ProgressPercentage}" 
+                                         Maximum="100"
+                                         Height="8"
+                                         BorderThickness="0"
+                                         Background="Transparent">
+                                <ProgressBar.Style>
+                                    <Style TargetType="ProgressBar">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ProgressBar">
+                                                    <Grid>
+                                                        <Border x:Name="PART_Track" 
+                                                                Background="Transparent" 
+                                                                CornerRadius="8"/>
+                                                        <Border x:Name="PART_Indicator" 
+                                                                Background="{DynamicResource AccentBrush}" 
+                                                                CornerRadius="8"
+                                                                HorizontalAlignment="Left">
+                                                            <Border.Effect>
+                                                                <DropShadowEffect Color="#5B9FED" 
+                                                                                  BlurRadius="12" 
+                                                                                  ShadowDepth="0" 
+                                                                                  Opacity="0.5"/>
+                                                            </Border.Effect>
+                                                        </Border>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ProgressBar.Style>
+                            </ProgressBar>
+                        </Grid>
+                        <TextBlock Text="{Binding ProgressMessage}" 
+                                   FontSize="12" 
+                                   Foreground="{StaticResource TextSecondaryBrush}" 
+                                   TextWrapping="Wrap"
+                                   LineHeight="18"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Results Section -->
+                <Border Grid.Row="3" 
+                        Background="{StaticResource SurfaceElevatedBrush}" 
+                        CornerRadius="12" 
+                        Padding="20"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                          BlurRadius="16" 
+                                          ShadowDepth="2" 
+                                          Opacity="0.1"/>
+                    </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" 
+                                                   From="0" To="1" 
+                                                   Duration="0:0:0.5" 
+                                                   BeginTime="0:0:0.6"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Grid.Row="0" 
+                                   Text="Results" 
+                                   FontSize="11" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" 
+                                   Margin="0,0,0,14"/>
+                        
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding ConversionResults}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource SurfaceBrush}" 
+                                                CornerRadius="10" 
+                                                Padding="14,12" 
+                                                Margin="0,0,0,10">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" 
+                                                           FontSize="12" 
+                                                           FontWeight="SemiBold" 
+                                                           Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock Text="{Binding Message}" 
+                                                           FontSize="11" 
+                                                           Foreground="{StaticResource TextSecondaryBrush}" 
+                                                           TextWrapping="Wrap" 
+                                                           Margin="0,6,0,0"
+                                                           LineHeight="17"/>
+                                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" 
+                                                           FontSize="10" 
+                                                           Foreground="{StaticResource TextTertiaryBrush}" 
+                                                           Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+                
+                <!-- Footer with credits -->
+                <StackPanel Grid.Row="5" VerticalAlignment="Bottom" Margin="0,20,0,0">
+                    <TextBlock Text="osu!tag v1.0" 
+                               FontSize="12" 
+                               FontWeight="SemiBold" 
+                               Foreground="{StaticResource TextSecondaryBrush}" 
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="by Kaan and AI" 
+                               FontSize="11" 
+                               Foreground="{StaticResource TextTertiaryBrush}" 
+                               HorizontalAlignment="Center"
+                               Margin="0,4,0,0"/>
+                    <Button Content="☕ Buy me a coffee" 
+                            Click="BuyMeCoffee_Click"
+                            Background="Transparent"
+                            Foreground="{StaticResource AccentBrush}"
+                            BorderThickness="0"
+                            FontSize="11"
+                            Cursor="Hand"
+                            HorizontalAlignment="Center"
+                            Margin="0,8,0,0"
+                            Padding="8,4">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource AccentHoverBrush}"/>
+                                        <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
