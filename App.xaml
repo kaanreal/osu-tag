@@ -3,5 +3,18 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <!-- Global high-quality rendering settings -->
+        <Style TargetType="Image">
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality"/>
+            <Setter Property="RenderOptions.EdgeMode" Value="Aliased"/>
+        </Style>
+        <Style TargetType="Border">
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+        </Style>
     </Application.Resources>
 </Application>

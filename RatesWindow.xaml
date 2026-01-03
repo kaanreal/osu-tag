@@ -7,7 +7,12 @@
         Foreground="#ffffff"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.BitmapScalingMode="HighQuality">
     
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
@@ -92,7 +97,8 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <Border x:Name="RootBorder" Background="#0a0e27" RenderTransformOrigin="0.5,0.5">
+        <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="60"/>
             <RowDefinition Height="*"/>
@@ -149,5 +155,6 @@
                         Padding="20,10" Margin="0"/>
             </StackPanel>
         </Border>
-    </Grid>
+        </Grid>
+    </Border>
 </Window>

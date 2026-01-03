@@ -2,84 +2,359 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Select Audio Files" 
-        Width="400" 
-        Height="300"
-        Background="#0a0e27"
-        Foreground="#ffffff"
+        Width="450" 
+        Height="380"
+        Background="#0A0E14"
+        Foreground="#E6E6E8"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.BitmapScalingMode="HighQuality">
     
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="50"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="50"/>
-        </Grid.RowDefinitions>
+    <Window.Resources>
+        <SolidColorBrush x:Key="BackgroundBrush" Color="#0A0E14"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#151921"/>
+        <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#1A1F2B"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#242936"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#5B9FED"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E6E6E8"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9B9DA3"/>
+    </Window.Resources>
+    
+    <Border x:Name="RootBorder"
+            Background="{StaticResource BackgroundBrush}" 
+            BorderBrush="{StaticResource BorderBrush}" 
+            BorderThickness="1" 
+            CornerRadius="12"
+            RenderTransformOrigin="0.5,0.5">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Border Grid.Row="0" Background="#00d4ff" Padding="20,0">
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="Select Audio Files" FontSize="16" FontWeight="Bold" Foreground="#0a0e27"/>
-            </StackPanel>
-        </Border>
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="20,16,20,12">
+                <StackPanel>
+                    <TextBlock Text="Select Audio Files" 
+                               FontSize="16" 
+                               FontWeight="SemiBold" 
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Choose which audio versions to export" 
+                               FontSize="11" 
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Content="✕" 
+                        HorizontalAlignment="Right" 
+                        VerticalAlignment="Top"
+                        Width="28" Height="28"
+                        FontSize="14"
+                        Background="Transparent"
+                        Foreground="{StaticResource TextSecondaryBrush}"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="Close_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="{StaticResource SurfaceElevatedBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
 
-        <!-- Audio Files List -->
-        <Border Grid.Row="1" Background="#1a1f3a" Margin="20" CornerRadius="8" Padding="15">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <!-- Audio Files List -->
+            <ScrollViewer Grid.Row="1" 
+                          VerticalScrollBarVisibility="Auto" 
+                          Margin="20,0,20,0"
+                          Padding="0,0,8,0">
                 <ItemsControl ItemsSource="{Binding UniqueAudioFiles}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#0f1428" CornerRadius="6" Padding="12,10" Margin="0,0,0,8"
-                                    MouseEnter="AudioFile_MouseEnter" MouseLeave="AudioFile_MouseLeave"
-                                    MouseLeftButtonDown="AudioFile_Click" Cursor="Hand">
+                            <Border x:Name="AudioItemBorder"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    CornerRadius="8" 
+                                    Padding="12" 
+                                    Margin="0,0,0,8"
+                                    Cursor="Hand"
+                                    MouseLeftButtonDown="AudioFile_Click">
                                 <Border.Style>
                                     <Style TargetType="Border">
+                                        <Setter Property="BorderThickness" Value="2"/>
+                                        <Setter Property="BorderBrush" Value="Transparent"/>
+                                        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                        <Setter Property="RenderTransform">
+                                            <Setter.Value>
+                                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                            </Setter.Value>
+                                        </Setter>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                <DataTrigger.EnterActions>
-                                                    <BeginStoryboard>
-                                                        <Storyboard>
-                                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
-                                                                            To="#1a4d2e" Duration="0:0:0.3">
-                                                                <ColorAnimation.EasingFunction>
-                                                                    <QuadraticEase EasingMode="EaseOut"/>
-                                                                </ColorAnimation.EasingFunction>
-                                                            </ColorAnimation>
-                                                        </Storyboard>
-                                                    </BeginStoryboard>
-                                                </DataTrigger.EnterActions>
-                                                <DataTrigger.ExitActions>
-                                                    <BeginStoryboard>
-                                                        <Storyboard>
-                                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)" 
-                                                                            To="#0f1428" Duration="0:0:0.3">
-                                                                <ColorAnimation.EasingFunction>
-                                                                    <QuadraticEase EasingMode="EaseOut"/>
-                                                                </ColorAnimation.EasingFunction>
-                                                            </ColorAnimation>
-                                                        </Storyboard>
-                                                    </BeginStoryboard>
-                                                </DataTrigger.ExitActions>
+                                                <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+                                                <Setter Property="Background" Value="#1A2E1A"/>
                                             </DataTrigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource SurfaceElevatedBrush}"/>
+                                                <Trigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleX)" 
+                                                                             To="1.02" Duration="0:0:0.15">
+                                                                <DoubleAnimation.EasingFunction>
+                                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                                </DoubleAnimation.EasingFunction>
+                                                            </DoubleAnimation>
+                                                            <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleY)" 
+                                                                             To="1.02" Duration="0:0:0.15">
+                                                                <DoubleAnimation.EasingFunction>
+                                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                                </DoubleAnimation.EasingFunction>
+                                                            </DoubleAnimation>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.EnterActions>
+                                                <Trigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleX)" 
+                                                                             To="1" Duration="0:0:0.15">
+                                                                <DoubleAnimation.EasingFunction>
+                                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                                </DoubleAnimation.EasingFunction>
+                                                            </DoubleAnimation>
+                                                            <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleY)" 
+                                                                             To="1" Duration="0:0:0.15">
+                                                                <DoubleAnimation.EasingFunction>
+                                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                                </DoubleAnimation.EasingFunction>
+                                                            </DoubleAnimation>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.ExitActions>
+                                            </Trigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsSelected}" Value="True"/>
+                                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Background" Value="#1F3A1F"/>
+                                            </MultiDataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" Foreground="#ffffff" TextTrimming="CharacterEllipsis" FontWeight="Bold"/>
-                                    <TextBlock Text="{Binding IsSelected, StringFormat='Selected: {0}'}" FontSize="9" Foreground="#00d4ff" Margin="0,3,0,0"/>
-                                </StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <!-- Checkbox indicator -->
+                                    <Border Grid.Column="0" 
+                                            Width="22" Height="22" 
+                                            CornerRadius="4"
+                                            BorderThickness="2"
+                                            Margin="0,0,12,0"
+                                            VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+                                                        <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="✓" 
+                                                   FontSize="14" 
+                                                   FontWeight="Bold"
+                                                   Foreground="White"
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                    
+                                    <!-- File info -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" 
+                                                   FontSize="12" 
+                                                   FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    
+                                    <!-- Preview button -->
+                                    <Button Grid.Column="2"
+                                            Content="▶" 
+                                            Width="32" Height="32"
+                                            FontSize="12"
+                                            VerticalAlignment="Center"
+                                            Background="{StaticResource SurfaceElevatedBrush}"
+                                            Foreground="{StaticResource AccentBrush}"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            Tag="{Binding}"
+                                            Click="PlayPreview_Click">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="Border" 
+                                                                    Background="{TemplateBinding Background}" 
+                                                                    CornerRadius="16">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-        </Border>
 
-        <!-- Buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="20" VerticalAlignment="Center">
-            <Button Content="Close" Click="Close_Click" Background="#1a1f3a" Foreground="#00d4ff" 
-                    BorderBrush="#00d4ff" BorderThickness="1" Padding="20,8" Margin="0,0,10,0" Cursor="Hand"/>
-        </StackPanel>
-    </Grid>
+            <!-- Footer -->
+            <Grid Grid.Row="2" Margin="20,12,20,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Content="Select All" 
+                            Click="SelectAll_Click"
+                            Padding="12,8"
+                            Background="{StaticResource SurfaceElevatedBrush}"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            BorderThickness="0"
+                            FontSize="11"
+                            Cursor="Hand"
+                            Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#252B3A"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Deselect All" 
+                            Click="DeselectAll_Click"
+                            Padding="12,8"
+                            Background="{StaticResource SurfaceElevatedBrush}"
+                            Foreground="{StaticResource TextPrimaryBrush}"
+                            BorderThickness="0"
+                            FontSize="11"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#252B3A"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+                
+                <Button Grid.Column="2"
+                        Content="Done" 
+                        Click="Close_Click"
+                        Width="80"
+                        Height="36"
+                        Background="{StaticResource AccentBrush}"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontSize="12"
+                        FontWeight="Medium"
+                        Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="#78B2F2"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using OsuTag.ViewModels;
 
@@ -13,23 +14,53 @@ namespace OsuTag
             InitializeComponent();
             DataContext = mapGroup;
             Owner = null;
-            Loaded += (s, e) => PlayFadeInAnimation();
+            Loaded += (s, e) => PlayOpenAnimation();
         }
 
-        private void PlayFadeInAnimation()
+        private void PlayOpenAnimation()
         {
-            // Fade-in animation
+            // Apply transform to root border, not window
+            RootBorder.RenderTransform = new ScaleTransform(0.95, 0.95);
+            RootBorder.Opacity = 0;
+            
             var storyboard = new Storyboard();
+            
+            // Fade in
             var fadeIn = new DoubleAnimation
             {
                 From = 0,
                 To = 1,
-                Duration = TimeSpan.FromSeconds(0.3),
+                Duration = TimeSpan.FromMilliseconds(200),
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
             };
+            Storyboard.SetTarget(fadeIn, RootBorder);
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(OpacityProperty));
             storyboard.Children.Add(fadeIn);
-            storyboard.Begin(this);
+            
+            // Scale in
+            var scaleX = new DoubleAnimation
+            {
+                From = 0.95,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(scaleX, RootBorder);
+            Storyboard.SetTargetProperty(scaleX, new PropertyPath("RenderTransform.ScaleX"));
+            storyboard.Children.Add(scaleX);
+            
+            var scaleY = new DoubleAnimation
+            {
+                From = 0.95,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(scaleY, RootBorder);
+            Storyboard.SetTargetProperty(scaleY, new PropertyPath("RenderTransform.ScaleY"));
+            storyboard.Children.Add(scaleY);
+            
+            storyboard.Begin();
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)

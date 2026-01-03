@@ -7,27 +7,460 @@ using System.Windows.Media.Animation;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Linq;
+using System.ComponentModel;
 using OsuTag.ViewModels;
+using OsuTag.Services;
 
 namespace OsuTag
 {
     public partial class MainWindow : Window
     {
         private MediaPlayer? _mediaPlayer;
+        private int _previousSelectedCount = 0;
         
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+            var viewModel = new MainViewModel();
+            DataContext = viewModel;
+            
+            // Subscribe to property changes for animation
+            viewModel.PropertyChanged += ViewModel_PropertyChanged;
             
             _mediaPlayer = new MediaPlayer();
-            _mediaPlayer.Volume = 0.3;
+            _mediaPlayer.Volume = Properties.Settings.Default.PreviewVolume / 100.0;
             
-            Closing += (s, e) => StopPreview();
+            // Initialize Discord RPC
+            DiscordRpcService.Initialize();
+
+            Closing += (s, e) => {
+                StopPreview();
+                DiscordRpcService.Shutdown();
+            };
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(MainViewModel.SelectedCount))
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    // Animate when going from 0 to non-zero
+                    if (_previousSelectedCount == 0 && vm.SelectedCount > 0)
+                    {
+                        AnimateSelectionPanelIn();
+                    }
+                    _previousSelectedCount = vm.SelectedCount;
+
+                    // Update Discord RPC with selection count
+                    if (vm.SelectedCount > 0)
+                    {
+                        DiscordRpcService.UpdateStatus("selected", vm.SelectedCount);
+                    }
+                    else
+                    {
+                        DiscordRpcService.UpdateStatus("idle", 0);
+                    }
+                }
+            }
+        }
+
+        private void AnimateSelectionPanelIn()
+        {
+            if (SelectionPanel == null) return;
+            
+            // Create slide-up and fade-in animation
+            var slideAnim = new DoubleAnimation
+            {
+                From = 30,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(300),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            
+            var fadeAnim = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(300),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            
+            // Apply to the selection panel
+            if (SelectionPanel.RenderTransform is TranslateTransform transform)
+            {
+                transform.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            }
+            SelectionPanel.BeginAnimation(OpacityProperty, fadeAnim);
+        }
+
+        /// <summary>
+        /// Animates a visual copy of the card shrinking and sliding to the selection panel badge.
+        /// </summary>
+        private void AnimateCardToSelectionPanel(Border cardBorder)
+        {
+            // Don't animate multi-audio cards (they expand instead)
+            if (cardBorder.DataContext is MapItemGroup mapGroup && mapGroup.HasMultipleDifferentAudios)
+                return;
+            
+            try
+            {
+                // Get card position relative to the window
+                var cardPos = cardBorder.TransformToAncestor(this).Transform(new Point(0, 0));
+                
+                // Create a visual copy of the card with glow effect
+                var cardVisual = new VisualBrush(cardBorder);
+                var ghost = new Border
+                {
+                    Width = cardBorder.ActualWidth,
+                    Height = cardBorder.ActualHeight,
+                    Background = cardVisual,
+                    CornerRadius = new CornerRadius(6),
+                    RenderTransformOrigin = new Point(0.5, 0.5),
+                    IsHitTestVisible = false,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(cardPos.X, cardPos.Y, 0, 0),
+                    Effect = new DropShadowEffect
+                    {
+                        Color = Color.FromRgb(91, 159, 237),
+                        BlurRadius = 20,
+                        ShadowDepth = 0,
+                        Opacity = 0.8
+                    }
+                };
+                
+                // Enable bitmap caching for smoother animation
+                ghost.CacheMode = new BitmapCache { EnableClearType = false, SnapsToDevicePixels = true };
+                
+                // Set high z-index so it's above everything
+                Panel.SetZIndex(ghost, 9999);
+                
+                // If in a grid, span all rows/columns
+                if (Content is Grid mainGrid)
+                {
+                    Grid.SetRowSpan(ghost, 100);
+                    Grid.SetColumnSpan(ghost, 100);
+                    mainGrid.Children.Add(ghost);
+                    
+                    // Get the exact position of the selection panel
+                    double targetX, targetY;
+                    if (SelectionPanel != null && SelectionPanel.IsVisible)
+                    {
+                        var panelPos = SelectionPanel.TransformToAncestor(this).Transform(new Point(0, 0));
+                        targetX = panelPos.X + 60; // Center of the badge
+                        targetY = panelPos.Y + 15;
+                    }
+                    else
+                    {
+                        // Fallback to bottom left area
+                        targetX = 100;
+                        targetY = this.ActualHeight - 80;
+                    }
+                    
+                    // Calculate for card center to land at target
+                    targetX -= cardBorder.ActualWidth * 0.075; // Account for scale (0.15/2)
+                    targetY -= cardBorder.ActualHeight * 0.075;
+                    
+                    // Animate margin for position with smooth curve
+                    var animMargin = new ThicknessAnimation
+                    {
+                        From = new Thickness(cardPos.X, cardPos.Y, 0, 0),
+                        To = new Thickness(targetX, targetY, 0, 0),
+                        Duration = TimeSpan.FromMilliseconds(450),
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                    };
+                    
+                    // Scale down smoothly
+                    var scaleTransform = new ScaleTransform(1, 1);
+                    ghost.RenderTransform = scaleTransform;
+                    
+                    var scaleAnim = new DoubleAnimation
+                    {
+                        From = 1,
+                        To = 0.12,
+                        Duration = TimeSpan.FromMilliseconds(450),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+                    };
+                    
+                    // Slight rotation for more dynamic feel
+                    var rotateTransform = new RotateTransform(0);
+                    var transformGroup = new TransformGroup();
+                    transformGroup.Children.Add(scaleTransform);
+                    transformGroup.Children.Add(rotateTransform);
+                    ghost.RenderTransform = transformGroup;
+                    
+                    var rotateAnim = new DoubleAnimation
+                    {
+                        From = 0,
+                        To = -5,
+                        Duration = TimeSpan.FromMilliseconds(450),
+                        EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                    };
+                    
+                    // Fade out at the end
+                    var fadeAnim = new DoubleAnimation
+                    {
+                        From = 1,
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(120),
+                        BeginTime = TimeSpan.FromMilliseconds(380)
+                    };
+                    
+                    // Animate the glow getting brighter then fading
+                    var glowAnim = new DoubleAnimation
+                    {
+                        From = 0.8,
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(450),
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+                    };
+                    
+                    fadeAnim.Completed += (s, e) =>
+                    {
+                        mainGrid.Children.Remove(ghost);
+                    };
+                    
+                    ghost.BeginAnimation(MarginProperty, animMargin);
+                    scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+                    scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+                    rotateTransform.BeginAnimation(RotateTransform.AngleProperty, rotateAnim);
+                    ghost.BeginAnimation(OpacityProperty, fadeAnim);
+                    if (ghost.Effect is DropShadowEffect glow)
+                    {
+                        glow.BeginAnimation(DropShadowEffect.OpacityProperty, glowAnim);
+                    }
+                }
+            }
+            catch { /* Ignore animation errors */ }
+        }
+
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Update version display
+            if (VersionText != null)
+            {
+                VersionText.Text = $"osu!tag {AppVersion.Display}";
+            }
+            
+            // Check for updates on startup if enabled
+            if (Properties.Settings.Default.CheckForUpdates)
+            {
+                await CheckForUpdatesAsync();
+            }
+        }
+        
+        private UpdateInfo? _latestUpdateInfo;
+        private bool _isDownloading = false;
+        
+        private async Task CheckForUpdatesAsync()
+        {
+            try
+            {
+                var updateInfo = await UpdateService.CheckForUpdatesAsync();
+                if (updateInfo != null && updateInfo.IsNewer)
+                {
+                    // Check if user chose to skip this version
+                    var skippedVersion = Properties.Settings.Default.SkipUpdateVersion;
+                    if (skippedVersion == updateInfo.Version)
+                    {
+                        // User skipped this version, just show in footer
+                        _latestUpdateInfo = updateInfo;
+                        UpdateVersionDisplay(true, updateInfo.Version);
+                        return;
+                    }
+                    
+                    _latestUpdateInfo = updateInfo;
+                    UpdateVersionDisplay(true, updateInfo.Version);
+                    
+                    // Show update modal after a short delay
+                    await Task.Delay(1000);
+                    ShowUpdateModal(updateInfo);
+                }
+            }
+            catch
+            {
+                // Silently ignore update check failures
+            }
+        }
+        
+        private void UpdateVersionDisplay(bool updateAvailable, string newVersion = "")
+        {
+            if (VersionText != null)
+            {
+                VersionText.Text = $"osu!tag {AppVersion.Display}";
+            }
+            if (UpdateAvailableText != null)
+            {
+                UpdateAvailableText.Visibility = updateAvailable ? Visibility.Visible : Visibility.Collapsed;
+                if (updateAvailable)
+                {
+                    UpdateAvailableText.Text = $"Update available: {newVersion}";
+                }
+            }
+        }
+        
+        private void ShowUpdateModal(UpdateInfo updateInfo)
+        {
+            if (UpdateOverlay == null) return;
+            
+            // Populate modal content
+            UpdateModalCurrentVersion.Text = AppVersion.Display;
+            UpdateModalNewVersion.Text = updateInfo.Version;
+            
+            // Format release notes
+            var notes = updateInfo.ReleaseNotes;
+            if (string.IsNullOrEmpty(notes))
+            {
+                notes = "• Bug fixes and improvements";
+            }
+            else
+            {
+                if (notes.Length > 300)
+                    notes = notes.Substring(0, 300) + "...";
+            }
+            UpdateModalNotes.Text = notes;
+            
+            // Reset UI state
+            DownloadProgressPanel.Visibility = Visibility.Collapsed;
+            UpdateButtonsPanel.Visibility = Visibility.Visible;
+            UpdateNowButton.IsEnabled = true;
+            UpdateNowButton.Content = "Download & Install";
+            _isDownloading = false;
+            
+            // Show overlay with animation
+            UpdateOverlay.Visibility = Visibility.Visible;
+            AnimateUpdateModalIn();
+        }
+        
+        private void AnimateUpdateModalIn()
+        {
+            var storyboard = new Storyboard();
+            
+            // Fade in the overlay
+            UpdateOverlay.Opacity = 0;
+            var fadeIn = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(200),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(fadeIn, UpdateOverlay);
+            Storyboard.SetTargetProperty(fadeIn, new PropertyPath(OpacityProperty));
+            storyboard.Children.Add(fadeIn);
+            
+            storyboard.Begin();
+        }
+        
+        public void ShowUpdateModalFromSettings(UpdateInfo updateInfo)
+        {
+            _latestUpdateInfo = updateInfo;
+            ShowUpdateModal(updateInfo);
+        }
+        
+        private void HideUpdateModal()
+        {
+            if (UpdateOverlay == null || _isDownloading) return;
+            UpdateOverlay.Visibility = Visibility.Collapsed;
+        }
+        
+        private void UpdateOverlay_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Close when clicking outside the modal (but not during download)
+            if (!_isDownloading)
+            {
+                HideUpdateModal();
+            }
+        }
+        
+        private async void UpdateNow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_latestUpdateInfo == null || _isDownloading) return;
+            
+            _isDownloading = true;
+            UpdateNowButton.IsEnabled = false;
+            UpdateNowButton.Content = "Downloading...";
+            
+            // Show progress panel
+            DownloadProgressPanel.Visibility = Visibility.Visible;
+            DownloadProgressBar.Value = 0;
+            DownloadProgressText.Text = "0%";
+            DownloadStatusText.Text = "Downloading update...";
+            
+            // Create progress reporter
+            var progress = new Progress<(long downloaded, long total)>(p =>
+            {
+                var percent = p.total > 0 ? (int)((double)p.downloaded / p.total * 100) : 0;
+                DownloadProgressBar.Value = percent;
+                DownloadProgressText.Text = $"{percent}%";
+                
+                var downloadedMB = p.downloaded / 1024.0 / 1024.0;
+                var totalMB = p.total / 1024.0 / 1024.0;
+                DownloadStatusText.Text = $"Downloading... {downloadedMB:F1} MB / {totalMB:F1} MB";
+            });
+            
+            // Download the update
+            var downloadPath = await UpdateService.DownloadUpdateAsync(_latestUpdateInfo, progress);
+            
+            if (downloadPath != null)
+            {
+                DownloadStatusText.Text = "Installing update...";
+                DownloadProgressText.Text = "100%";
+                
+                await Task.Delay(500);
+                
+                // Apply the update (this will close the app)
+                if (UpdateService.ApplyUpdate(downloadPath))
+                {
+                    DownloadStatusText.Text = "Restarting...";
+                    await Task.Delay(300);
+                    Application.Current.Shutdown();
+                }
+                else
+                {
+                    // Fallback: open download page
+                    DownloadStatusText.Text = "Auto-update failed. Opening download page...";
+                    await Task.Delay(1000);
+                    UpdateService.OpenDownloadPage(_latestUpdateInfo.DownloadUrl);
+                    _isDownloading = false;
+                    HideUpdateModal();
+                }
+            }
+            else
+            {
+                DownloadStatusText.Text = "Download failed. Please try again.";
+                _isDownloading = false;
+                UpdateNowButton.IsEnabled = true;
+                UpdateNowButton.Content = "Retry";
+                
+                await Task.Delay(2000);
+                DownloadProgressPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+        
+        private void UpdateLater_Click(object sender, RoutedEventArgs e)
+        {
+            HideUpdateModal();
+        }
+        
+        private void SkipVersion_Click(object sender, RoutedEventArgs e)
+        {
+            if (_latestUpdateInfo != null)
+            {
+                // Save the skipped version
+                Properties.Settings.Default.SkipUpdateVersion = _latestUpdateInfo.Version;
+                Properties.Settings.Default.Save();
+            }
+            HideUpdateModal();
+        }
+        
+        private void UpdateAvailableText_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (_latestUpdateInfo != null)
+            {
+                ShowUpdateModal(_latestUpdateInfo);
+            }
         }
 
         private void MapItem_MouseEnter(object sender, MouseEventArgs e)
@@ -202,6 +635,32 @@ namespace OsuTag
         {
             if (sender is Border border && border.DataContext is MapItemGroup mapGroup)
             {
+                // If the card is expanded and we clicked inside the expanded area, ignore
+                if (mapGroup.IsExpanded)
+                {
+                    // Check if click originated from inside the selection area (audio files or difficulties)
+                    var clickedElement = e.OriginalSource as DependencyObject;
+                    if (clickedElement != null)
+                    {
+                        // Walk up the tree to see if we clicked inside an ItemsControl (the selection list)
+                        var parent = clickedElement;
+                        while (parent != null)
+                        {
+                            if (parent is ItemsControl)
+                            {
+                                // Click was inside the audio/difficulty selection - don't handle here
+                                return;
+                            }
+                            if (parent == border)
+                            {
+                                // We've reached the card border without finding ItemsControl
+                                break;
+                            }
+                            parent = VisualTreeHelper.GetParent(parent);
+                        }
+                    }
+                }
+                
                 StopPreview();
                 
                 if (DataContext is MainViewModel viewModel)
@@ -211,25 +670,26 @@ namespace OsuTag
                 
                 if (mapGroup.HasMultipleDifferentRates || mapGroup.HasMultipleDifferentAudios)
                 {
-                    // Expand the card to show selection menu
+                    // Toggle expanded state
                     mapGroup.IsExpanded = !mapGroup.IsExpanded;
-                    // Don't toggle selection when expanding, only when collapsing and nothing is selected
-                    if (!mapGroup.IsExpanded)
-                    {
-                        // Check if any item is selected
-                        bool anySelected = mapGroup.HasMultipleDifferentAudios 
-                            ? mapGroup.UniqueAudioFiles.Any(f => f.IsSelected)
-                            : mapGroup.Difficulties.Any(d => d.IsSelected);
-                        if (!anySelected)
-                        {
-                            mapGroup.IsSelected = !mapGroup.IsSelected;
-                        }
-                    }
                 }
                 else
                 {
                     // Toggle selection for simple maps
+                    bool wasSelected = mapGroup.IsSelected;
                     mapGroup.IsSelected = !mapGroup.IsSelected;
+                    
+                    // Animate card flying to selection panel when selecting
+                    if (!wasSelected && mapGroup.IsSelected)
+                    {
+                        AnimateCardToSelectionPanel(border);
+                    }
+                    
+                    // Refresh selection panel
+                    if (DataContext is MainViewModel vm)
+                    {
+                        vm.RefreshSelectedItems();
+                    }
                 }
             }
         }
@@ -272,6 +732,8 @@ namespace OsuTag
                 
                 if (itemsControl?.DataContext is MapItemGroup mapGroup)
                 {
+                    bool wasSelected = audioFile.IsSelected;
+                    
                     if (audioFile.IsSelected)
                     {
                         // Clicking on already selected file deselects it and the card
@@ -289,9 +751,51 @@ namespace OsuTag
                         // Select the clicked file and the card
                         audioFile.IsSelected = true;
                         mapGroup.IsSelected = true;
+                        
+                        // Animate the card flying to selection panel
+                        var cardBorder = FindParent<Border>(itemsControl);
+                        if (cardBorder != null && cardBorder.DataContext is MapItemGroup)
+                        {
+                            AnimateCardToSelectionPanel(cardBorder);
+                        }
+                    }
+                    
+                    // Refresh selection panel
+                    if (DataContext is MainViewModel viewModel)
+                    {
+                        viewModel.RefreshSelectedItems();
                     }
                 }
                 
+                e.Handled = true;
+            }
+        }
+
+        private void AudioPreview_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is AudioFileItem audioFile)
+            {
+                if (!string.IsNullOrEmpty(audioFile.Mp3Path) && System.IO.File.Exists(audioFile.Mp3Path))
+                {
+                    try
+                    {
+                        _mediaPlayer?.Stop();
+                        _mediaPlayer?.Open(new Uri(audioFile.Mp3Path));
+                        
+                        if (audioFile.PreviewTime > 0 && _mediaPlayer != null)
+                        {
+                            _mediaPlayer.MediaOpened += OnMediaOpened;
+                            void OnMediaOpened(object? s, EventArgs args)
+                            {
+                                _mediaPlayer.Position = TimeSpan.FromMilliseconds(audioFile.PreviewTime);
+                                _mediaPlayer.MediaOpened -= OnMediaOpened;
+                            }
+                        }
+                        
+                        _mediaPlayer?.Play();
+                    }
+                    catch { }
+                }
                 e.Handled = true;
             }
         }
@@ -324,6 +828,12 @@ namespace OsuTag
                         
                         // Also select the card
                         mapGroup.IsSelected = true;
+                    }
+                    
+                    // Refresh selection panel
+                    if (DataContext is MainViewModel viewModel)
+                    {
+                        viewModel.RefreshSelectedItems();
                     }
                 }
                 
@@ -358,7 +868,7 @@ namespace OsuTag
             // This method is not used - expand/collapse is handled by binding
         }
 
-        private void Settings_Click(object sender, RoutedEventArgs e)
+        private async void Settings_Click(object sender, RoutedEventArgs e)
         {
             var settingsWindow = new SettingsWindow()
             {
@@ -368,11 +878,23 @@ namespace OsuTag
             
             if (settingsWindow.ShowDialog() == true)
             {
+                // Update media player volume
+                if (_mediaPlayer != null)
+                {
+                    _mediaPlayer.Volume = Properties.Settings.Default.PreviewVolume / 100.0;
+                }
+                
                 // Reload settings from Properties.Settings
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ProcessCovers = Properties.Settings.Default.ProcessCovers;
                     viewModel.CreateBackups = Properties.Settings.Default.CreateBackups;
+                    
+                    // Refresh Companella sorting if maps are already loaded
+                    if (viewModel.MapsLoaded)
+                    {
+                        await viewModel.RefreshCompanellaSorting();
+                    }
                 }
             }
         }
@@ -414,28 +936,34 @@ namespace OsuTag
             catch { }
         }
         
-        private bool _isLoadingMore = false;
-        
-        private async void CardsScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        private void CardsScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            // Prevent multiple simultaneous loads
-            if (_isLoadingMore) return;
-            
-            // Load more items when scrolling near the bottom
-            if (sender is ScrollViewer scrollViewer && DataContext is MainViewModel viewModel)
+            // Disabled auto-loading - user clicks Load More button instead
+        }
+        
+        private void SelectionPanel_HeaderClick(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
             {
-                // Check if we're within 300 pixels of the bottom
-                double distanceFromBottom = scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset;
-                
-                if (distanceFromBottom < 300 && viewModel.CanLoadMore)
+                viewModel.IsSelectionPanelExpanded = !viewModel.IsSelectionPanelExpanded;
+            }
+        }
+        
+        private void SelectionPanel_ClearClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.ClearSelection();
+            }
+        }
+        
+        private void SelectionPanel_RemoveItem(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is SelectedItemInfo item)
+            {
+                if (DataContext is MainViewModel viewModel)
                 {
-                    _isLoadingMore = true;
-                    
-                    // Small delay to batch rapid scroll events
-                    await Task.Delay(16); // ~1 frame at 60fps
-                    
-                    viewModel.LoadMoreItems();
-                    _isLoadingMore = false;
+                    viewModel.RemoveFromSelection(item);
                 }
             }
         }

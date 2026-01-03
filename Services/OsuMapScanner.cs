@@ -25,105 +25,172 @@ namespace OsuTag.Services
 
             Parallel.ForEach(folders, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, folder =>
             {
-                var map = ScanSingleFolder(folder);
-                if (map != null)
+                var folderMaps = ScanSingleFolder(folder);
+                foreach (var map in folderMaps)
+                {
                     maps.Add(map);
+                }
             });
 
             return maps;
         }
 
         /// <summary>
-        /// Scans a single beatmap folder and returns the map data, or null if invalid.
+        /// Scans a single beatmap folder and returns the map data.
+        /// Returns multiple maps if it's a practice pack with different audio files.
         /// </summary>
-        public OsuMap? ScanSingleFolder(string folder)
+        public IEnumerable<OsuMap> ScanSingleFolder(string folder)
         {
+            var results = new List<OsuMap>();
+            
             try
             {
-                // Use EnumerateFiles for faster first-match
-                var firstOsuFile = Directory.EnumerateFiles(folder, "*.osu").FirstOrDefault();
-                if (firstOsuFile == null)
-                    return null;
-
-                var metadata = ParseOsuFile(firstOsuFile);
-                if (metadata == null)
-                    return null;
-
-                // Get mp3 file early - if none exists, skip folder
-                var firstMp3 = Directory.EnumerateFiles(folder, "*.mp3").FirstOrDefault();
-                if (firstMp3 == null)
-                    return null;
-
-                int previewTime = -1;
-                if (metadata.TryGetValue("PreviewTime", out var previewStr) && 
-                    int.TryParse(previewStr, out int parsedTime))
-                {
-                    previewTime = parsedTime;
-                }
-
-                string? coverPath = null;
-                
-                // First try to get the background image from the .osu file
-                if (metadata.TryGetValue("BackgroundFile", out var bgFile) && !string.IsNullOrEmpty(bgFile))
-                {
-                    string bgPath = Path.Combine(folder, bgFile);
-                    if (File.Exists(bgPath))
-                        coverPath = bgPath;
-                }
-                
-                // Fallback to finding any image in the folder
-                if (coverPath == null)
-                    coverPath = FindCoverImage(folder);
-
                 var osuFiles = Directory.GetFiles(folder, "*.osu");
-                var mp3Files = Directory.GetFiles(folder, "*.mp3");
+                if (osuFiles.Length == 0)
+                    return results;
 
-                var difficulties = new List<OsuMapDifficulty>(osuFiles.Length);
+                // Parse all .osu files and group by audio file
+                var diffsByAudio = new Dictionary<string, List<(string osuFile, Dictionary<string, string?> metadata)>>(StringComparer.OrdinalIgnoreCase);
                 
                 foreach (var osuFile in osuFiles)
                 {
-                    var diffMetadata = osuFile == firstOsuFile ? metadata : ParseOsuFile(osuFile);
-                    if (diffMetadata == null)
+                    var metadata = ParseOsuFile(osuFile);
+                    if (metadata == null)
                         continue;
-
-                    string mp3Path = firstMp3;
-                    if (diffMetadata.TryGetValue("AudioFilename", out var audioFile) && 
-                        !string.IsNullOrEmpty(audioFile))
+                    
+                    // Get audio filename for this difficulty
+                    string audioKey = "default";
+                    if (metadata.TryGetValue("AudioFilename", out var audioFile) && !string.IsNullOrEmpty(audioFile))
                     {
                         string potentialMp3 = Path.Combine(folder, audioFile);
                         if (File.Exists(potentialMp3))
-                            mp3Path = potentialMp3;
+                        {
+                            audioKey = audioFile.ToLowerInvariant();
+                        }
                     }
                     
-                    string diffName = Path.GetFileNameWithoutExtension(osuFile);
-                    difficulties.Add(new OsuMapDifficulty
-                    {
-                        DifficultyName = diffName,
-                        OsuFilePath = osuFile,
-                        Mp3Path = mp3Path,
-                        Rate = ExtractRate(diffName)
-                    });
+                    if (!diffsByAudio.ContainsKey(audioKey))
+                        diffsByAudio[audioKey] = new List<(string, Dictionary<string, string?>)>();
+                    
+                    diffsByAudio[audioKey].Add((osuFile, metadata));
                 }
-
-                if (difficulties.Count == 0)
-                    return null;
-
-                return new OsuMap
+                
+                if (diffsByAudio.Count == 0)
+                    return results;
+                
+                // Check if this is a practice pack (multiple unique audio files)
+                bool isPracticePack = diffsByAudio.Count > 1;
+                
+                if (isPracticePack)
                 {
-                    Artist = metadata.GetValueOrDefault("Artist") ?? "Unknown",
-                    Title = metadata.GetValueOrDefault("Title") ?? "Unknown",
-                    Creator = metadata.GetValueOrDefault("Creator") ?? "Unknown",
-                    Source = metadata.GetValueOrDefault("Source"),
-                    Tags = metadata.GetValueOrDefault("Tags"),
-                    CoverPath = coverPath,
-                    Difficulties = difficulties,
-                    PreviewTime = previewTime
-                };
+                    // Create separate OsuMap for each unique audio file
+                    foreach (var (audioKey, diffs) in diffsByAudio)
+                    {
+                        var map = CreateMapFromDifficulties(folder, diffs, audioKey);
+                        if (map != null)
+                            results.Add(map);
+                    }
+                }
+                else
+                {
+                    // Normal map - single audio, use first .osu's metadata for the group
+                    var allDiffs = diffsByAudio.Values.First();
+                    var map = CreateMapFromDifficulties(folder, allDiffs, diffsByAudio.Keys.First());
+                    if (map != null)
+                        results.Add(map);
+                }
             }
             catch
             {
-                return null;
+                // Ignore errors
             }
+            
+            return results;
+        }
+        
+        private OsuMap? CreateMapFromDifficulties(string folder, List<(string osuFile, Dictionary<string, string?> metadata)> diffs, string audioKey)
+        {
+            if (diffs.Count == 0)
+                return null;
+            
+            // Use the first difficulty's metadata for the map info
+            var primaryMetadata = diffs[0].metadata;
+            
+            // Get the mp3 path
+            string? mp3Path = null;
+            if (primaryMetadata.TryGetValue("AudioFilename", out var audioFile) && !string.IsNullOrEmpty(audioFile))
+            {
+                string potentialMp3 = Path.Combine(folder, audioFile);
+                if (File.Exists(potentialMp3))
+                    mp3Path = potentialMp3;
+            }
+            
+            // Fallback to first mp3 in folder
+            if (mp3Path == null)
+            {
+                mp3Path = Directory.EnumerateFiles(folder, "*.mp3").FirstOrDefault();
+                if (mp3Path == null)
+                    return null;
+            }
+            
+            int previewTime = -1;
+            if (primaryMetadata.TryGetValue("PreviewTime", out var previewStr) && 
+                int.TryParse(previewStr, out int parsedTime))
+            {
+                previewTime = parsedTime;
+            }
+
+            string? coverPath = null;
+            
+            // Try to get the background image from the .osu file
+            if (primaryMetadata.TryGetValue("BackgroundFile", out var bgFile) && !string.IsNullOrEmpty(bgFile))
+            {
+                string bgPath = Path.Combine(folder, bgFile);
+                if (File.Exists(bgPath))
+                    coverPath = bgPath;
+            }
+            
+            // Fallback to finding any image in the folder
+            if (coverPath == null)
+                coverPath = FindCoverImage(folder);
+
+            var difficulties = new List<OsuMapDifficulty>(diffs.Count);
+            
+            foreach (var (osuFile, diffMetadata) in diffs)
+            {
+                string diffMp3Path = mp3Path;
+                if (diffMetadata.TryGetValue("AudioFilename", out var diffAudioFile) && 
+                    !string.IsNullOrEmpty(diffAudioFile))
+                {
+                    string potentialMp3 = Path.Combine(folder, diffAudioFile);
+                    if (File.Exists(potentialMp3))
+                        diffMp3Path = potentialMp3;
+                }
+                
+                string diffName = Path.GetFileNameWithoutExtension(osuFile);
+                difficulties.Add(new OsuMapDifficulty
+                {
+                    DifficultyName = diffName,
+                    OsuFilePath = osuFile,
+                    Mp3Path = diffMp3Path,
+                    Rate = ExtractRate(diffName)
+                });
+            }
+
+            if (difficulties.Count == 0)
+                return null;
+
+            return new OsuMap
+            {
+                Artist = primaryMetadata.GetValueOrDefault("Artist") ?? "Unknown",
+                Title = primaryMetadata.GetValueOrDefault("Title") ?? "Unknown",
+                Creator = primaryMetadata.GetValueOrDefault("Creator") ?? "Unknown",
+                Source = primaryMetadata.GetValueOrDefault("Source"),
+                Tags = primaryMetadata.GetValueOrDefault("Tags"),
+                CoverPath = coverPath,
+                Difficulties = difficulties,
+                PreviewTime = previewTime
+            };
         }
 
         private static string? ExtractRate(string difficultyName)

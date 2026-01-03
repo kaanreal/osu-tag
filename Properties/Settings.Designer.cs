@@ -132,5 +132,89 @@ namespace OsuTag.Properties {
                 this["ScannedFolders"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool SortByMostPlayed {
+            get {
+                return ((bool)(this["SortByMostPlayed"]));
+            }
+            set {
+                this["SortByMostPlayed"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(@"C:\Users\Kaan\AppData\Local\Companella")]
+        public string CompanellaPath {
+            get {
+                return ((string)(this["CompanellaPath"]));
+            }
+            set {
+                this["CompanellaPath"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool CheckForUpdates {
+            get {
+                return ((bool)(this["CheckForUpdates"]));
+            }
+            set {
+                this["CheckForUpdates"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string SkipUpdateVersion {
+            get {
+                return ((string)(this["SkipUpdateVersion"]));
+            }
+            set {
+                this["SkipUpdateVersion"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool TelemetryEnabled {
+            get {
+                return ((bool)(this["TelemetryEnabled"]));
+            }
+            set {
+                this["TelemetryEnabled"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool DiscordRpcEnabled {
+            get {
+                return ((bool)(this["DiscordRpcEnabled"]));
+            }
+            set {
+                this["DiscordRpcEnabled"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string AnonymousUserId {
+            get {
+                return ((string)(this["AnonymousUserId"]));
+            }
+            set {
+                this["AnonymousUserId"] = value;
+            }
+        }
     }
 }
