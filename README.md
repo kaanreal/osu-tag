@@ -20,21 +20,28 @@
 
 ## Features
 
-- 🎵 **Batch Convert** - Convert multiple beatmaps to tagged MP3s at once
-- 🏷️ **Auto-Tagging** - Automatically applies ID3 tags (Artist, Title, Album Art)
-- 🖼️ **Cover Art** - Extracts and embeds beatmap backgrounds as album covers
-- 🔍 **Smart Scan** - Only scans new beatmap folders on subsequent launches
-- 🎧 **Audio Preview** - Hover over maps to preview the audio
-- ⚡ **Fast Loading** - Virtual scrolling handles thousands of beatmaps smoothly
-- 💾 **Remember Path** - Automatically loads your Songs folder on startup
+* 🎵 **Batch Convert** – Convert multiple beatmaps to tagged MP3s at once
+* 🏷️ **Auto-Tagging** – Automatically applies ID3 tags (Artist, Title, Album Art)
+* 🖼️ **Cover Art** – Extracts and embeds beatmap backgrounds as album covers
+* 🔍 **Smart Scan** – Only scans new beatmap folders on subsequent launches
+* 🎧 **Audio Preview** – Hover over maps to preview the audio
+* ⚡ **Fast Loading** – Virtual scrolling handles thousands of beatmaps smoothly
+* 💾 **Remember Path** – Automatically loads your Songs folder on startup
+* 🟣 **Discord Rich Presence** – Shows conversion status, selection count, and app activity on your Discord profile
+* ⚙️ **Discord RPC Toggle** – Enable or disable Discord integration instantly from the settings window
+* 📊 **Anonymous Telemetry** – Optional anonymous usage statistics to help improve osu!tag (can be disabled in settings)
+* 📈 **Companella! Integration** – Automatically detects the Companella! database in AppData to display play count and stats ([Companella!](https://github.com/Leinadix/companella))
+* 🔄 **Update Checker** – Checks for new releases on startup and manually from the settings window
 
 ## Installation
 
 ### Requirements
-- Windows 10/11
-- .NET 8.0 Runtime ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
+
+* Windows 10/11
+* .NET 8.0 Runtime ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
 
 ### Download
+
 1. Go to the [Releases](../../releases) page
 2. Download the latest `osu-tag-vX.X.X.zip`
 3. Extract to any folder
@@ -42,29 +49,34 @@
 
 ## Usage
 
-1. **Select Songs Folder** - Click "Browse" or "Use Default Path" to select your osu! Songs folder
-2. **Wait for Scan** - The app will scan all beatmap folders (cached for faster subsequent loads)
-3. **Select Maps** - Click on maps to select them, or use "Select All"
-4. **Choose Output** - Set your output folder location
-5. **Convert** - Click "Start Conversion" to create tagged MP3 files
+1. **Select Songs Folder** – Click "Browse" or "Use Default Path" to select your osu! Songs folder
+2. **Wait for Scan** – The app will scan all beatmap folders (cached for faster subsequent loads)
+3. **Select Maps** – Click on maps to select them, or use "Select All"
+4. **Choose Output** – Set your output folder location
+5. **Convert** – Click "Start Conversion" to create tagged MP3 files
 
 ### Tips
-- **Multiple Audio Files**: Some beatmaps have multiple audio files (e.g., different rates). Click the expand button to select specific ones.
-- **Preview**: Hover over a map card to preview the audio
-- **Search**: Use the search bar to filter maps by artist, title, mapper, or tags
+
+* **Multiple Audio Files**: Some beatmaps have multiple audio files (e.g. different rates). Click the expand button to select specific ones.
+* **Preview**: Hover over a map card to preview the audio
+* **Search**: Use the search bar to filter maps by artist, title, mapper, or tags
 
 ## Screenshots
 
 ### Main Interface
+
 ![Main Interface](screenshots/main.png)
 
 ### Map Selection
+
 ![Map Selection](screenshots/selection.png)
 
 ### Settings
+
 ![Settings](screenshots/settings.png)
 
 ### Conversion Progress
+
 ![Conversion](screenshots/conversion.png)
 
 ## Building from Source
@@ -83,13 +95,13 @@ dotnet run
 
 ## Tech Stack
 
-- **Framework**: WPF (.NET 8.0)
-- **Image Processing**: SixLabors.ImageSharp
-- **Audio Tagging**: TagLibSharp
+* **Framework**: WPF (.NET 8.0)
+* **Image Processing**: SixLabors.ImageSharp
+* **Audio Tagging**: TagLibSharp
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) for details.
+MIT License – See [LICENSE](LICENSE) for details.
 
 ---
 
