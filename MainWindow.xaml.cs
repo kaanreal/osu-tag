@@ -386,6 +386,87 @@ namespace OsuTag
             _latestUpdateInfo = updateInfo;
             ShowUpdateModal(updateInfo);
         }
+
+
+        private bool _suppressOverlayUpdate = false;
+        private ScrollViewer? _flowInnerScrollViewer;
+        private ScrollViewer? _fallbackInnerScrollViewer;
+
+        private void UpdateModalNotesCard_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (UpdateModalNotesCard != null)
+            {
+                UpdateModalNotesCard.Clip = new RectangleGeometry(new Rect(0, 0, UpdateModalNotesCard.ActualWidth, UpdateModalNotesCard.ActualHeight), 10, 10);
+            }
+        }
+
+        private void UpdateModalNotesCard_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Find inner ScrollViewer inside FlowDocumentScrollViewer
+            _flowInnerScrollViewer = FindDescendant<ScrollViewer>(UpdateModalFlowViewer);
+            if (_flowInnerScrollViewer != null)
+            {
+                _flowInnerScrollViewer.ScrollChanged += InnerScrollViewer_ScrollChanged;
+            }
+
+            // Fallback scrollviewer
+            _fallbackInnerScrollViewer = FindDescendant<ScrollViewer>(UpdateFallbackScrollViewer);
+            if (_fallbackInnerScrollViewer != null)
+            {
+                _fallbackInnerScrollViewer.ScrollChanged += InnerScrollViewer_ScrollChanged;
+            }
+        }
+
+        private T? FindDescendant<T>(DependencyObject? parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            var childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var found = FindDescendant<T>(child);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private void InnerScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
+        {
+            if (_suppressOverlayUpdate) return;
+            var sv = sender as ScrollViewer;
+            if (sv == null) return;
+
+            _suppressOverlayUpdate = true;
+            try
+            {
+                UpdateModalOverlayScrollBar.Visibility = Visibility.Visible;
+                UpdateModalOverlayScrollBar.Minimum = 0;
+                UpdateModalOverlayScrollBar.Maximum = sv.ScrollableHeight;
+                UpdateModalOverlayScrollBar.ViewportSize = sv.ViewportHeight;
+                UpdateModalOverlayScrollBar.Value = sv.VerticalOffset;
+            }
+            finally
+            {
+                _suppressOverlayUpdate = false;
+            }
+        }
+
+        private void UpdateModalOverlayScrollBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_suppressOverlayUpdate) return;
+            var target = (_flowInnerScrollViewer != null && UpdateModalFlowViewer.Visibility == Visibility.Visible) ? _flowInnerScrollViewer : _fallbackInnerScrollViewer;
+            if (target == null) return;
+            _suppressOverlayUpdate = true;
+            try
+            {
+                target.ScrollToVerticalOffset(e.NewValue);
+            }
+            finally
+            {
+                _suppressOverlayUpdate = false;
+            }
+        }
         
         private void HideUpdateModal()
         {
