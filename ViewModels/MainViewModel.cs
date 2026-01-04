@@ -1294,6 +1294,16 @@ namespace OsuTag.ViewModels
             }
 
             AddResult("Done!", $"All maps saved to: {config.OutputDir}");
+
+            // Telemetry: send conversion count
+            try
+            {
+                _ = TelemetryService.TrackTotalConversions(itemsToConvert.Count);
+            }
+            catch
+            {
+                // ignore telemetry errors
+            }
         }
 
         private void AddResult(string title, string message)

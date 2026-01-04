@@ -8,6 +8,10 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Linq;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
+using System.Windows.Documents;
 using OsuTag.ViewModels;
 using OsuTag.Services;
 
@@ -21,6 +25,8 @@ namespace OsuTag
         public MainWindow()
         {
             InitializeComponent();
+            // FlowDocument hyperlinks will open in system browser via their Click handler; no WebBrowser hookup required.
+
             var viewModel = new MainViewModel();
             DataContext = viewModel;
             
@@ -308,24 +314,46 @@ namespace OsuTag
             UpdateModalCurrentVersion.Text = AppVersion.Display;
             UpdateModalNewVersion.Text = updateInfo.Version;
             
-            // Format release notes
+            // Format release notes (render Markdown -> HTML)
             var notes = updateInfo.ReleaseNotes;
             if (string.IsNullOrEmpty(notes))
             {
                 notes = "• Bug fixes and improvements";
             }
-            else
+
+            // Render Markdown into a FlowDocument and display in the native FlowDocumentScrollViewer (avoids WebBrowser airspace issues)
+            try
             {
-                if (notes.Length > 300)
-                    notes = notes.Substring(0, 300) + "...";
+                if (UpdateModalFlowViewer != null)
+                {
+                    UpdateModalFlowViewer.Document = RenderMarkdownToFlowDocument(notes ?? "• Bug fixes and improvements");
+                    UpdateModalFlowViewer.Visibility = Visibility.Visible;
+                    // hide any old fallback text control if present
+                    if (UpdateModalNotesFallbackBorder != null) UpdateModalNotesFallbackBorder.Visibility = Visibility.Collapsed;
+                }
+                else if (UpdateModalNotesFallback != null)
+                {
+                    UpdateModalNotesFallback.Text = notes ?? "• Bug fixes and improvements";
+                    UpdateModalNotesFallbackBorder.Visibility = Visibility.Visible;
+                }
             }
-            UpdateModalNotes.Text = notes;
+            catch
+            {
+                // Fallback: plain text display
+                if (UpdateModalNotesFallback != null)
+                {
+                    UpdateModalNotesFallback.Text = notes ?? "• Bug fixes and improvements";
+                    UpdateModalNotesFallbackBorder.Visibility = Visibility.Visible;
+                }
+            }
             
             // Reset UI state
             DownloadProgressPanel.Visibility = Visibility.Collapsed;
             UpdateButtonsPanel.Visibility = Visibility.Visible;
             UpdateNowButton.IsEnabled = true;
             UpdateNowButton.Content = "Download & Install";
+            // Ensure FlowViewer is visible and buttons are not covered
+            if (UpdateModalFlowViewer != null) UpdateModalFlowViewer.Visibility = Visibility.Visible;
             _isDownloading = false;
             
             // Show overlay with animation
@@ -374,6 +402,9 @@ namespace OsuTag
             }
         }
         
+
+        // No longer used — FlowDocument hyperlinks open via their Click handler
+
         private async void UpdateNow_Click(object sender, RoutedEventArgs e)
         {
             if (_latestUpdateInfo == null || _isDownloading) return;
@@ -460,6 +491,125 @@ namespace OsuTag
             if (_latestUpdateInfo != null)
             {
                 ShowUpdateModal(_latestUpdateInfo);
+            }
+        }
+
+        // Convert a simple subset of Markdown to a FlowDocument for native rendering (headings, lists, bold, italic, code, links)
+        
+        private FlowDocument RenderMarkdownToFlowDocument(string markdown)
+        {
+            var doc = new FlowDocument();
+            doc.FontFamily = new FontFamily("Segoe UI");
+            doc.FontSize = 13;
+            doc.Foreground = (Brush)FindResource("TextPrimaryBrush");
+            doc.PagePadding = new Thickness(0);
+
+            var lines = Regex.Split(markdown.Trim(), @"\r?\n");
+            List list = null;
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.TrimEnd();
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    if (list != null)
+                    {
+                        doc.Blocks.Add(list);
+                        list = null;
+                    }
+                    continue;
+                }
+
+                // Headings # ...
+                var headingMatch = Regex.Match(line, @"^\s*(#{1,6})\s+(.*)");
+                if (headingMatch.Success)
+                {
+                    if (list != null) { doc.Blocks.Add(list); list = null; }
+                    var level = headingMatch.Groups[1].Value.Length;
+                    var text = headingMatch.Groups[2].Value.Trim();
+                    var p = new Paragraph();
+                    var run = new Run(text) { Foreground = Brushes.White };
+                    // Size by level
+                    switch (level)
+                    {
+                        case 1: run.FontSize = 15; break;
+                        case 2: run.FontSize = 14; break;
+                        default: run.FontSize = 13; break;
+                    }
+                    run.FontWeight = FontWeights.SemiBold;
+                    p.Inlines.Add(run);
+                    p.Margin = new Thickness(0, 6, 0, 6);
+                    doc.Blocks.Add(p);
+                    continue;
+                }
+
+                // Bulleted list - lines starting with - or *
+                var listMatch = Regex.Match(line, @"^\s*[-\*]\s+(.*)");
+                if (listMatch.Success)
+                {
+                    var itemText = listMatch.Groups[1].Value.Trim();
+                    if (list == null) { list = new List() { MarkerStyle = TextMarkerStyle.Disc, Margin = new Thickness(0,4,0,8) }; }
+                    var li = new ListItem(new Paragraph());
+                    foreach (var inline in ParseInlines(itemText)) li.Blocks.Add(new Paragraph(new Span(inline)));
+                    list.ListItems.Add(li);
+                    continue;
+                }
+
+                // Plain paragraph
+                if (list != null) { doc.Blocks.Add(list); list = null; }
+                var para = new Paragraph();
+                para.Margin = new Thickness(0, 2, 0, 6);
+                foreach (var inline in ParseInlines(line)) para.Inlines.Add(inline);
+                doc.Blocks.Add(para);
+            }
+
+            if (list != null) doc.Blocks.Add(list);
+            return doc;
+        }
+
+        private IEnumerable<Inline> ParseInlines(string text)
+        {
+            var pos = 0;
+            var pattern = new Regex(@"(\[([^\]]+)\]\(([^)]+)\))|(\*\*([^*]+)\*\*)|(`([^`]+)`)|(\*([^*]+)\*)", RegexOptions.Compiled);
+            foreach (Match m in pattern.Matches(text))
+            {
+                if (m.Index > pos)
+                {
+                    yield return new Run(text.Substring(pos, m.Index - pos));
+                }
+                if (m.Groups[1].Success)
+                {
+                    // link [text](url)
+                    var linkText = m.Groups[2].Value;
+                    var url = m.Groups[3].Value;
+                    var hl = new Hyperlink(new Run(linkText)) { NavigateUri = new Uri(url, UriKind.RelativeOrAbsolute) };
+                    hl.Click += (s, e) => {
+                        try { Process.Start(new ProcessStartInfo(hl.NavigateUri.AbsoluteUri) { UseShellExecute = true }); } catch { }
+                    };
+                    yield return hl;
+                }
+                else if (m.Groups[4].Success)
+                {
+                    // bold **text**
+                    var bold = new Bold(new Run(m.Groups[5].Value));
+                    yield return bold;
+                }
+                else if (m.Groups[6].Success)
+                {
+                    // code `text`
+                    var span = new Span(new Run(m.Groups[7].Value)) { Background = new SolidColorBrush(Color.FromRgb(16,19,22)) , FontFamily = new FontFamily("Consolas"), FontSize = 12 };
+                    yield return span;
+                }
+                else if (m.Groups[8].Success)
+                {
+                    // italic *text*
+                    var italic = new Italic(new Run(m.Groups[9].Value));
+                    yield return italic;
+                }
+                pos = m.Index + m.Length;
+            }
+            if (pos < text.Length)
+            {
+                yield return new Run(text.Substring(pos));
             }
         }
 

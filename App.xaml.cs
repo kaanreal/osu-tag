@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using OsuTag.Services;
 
 namespace OsuTag
 {
@@ -116,6 +117,24 @@ namespace OsuTag
                 var ex = (Exception)args.ExceptionObject;
                 MessageBox.Show($"An unexpected error occurred:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             };
+            
+            // Initialize and track app launch (fire-and-forget)
+            _ = TelemetryService.TrackAppLaunch();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            // Mark session stop for telemetry and give it a best-effort send
+            try
+            {
+                _ = TelemetryService.TrackSessionStop();
+            }
+            catch
+            {
+                // swallow any errors - telemetry must not crash the app
+            }
+
+            base.OnExit(e);
         }
     }
 }
