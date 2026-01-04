@@ -440,9 +440,10 @@
                             Style="{StaticResource SecondaryButton}" 
                             Command="{Binding DeselectAllCommand}" 
                             Margin="0,0,16,0"/>
-                    <Button Content="Convert" 
-                            Style="{StaticResource PrimaryButton}" 
-                            Command="{Binding StartConversionCommand}"/>
+                    <Button Content="⚙ Settings" 
+                            Style="{StaticResource SecondaryButton}" 
+                            Click="Settings_Click" 
+                            HorizontalAlignment="Left"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -1546,11 +1547,11 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Settings Button -->
+                <!-- Convert Button (swapped into Settings location) -->
                 <Button Grid.Row="0"
-                        Content="⚙ Settings" 
+                        Content="Convert" 
                         Style="{StaticResource PrimaryButton}"
-                        Click="Settings_Click"
+                        Command="{Binding StartConversionCommand}"
                         Margin="0,0,0,20"
                         HorizontalAlignment="Stretch"
                         Opacity="0">
