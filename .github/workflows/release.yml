@@ -120,12 +120,14 @@ jobs:
             Write-Host "Found ZIP: $zipFound (relative: $relzip)"
           } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $($zipCandidates -join ', ')" }
 
+
       - name: Generate Release Notes
         id: release_notes
         run: |
-          # Get commits since previous tag
-          $prevTag = git describe --tags --abbrev=0 HEAD^
-          $commits = git log $prevTag..HEAD --pretty=format:"%s"
+          # Get commits between previous and current tag
+          $currTag = git describe --tags --abbrev=0
+          $prevTag = git describe --tags --abbrev=0 $currTag^
+          $commits = git log $prevTag..$currTag --pretty=format:"%s"
 
           # Initialize sections
           $features = ""
@@ -159,11 +161,9 @@ jobs:
           Download the new version and enjoy a smoother experience and easier installation.
           "@
 
-                    $notesPath = "$PWD/release_notes.md"
-                    $notes | Out-File -FilePath $notesPath -Encoding utf8
-                    echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
-              
-          
+          $notesPath = "$PWD/release_notes.md"
+          $notes | Out-File -FilePath $notesPath -Encoding utf8
+          echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
 
       - name: Upload Artifacts and Set Release Notes
         uses: softprops/action-gh-release@v1
