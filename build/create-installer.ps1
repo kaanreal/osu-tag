@@ -103,17 +103,12 @@ if ([string]::IsNullOrWhiteSpace($PublishPath) -or -not (Test-Path $PublishPath)
 $zipName = "OsuTag-$Version.zip"
 $zipPath = Join-Path $OutputDir $zipName
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-Add-Type -AssemblyName System.IO.Compression.FileSystem
 $excludes = @('README.md','LICENSE','app.ico','installer_wizard.bmp')
-$zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
-try {
-    Get-ChildItem -Path $PublishPath -Recurse -File | ForEach-Object {
-        if ($excludes -contains $_.Name) { return }
-        $relative = $_.FullName.Substring($PublishPath.Length).TrimStart('\','/')
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $relative, [System.IO.Compression.CompressionLevel]::Optimal)
-    }
-} finally {
-    $zip.Dispose()
+$filesToZip = Get-ChildItem -Path $PublishPath -Recurse -File | Where-Object { $excludes -notcontains $_.Name } | ForEach-Object { $_.FullName }
+if ($filesToZip.Count -eq 0) {
+    Write-Warning "No files found to add to ZIP from publish path: $PublishPath"
+} else {
+    Compress-Archive -LiteralPath $filesToZip -DestinationPath $zipPath -Force
 }
 Write-Host "Created publish zip: $zipPath"
 
@@ -178,8 +173,18 @@ if (Test-Path $logoPng) {
     } catch {
         Write-Warning "Failed to convert logo to BMP for installer wizard: $_"
     }
+}
+
+# Ensure wizard BMP path is absolute so Inno Setup can find it
+if (Test-Path $wizardBmp) {
+    try {
+        $wizardBmp = (Resolve-Path $wizardBmp -ErrorAction Stop).Path
+        Write-Host "Resolved wizard BMP to: $wizardBmp"
+    } catch {
+        Write-Warning "Wizard BMP exists but could not be resolved: $wizardBmp"
+    }
 } else {
-    Write-Host "No screenshots/logo.png found, skipping wizard image generation"
+    Write-Host "No wizard BMP generated; installer will not show a wizard image"
 } 
 
 # Look for ISCC

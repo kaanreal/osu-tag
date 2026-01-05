@@ -22,8 +22,6 @@ VersionInfoVersion={#MyAppVersion}.0
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputBaseFilename=OsuTag-Setup-{#MyAppVersion}
-; Use the app icon from the publish folder as the Setup program icon
-SetupIconFile={#SourcePath}\\app.ico
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -55,7 +53,7 @@ Source: "{#SourcePath}\*"; Excludes: "README.md;LICENSE;installer_wizard.bmp;app
 ; app.ico is referenced by SetupIconFile but not installed into the application folder
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\OsuTag.exe"; WorkingDir: "{app}"; IconFilename: "{app}\app.ico"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\OsuTag.exe"; WorkingDir: "{app}"; IconFilename: "{app}\OsuTag.exe"; Flags: createonlyiffileexists
 
 [Run]
 Filename: "{app}\OsuTag.exe"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
