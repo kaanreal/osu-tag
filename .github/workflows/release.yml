@@ -108,14 +108,19 @@ jobs:
             Write-Host "Found installer: $($installer.FullName) (relative: $rel)"
           } else { echo "installer_path=" >> $env:GITHUB_OUTPUT; Write-Host "No installer found in build\dist\installer" }
 
-          $zip = Join-Path 'build' "OsuTag-$env:VERSION.zip"
-          if (Test-Path $zip) {
-            $relzip = $zip
+          # Look for the publish ZIP in either build/ or build/dist/ (create-installer.ps1 currently emits build/dist)
+          $zipCandidates = @( (Join-Path 'build' "OsuTag-$env:VERSION.zip"), (Join-Path 'build\dist' "OsuTag-$env:VERSION.zip") )
+          $zipFound = $null
+          foreach ($z in $zipCandidates) {
+            if (Test-Path $z) { $zipFound = $z; break }
+          }
+          if ($zipFound) {
+            $relzip = $zipFound
             if ($relzip.StartsWith($repo)) { $relzip = $relzip.Substring($repo.Length + 1) }
             $relzip = $relzip -replace '\\','/'
             echo "zip_path=$relzip" >> $env:GITHUB_OUTPUT
-            Write-Host "Found ZIP: $zip (relative: $relzip)"
-          } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $zip" }
+            Write-Host "Found ZIP: $zipFound (relative: $relzip)"
+          } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $($zipCandidates -join ', ')" }
 
       - name: Upload ZIP to GitHub Release
         if: ${{ steps.artifacts.outputs.zip_path != '' }}
