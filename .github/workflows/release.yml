@@ -134,7 +134,7 @@ jobs:
         run: |
           # Ensure all tags are fetched
           git fetch --tags
-          
+
           # Get current tag
           $currTag = git describe --tags --abbrev=0
 
@@ -142,7 +142,7 @@ jobs:
           $allTags = git tag --sort=-creatordate
           $prevTag = $allTags | Where-Object { $_ -ne $currTag } | Select-Object -First 1
 
-          # Determine commit range (robust: always include current tag commit if range is empty)
+          # Get commit messages between previous and current tag
           if ($prevTag) {
             $commits = git log "$prevTag..$currTag" --pretty=format:"%s"
             if (-not $commits) {
@@ -152,20 +152,55 @@ jobs:
             $commits = git log "$currTag" --pretty=format:"%s"
           }
 
-          # Only include commits with placeholders (containing '{{' and '}}')
-          $placeholderCommits = $commits | Where-Object { $_ -match '\{\{.*\}\}' }
+          # Define categories and their prefixes for the template
+          $categories = @(
+            @{ Name = '✨ New Features'; Prefix = 'feat:' },
+            @{ Name = '🛠 Improvements'; Prefix = 'imp:' },
+            @{ Name = '🐞 Bug Fixes'; Prefix = 'fix:' },
+            @{ Name = '🔧 Under the Hood'; Prefix = 'hood:' }
+          )
 
-          # If no placeholder commits, add a default message
-          if (-not $placeholderCommits) {
-            $placeholderCommits = @('No placeholder commits found for this release.')
+          $catCommits = @{}
+          foreach ($cat in $categories) { $catCommits[$cat.Name] = @() }
+
+          foreach ($c in $commits) {
+            $matched = $false
+            foreach ($cat in $categories) {
+              if ($c -like "$($cat.Prefix)*") {
+                $msg = $c.Substring($cat.Prefix.Length).Trim()
+                # Bold the first word before a colon or dash if present
+                if ($msg -match '^(.*?)(:| -)') {
+                  $first = $Matches[1].Trim()
+                  $rest = $msg.Substring($first.Length)
+                  $msg = "**$first**$rest"
+                }
+                $catCommits[$cat.Name] += $msg
+                $matched = $true
+                break
+              }
+            }
           }
 
-          # Build release notes in osu!tag style, only showing placeholder commits
+          # Build release notes using the provided template
           $notes = "# osu!tag ${{ steps.vars.outputs.version }} – Release Notes`n`n"
-          $notes += "## 📝 Placeholder Commits`n"
-          foreach ($c in $placeholderCommits) {
-            $notes += "- $c`n"
+
+          $anyCommits = $false
+          foreach ($cat in $categories) {
+            $items = $catCommits[$cat.Name]
+            if ($items.Count -gt 0) {
+              $notes += "## $($cat.Name)`n"
+              foreach ($item in $items) {
+                $notes += "- $item`n"
+              }
+              $notes += "`n"
+              $anyCommits = $true
+            }
           }
+
+          if (-not $anyCommits) {
+            $notes += "No categorized commits found for this release.`n"
+          }
+
           $notes += "---`n`nThank you for using **osu!tag**!  `nDownload the new version and enjoy a smoother experience and easier installation.`n"
 
           # Save release notes
