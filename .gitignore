@@ -93,6 +93,10 @@ _ReSharper*/
 *.pubxml
 !**/[Pp]ublish[Pp]rofiles/
 
+# Packaging outputs
+build/dist/
+build\dist\
+
 # NuGet local cache
 project.lock.json
 project.fragment.lock.json

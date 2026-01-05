@@ -1,0 +1,153 @@
+name: Build, Sign and Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  BUILD_RUNTIME: win-x64
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build-and-package:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version from tag
+        id: set_version
+        run: echo "::set-output name=version::${{ github.ref_name }}"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore OsuTag.csproj
+
+      - name: Publish
+        run: |
+          dotnet publish OsuTag.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ env.BUILD_RUNTIME }} --self-contained false -o .\build\dist\publish
+
+      - name: Create publish zip
+        run: |
+          powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\build\\dist\\publish', '.\\build\\dist\\OsuTag-${{ steps.set_version.outputs.version }}.zip')"
+        shell: powershell
+
+      - name: Install Inno Setup (optional)
+        run: choco install innosetup -y
+        shell: powershell
+
+      - name: Build installer with Inno Setup
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.set_version.outputs.version }} /DSourcePath="${{ github.workspace }}\\build\\dist\\publish" "${{ github.workspace }}\\build\\innosetup\\OsuTagInstaller.iss"
+        shell: powershell
+
+      - name: Create installer output folder and copy installer
+        run: |
+          powershell -Command "if (!(Test-Path 'build\\dist\\installer')) { New-Item -ItemType Directory -Path 'build\\dist\\installer' | Out-Null } ; $src = Get-ChildItem -Path 'build\\innosetup\\Output' -Filter 'OsuTag-Setup-*.exe' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 ; if ($null -ne $src) { Copy-Item $src.FullName -Destination (Join-Path 'build\\dist\\installer' (\"OsuTag-Setup-${{ steps.set_version.outputs.version }}.exe\")) -Force }"
+        shell: powershell
+
+  sign-and-publish:
+    needs: build-and-package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set VERSION
+        run: echo "VERSION=${{ needs.build-and-package.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Prepare artifacts list
+        run: |
+          echo "PUBLISH_ZIP=build/dist/OsuTag-${{ needs.build-and-package.outputs.version }}.zip" >> $GITHUB_ENV
+          echo "INSTALLER=build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe" >> $GITHUB_ENV
+
+      - name: Optional: decode signing cert
+        if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
+        env:
+          SIGN_CERT_B64: ${{ secrets.SIGN_CERT }}
+        run: |
+          powershell -Command "[IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64))"
+
+      - name: Optional: Sign installer and exe
+        if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
+        env:
+          SIGN_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
+        run: |
+          # Sign installer
+          $installer = "build\\dist\\installer\\OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe"
+          $exe = "build\\dist\\publish\\OsuTag.exe"
+          if (Test-Path cert.pfx) {
+              Write-Host "Signing $installer"
+              & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer
+              if (Test-Path $exe) {
+                  Write-Host "Signing $exe"
+                  & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe
+              }
+          } else {
+              Write-Host "cert.pfx not found, skipping signing"
+          }
+        shell: powershell
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ needs.build-and-package.outputs.version }}
+          release_name: ${{ needs.build-and-package.outputs.version }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create SHA256 of installer
+        if: ${{ (exists('build/dist/installer/OsuTag-Setup-' + needs.build-and-package.outputs.version + '.exe')) }}
+        run: |
+          $installer = "build\\dist\\installer\\OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe"
+          $sha = Get-FileHash -Algorithm SHA256 $installer | Select -ExpandProperty Hash
+          $sha | Out-File -FilePath build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt -Encoding ASCII
+        shell: powershell
+
+      - name: Upload publish ZIP
+        if: ${{ (exists('build/dist/OsuTag-' + needs.build-and-package.outputs.version + '.zip')) }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/dist/OsuTag-${{ needs.build-and-package.outputs.version }}.zip
+          asset_name: OsuTag-${{ needs.build-and-package.outputs.version }}.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer (if exists)
+        if: ${{ (exists('build/dist/installer/OsuTag-Setup-' + needs.build-and-package.outputs.version + '.exe')) }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe
+          asset_name: OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer SHA256
+        if: ${{ (exists('build/dist/installer/OsuTag-Setup-' + needs.build-and-package.outputs.version + '.sha256.txt')) }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt
+          asset_name: OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt
+          asset_content_type: text/plain
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup certificate
+        if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
+        run: del cert.pfx
+        shell: powershell
