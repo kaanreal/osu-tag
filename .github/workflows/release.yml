@@ -126,13 +126,19 @@ jobs:
           git fetch --prune --unshallow || true
           git fetch --tags
 
+
       - name: Generate Release Notes
         id: release_notes
         run: |
-          # Get commits between previous and current tag
+          # Get commits between previous and current tag, or all commits if only one tag exists
           $currTag = git describe --tags --abbrev=0
-          $prevTag = git describe --tags --abbrev=0 $currTag^
-          $commits = git log $prevTag..$currTag --pretty=format:"%s"
+          try {
+            $prevTag = git describe --tags --abbrev=0 $currTag^
+            $commits = git log $prevTag..$currTag --pretty=format:"%s"
+          } catch {
+            # Only one tag exists, get all history up to this tag
+            $commits = git log $currTag --pretty=format:"%s"
+          }
 
           # Initialize sections
           $features = ""
