@@ -151,40 +151,43 @@ jobs:
             $commits = git log "$currTag" --pretty=format:"%s"
           }
 
-          # Initialize sections
-          $features = ""
-          $improvements = ""
-          $bugs = ""
-          $internal = ""
 
-          # Categorize commits
-          foreach ($c in $commits) {
-            $cTrim = $c.Trim()
-            $cLower = $cTrim.ToLower()
-            if ($cLower -match '^(feat|feature):') { $features += "- $cTrim`n" }
-            elseif ($cLower -match '^(perf|improvement):') { $improvements += "- $cTrim`n" }
-            elseif ($cLower -match '^fix:') { $bugs += "- $cTrim`n" }
-            else { $internal += "- $cTrim`n" }
-          }
+            # Initialize sections
+            $features = ""
+            $improvements = ""
+            $bugs = ""
+            $hood = ""
 
-          # Build release notes in osu!tag style
-          $notes = @"
-          # osu!tag ${{ steps.vars.outputs.version }} – Release Notes
+            # Categorize commits, remove placeholders from output
+            foreach ($c in $commits) {
+              $cTrim = $c.Trim()
+              $cLower = $cTrim.ToLower()
+              if ($cLower -match '^(feat|feature):') {
+                $msg = $cTrim -replace '^(feat|feature):\s*', ''
+                $features += "- $msg`n"
+              }
+              elseif ($cLower -match '^(perf|improvement):') {
+                $msg = $cTrim -replace '^(perf|improvement):\s*', ''
+                $improvements += "- $msg`n"
+              }
+              elseif ($cLower -match '^fix:') {
+                $msg = $cTrim -replace '^fix:\s*', ''
+                $bugs += "- $msg`n"
+              }
+              else {
+                $msg = $cTrim -replace '^(hood):\s*', ''
+                $hood += "- $msg`n"
+              }
+            }
 
-          ## ✨ New Features
-          $features
-          ## 🛠 Improvements
-          $improvements
-          ## 🐞 Bug Fixes
-          $bugs
-          ## 🔧 Under the Hood
-          $internal
-
-          ---
-
-          Thank you for using **osu!tag**!  
-          Download the new version and enjoy a smoother experience and easier installation.
-          "@
+            # Build release notes in osu!tag style, only show sections if not empty
+            $notes = "# osu!tag ${{ steps.vars.outputs.version }} – Release Notes`n`n"
+            if ($features.Trim()) { $notes += "## ✨ New Features`n$features`n" }
+            if ($improvements.Trim()) { $notes += "## 🛠 Improvements`n$improvements`n" }
+            if ($bugs.Trim()) { $notes += "## 🐞 Bug Fixes`n$bugs`n" }
+            # Only show hood section if it contains at least one 'hood:' commit
+            if ($hood.Trim()) { $notes += "## hood:`n$hood`n" }
+            $notes += "---`n`nThank you for using **osu!tag**!  `nDownload the new version and enjoy a smoother experience and easier installation.`n"
 
           # Save release notes
           $notesPath = "$PWD/release_notes.md"
