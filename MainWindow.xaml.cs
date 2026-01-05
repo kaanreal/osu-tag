@@ -582,11 +582,11 @@ namespace OsuTag
             var doc = new FlowDocument();
             doc.FontFamily = new FontFamily("Segoe UI");
             doc.FontSize = 13;
-            doc.Foreground = (Brush)FindResource("TextPrimaryBrush");
+            doc.Foreground = (FindResource("TextPrimaryBrush") as Brush) ?? Brushes.White;
             doc.PagePadding = new Thickness(0);
 
             var lines = Regex.Split(markdown.Trim(), @"\r?\n");
-            List list = null;
+            List? list = null;
             foreach (var rawLine in lines)
             {
                 var line = rawLine.TrimEnd();

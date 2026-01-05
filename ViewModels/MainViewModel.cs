@@ -593,18 +593,48 @@ namespace OsuTag.ViewModels
             catch { }
         }
 
-        private HashSet<string> GetScannedFolders()
+        // Returns mapping of folder name -> last scanned ticks (UTC). Backwards-compatible with older format which stored only names (ticks=0).
+        private Dictionary<string, long> GetScannedFoldersInfo()
         {
             var scannedStr = Properties.Settings.Default.ScannedFolders ?? "";
+            var dict = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrEmpty(scannedStr))
-                return new HashSet<string>();
-            return new HashSet<string>(scannedStr.Split('|', StringSplitOptions.RemoveEmptyEntries));
+                return dict;
+
+            foreach (var token in scannedStr.Split('|', StringSplitOptions.RemoveEmptyEntries))
+            {
+                // New format: "folderName=ticks". Old format may be just the folder name.
+                var parts = token.Split('=');
+                if (parts.Length == 2 && long.TryParse(parts[1], out long ticks))
+                {
+                    dict[parts[0]] = ticks;
+                }
+                else
+                {
+                    dict[token] = 0L; // legacy entry
+                }
+            }
+
+            return dict;
         }
-        
+
+        // Backwards-compatible helper that returns just the set of scanned folder names
+        private HashSet<string> GetScannedFolders()
+        {
+            return new HashSet<string>(GetScannedFoldersInfo().Keys, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private void SaveScannedFoldersInfo(Dictionary<string, long> info)
+        {
+            Properties.Settings.Default.ScannedFolders = string.Join("|", info.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            Properties.Settings.Default.Save();
+        }
+
+        // Backwards-compatible save
         private void SaveScannedFolders(HashSet<string> folders)
         {
-            Properties.Settings.Default.ScannedFolders = string.Join("|", folders);
-            Properties.Settings.Default.Save();
+            var dict = folders.ToDictionary(f => f, f => 0L);
+            SaveScannedFoldersInfo(dict);
         }
         
         private string GetCacheFilePath()
@@ -812,8 +842,8 @@ namespace OsuTag.ViewModels
                 // Get folder count first for progress
                 var allFolders = Directory.GetDirectories(path);
                 
-                // For smart scan, filter out already scanned folders
-                var scannedFolders = smartScanEnabled ? GetScannedFolders() : new HashSet<string>();
+                // For smart scan, filter out already scanned folders using saved timestamps
+                var scannedInfo = smartScanEnabled ? GetScannedFoldersInfo() : new Dictionary<string, long>();
                 var existingFolderNames = _allMapGroups
                     .SelectMany(g => g.Difficulties)
                     .Select(d => Path.GetDirectoryName(d.Difficulty.Mp3Path))
@@ -821,14 +851,40 @@ namespace OsuTag.ViewModels
                     .Select(p => Path.GetFileName(p!))
                     .Distinct()
                     .ToHashSet();
-                
-                var foldersToScan = smartScanEnabled 
-                    ? allFolders.Where(f => !scannedFolders.Contains(Path.GetFileName(f))).ToArray()
+
+                // Only re-scan folders that are not known or where .osu files are newer than the recorded ticks
+                var foldersToScan = smartScanEnabled
+                    ? allFolders.Where(f =>
+                    {
+                        var name = Path.GetFileName(f);
+                        if (!scannedInfo.TryGetValue(name, out long savedTicks))
+                            return true; // never scanned before
+
+                        try
+                        {
+                            var osuFiles = Directory.GetFiles(f, "*.osu");
+                            if (osuFiles.Length == 0) return true;
+
+                            long maxTicks = 0;
+                            foreach (var osu in osuFiles)
+                            {
+                                long t = File.GetLastWriteTimeUtc(osu).Ticks;
+                                if (t > maxTicks) maxTicks = t;
+                            }
+
+                            return maxTicks > savedTicks;
+                        }
+                        catch
+                        {
+                            // If anything goes wrong checking timestamps, be conservative and re-scan
+                            return true;
+                        }
+                    }).ToArray()
                     : allFolders;
-                
+
                 int totalFolders = foldersToScan.Length;
                 var maps = new List<OsuMap>();
-                var newScannedFolders = new HashSet<string>();
+                var newScannedFolders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
                 if (totalFolders == 0 && smartScanEnabled)
                 {
@@ -844,64 +900,91 @@ namespace OsuTag.ViewModels
                     return;
                 }
 
-                ScanStatusMessage = smartScanEnabled 
-                    ? $"Smart scanning {totalFolders} new folders..."
+                ScanStatusMessage = smartScanEnabled
+                    ? $"Smart scanning {totalFolders} new or changed folders..."
                     : $"Scanning {totalFolders} folders...";
 
-                await Task.Run(() =>
+                var scannedFoldersDict = new System.Collections.Concurrent.ConcurrentDictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+                var scanner = new Services.OsuMapScanner();
+                var mapsBag = new System.Collections.Concurrent.ConcurrentBag<OsuMap>();
+                int processed = 0;
+                var lastUpdate = DateTime.MinValue;
+                var updateInterval = TimeSpan.FromMilliseconds(100);
+
+                // Limit degree of parallelism to reduce heavy simultaneous I/O that can trigger AV scanning
+                int parallelism = Math.Max(2, Environment.ProcessorCount / 2);
+
+                await Parallel.ForEachAsync(foldersToScan, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, async (folder, ct) =>
                 {
-                    var scanner = new Services.OsuMapScanner();
-                    var mapsBag = new System.Collections.Concurrent.ConcurrentBag<OsuMap>();
-                    var scannedFoldersBag = new System.Collections.Concurrent.ConcurrentBag<string>();
-                    int processed = 0;
-                    var lastUpdate = DateTime.MinValue;
-                    var updateInterval = TimeSpan.FromMilliseconds(100);
-                    
-                    Parallel.ForEach(foldersToScan, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, folder =>
+                    try
                     {
+                        // Adaptive backoff if antimalware is busy
+                        await AntimalwareMonitor.WaitIfHighAsync();
+
+                        var folderMaps = await scanner.ScanSingleFolderAsync(folder);
+                        foreach (var map in folderMaps)
+                        {
+                            mapsBag.Add(map);
+                        }
+
+                        // Record folder as scanned (store latest .osu write timestamp)
+                        var name = Path.GetFileName(folder);
                         try
                         {
-                            var folderMaps = scanner.ScanSingleFolder(folder);
-                            foreach (var map in folderMaps)
+                            var osuFiles = Directory.GetFiles(folder, "*.osu");
+                            long maxTicks = 0;
+                            foreach (var osu in osuFiles)
                             {
-                                mapsBag.Add(map);
+                                long t = File.GetLastWriteTimeUtc(osu).Ticks;
+                                if (t > maxTicks) maxTicks = t;
                             }
-                            scannedFoldersBag.Add(Path.GetFileName(folder));
+
+                            if (maxTicks == 0)
+                                maxTicks = DateTime.UtcNow.Ticks;
+
+                            scannedFoldersDict[name] = maxTicks;
                         }
-                        catch { }
-                        
-                        var currentProcessed = System.Threading.Interlocked.Increment(ref processed);
-                        
-                        // Throttle UI updates to every 100ms
-                        var now = DateTime.UtcNow;
-                        if (now - lastUpdate > updateInterval || currentProcessed == totalFolders)
+                        catch
                         {
-                            lastUpdate = now;
-                            int progress = (int)((currentProcessed / (double)totalFolders) * 100);
-                            
-                            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
-                            {
-                                ScanProgress = progress;
-                                ScanStatusMessage = $"Scanning... {currentProcessed}/{totalFolders} folders ({mapsBag.Count} maps found)";
-                            });
+                            scannedFoldersDict[name] = DateTime.UtcNow.Ticks;
                         }
-                    });
-                    
-                    maps.AddRange(mapsBag);
-                    foreach (var folder in scannedFoldersBag)
+                    }
+                    catch { }
+
+                    var currentProcessed = System.Threading.Interlocked.Increment(ref processed);
+
+                    // Throttle UI updates to every 100ms
+                    var now = DateTime.UtcNow;
+                    if (now - lastUpdate > updateInterval || currentProcessed == totalFolders)
                     {
-                        newScannedFolders.Add(folder);
+                        lastUpdate = now;
+                        int progress = (int)((currentProcessed / (double)totalFolders) * 100);
+
+                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                        {
+                            ScanProgress = progress;
+                            ScanStatusMessage = $"Scanning... {currentProcessed}/{totalFolders} folders ({mapsBag.Count} maps found)";
+                        });
                     }
                 });
-                
+
+                maps.AddRange(mapsBag);
+
+                // Merge concurrent dict into outer scope collection
+                foreach (var kvp in scannedFoldersDict)
+                {
+                    newScannedFolders[kvp.Key] = kvp.Value;
+                }
+
                 // Save scanned folders to cache for smart scan
                 if (smartScanEnabled || Properties.Settings.Default.SmartScan)
                 {
-                    foreach (var folder in newScannedFolders)
+                    foreach (var kvp in newScannedFolders)
                     {
-                        scannedFolders.Add(folder);
+                        scannedInfo[kvp.Key] = kvp.Value;
                     }
-                    SaveScannedFolders(scannedFolders);
+                    SaveScannedFoldersInfo(scannedInfo);
                 }
 
                 if (maps.Count == 0 && _allMapGroups.Count == 0)

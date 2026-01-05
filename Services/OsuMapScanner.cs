@@ -23,7 +23,8 @@ namespace OsuTag.Services
             var folders = Directory.GetDirectories(songsDir);
             var maps = new ConcurrentBag<OsuMap>();
 
-            Parallel.ForEach(folders, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, folder =>
+            int parallelism = Math.Max(2, Environment.ProcessorCount / 2);
+            Parallel.ForEach(folders, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, folder =>
             {
                 var folderMaps = ScanSingleFolder(folder);
                 foreach (var map in folderMaps)
@@ -52,8 +53,22 @@ namespace OsuTag.Services
                 // Parse all .osu files and group by audio file
                 var diffsByAudio = new Dictionary<string, List<(string osuFile, Dictionary<string, string?> metadata)>>(StringComparer.OrdinalIgnoreCase);
                 
+                int fileCounter = 0;
                 foreach (var osuFile in osuFiles)
                 {
+                    // If Defender is busy, briefly back off to avoid causing more load
+                    try
+                    {
+                        // Use non-blocking cached sampler to decide whether to sleep briefly
+                        var cpuTask = AntimalwareMonitor.GetCpuPercentAsync();
+                        if (cpuTask.IsCompletedSuccessfully && cpuTask.Result > 60.0)
+                        {
+                            System.Threading.Thread.Sleep(10);
+                        }
+                    }
+                    catch { }
+
+                    // Use sequential scan hint when opening the .osu file to reduce AV overhead (already done inside ParseOsuFile)
                     var metadata = ParseOsuFile(osuFile);
                     if (metadata == null)
                         continue;
@@ -73,6 +88,11 @@ namespace OsuTag.Services
                         diffsByAudio[audioKey] = new List<(string, Dictionary<string, string?>)>();
                     
                     diffsByAudio[audioKey].Add((osuFile, metadata));
+
+                    // Yield briefly every 16 files to avoid creating large IO bursts for AV
+                    fileCounter++;
+                    if ((fileCounter & 15) == 0)
+                        System.Threading.Thread.Sleep(1);
                 }
                 
                 if (diffsByAudio.Count == 0)
@@ -106,6 +126,17 @@ namespace OsuTag.Services
             }
             
             return results;
+        }
+
+        /// <summary>
+        /// Async wrapper that includes a short adaptive wait when system AV is busy.
+        /// Prefer calling this when used from asynchronous scanning loops.
+        /// </summary>
+        public async Task<IEnumerable<OsuMap>> ScanSingleFolderAsync(string folder)
+        {
+            // If antimalware is busy, wait briefly before scanning this folder
+            await AntimalwareMonitor.WaitIfHighAsync();
+            return await Task.Run(() => ScanSingleFolder(folder));
         }
         
         private OsuMap? CreateMapFromDifficulties(string folder, List<(string osuFile, Dictionary<string, string?> metadata)> diffs, string audioKey)
@@ -210,17 +241,19 @@ namespace OsuTag.Services
                 bool foundBackground = false;
                 bool foundAllMetadata = false;
 
-                using var reader = new StreamReader(filePath, Encoding.UTF8);
+                // Open the file with FileOptions.SequentialScan to hint to Windows Defender and reduce scanning overhead
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan);
+                using var reader = new StreamReader(fs, Encoding.UTF8);
                 string? line;
-                
+
                 while ((line = reader.ReadLine()) != null)
                 {
                     var trimmedLine = line.Trim();
-                    
+
                     // Skip empty lines and comments
                     if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith("//"))
                         continue;
-                    
+
                     if (trimmedLine == "[Metadata]")
                     {
                         inMetadataSection = true;
@@ -228,7 +261,7 @@ namespace OsuTag.Services
                         inEventsSection = false;
                         continue;
                     }
-                    
+
                     if (trimmedLine == "[General]")
                     {
                         inGeneralSection = true;
@@ -250,7 +283,7 @@ namespace OsuTag.Services
                     {
                         if (foundBackground && foundAllMetadata)
                             break;
-                            
+
                         inMetadataSection = false;
                         inGeneralSection = false;
                         inEventsSection = false;
@@ -263,9 +296,9 @@ namespace OsuTag.Services
                         var key = trimmedLine[..colonIndex].Trim();
                         var value = trimmedLine[(colonIndex + 1)..].Trim();
                         metadata[key] = value;
-                        
+
                         // Check if we have all needed metadata
-                        if (metadata.ContainsKey("Artist") && metadata.ContainsKey("Title") && 
+                        if (metadata.ContainsKey("Artist") && metadata.ContainsKey("Title") &&
                             metadata.ContainsKey("Creator") && metadata.ContainsKey("AudioFilename") &&
                             metadata.ContainsKey("PreviewTime"))
                         {
@@ -281,7 +314,7 @@ namespace OsuTag.Services
                         if (parts.Length >= 3)
                         {
                             var bgFile = parts[2].Trim('"');
-                            if (!string.IsNullOrEmpty(bgFile) && 
+                            if (!string.IsNullOrEmpty(bgFile) &&
                                 (bgFile.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                                  bgFile.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
                                  bgFile.EndsWith(".png", StringComparison.OrdinalIgnoreCase)))

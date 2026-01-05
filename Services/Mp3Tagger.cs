@@ -26,7 +26,12 @@ namespace OsuTag.Services
                 {
                     try
                     {
-                        byte[] coverData = IOFile.ReadAllBytes(coverPath);
+                        // Use SequentialScan hint for cover reads to reduce AV overhead
+                        using var fs = new FileStream(coverPath, FileMode.Open, FileAccess.Read, FileShare.Read, 8192, FileOptions.SequentialScan);
+                        using var ms = new System.IO.MemoryStream();
+                        fs.CopyTo(ms);
+                        byte[] coverData = ms.ToArray();
+
                         var picture = new Picture(new ByteVector(coverData))
                         {
                             Type = PictureType.FrontCover,
