@@ -49,7 +49,14 @@ jobs:
 
       - name: Create publish zip
         run: |
-          powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\build\\dist\\publish', '.\\build\\dist\\OsuTag-${{ steps.set_version.outputs.version }}.zip')"
+          $ver = '${{ steps.set_version.outputs.version }}'
+          if ([string]::IsNullOrWhiteSpace($ver)) {
+            $short = (git rev-parse --short HEAD)
+            $ver = "git-$short"
+          }
+          $zipPath = "./build/dist/OsuTag-$ver.zip"
+          Write-Host "Creating publish zip: $zipPath"
+          Compress-Archive -Path './build/dist/publish/*' -DestinationPath $zipPath -Force
         shell: powershell
 
       - name: Install Inno Setup (optional)
@@ -69,8 +76,22 @@ jobs:
         shell: powershell
 
       - name: Create installer output folder and copy installer
+        env:
+          VERSION: ${{ steps.set_version.outputs.version }}
         run: |
-          powershell -Command "if (!(Test-Path 'build\\dist\\installer')) { New-Item -ItemType Directory -Path 'build\\dist\\installer' | Out-Null } ; $src = Get-ChildItem -Path 'build\\innosetup\\Output' -Filter 'OsuTag-Setup-*.exe' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 ; if ($null -ne $src) { Copy-Item $src.FullName -Destination (Join-Path 'build\\dist\\installer' (\"OsuTag-Setup-${{ steps.set_version.outputs.version }}.exe\")) -Force }"
+          if (!(Test-Path 'build\dist\installer')) { New-Item -ItemType Directory -Path 'build\dist\installer' | Out-Null }
+          $src = Get-ChildItem -Path 'build\innosetup\Output' -Filter 'OsuTag-Setup-*.exe' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($null -ne $src) {
+              if (-not [string]::IsNullOrWhiteSpace($env:VERSION) -and $env:VERSION -ne 'unspecified') {
+                  $dest = Join-Path 'build\dist\installer' ("OsuTag-Setup-$($env:VERSION).exe")
+              } else {
+                  $dest = Join-Path 'build\dist\installer' $src.Name
+              }
+              Copy-Item $src.FullName -Destination $dest -Force
+              Write-Host "Installer placed at: $dest (source: $($src.FullName))"
+          } else {
+              Write-Warning "No installer found in Inno output folder"
+          }
         shell: powershell
 
   sign-and-publish:
