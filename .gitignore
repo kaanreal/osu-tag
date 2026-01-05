@@ -153,3 +153,4 @@ UpgradeLog*.htm
 
 # Mac
 .DS_Store
+*.sln
