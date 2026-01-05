@@ -3,8 +3,6 @@ name: Release - Build & Upload
 on:
   release:
     types: [published]
-  push:
-    tags: ['v*']
 
 permissions:
   contents: write
@@ -122,16 +120,6 @@ jobs:
             Write-Host "Found ZIP: $zipFound (relative: $relzip)"
           } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $($zipCandidates -join ', ')" }
 
-<<<<<<< Updated upstream
-      - name: Upload ZIP to GitHub Release
-        if: ${{ steps.artifacts.outputs.zip_path != '' }}
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.artifacts.outputs.zip_path }}
-          tag_name: ${{ steps.vars.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-=======
       - name: Generate Release Notes
         id: release_notes
         run: |
@@ -176,20 +164,21 @@ jobs:
                     echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
               
           
->>>>>>> Stashed changes
-
-      - name: Upload Artifacts and Set Release Notes
+      - name: Upload ZIP to GitHub Release
+        if: ${{ steps.artifacts.outputs.zip_path != '' }}
         uses: softprops/action-gh-release@v1
         with:
-<<<<<<< Updated upstream
-          files: ${{ steps.artifacts.outputs.installer_path }}
-=======
-          files: |
-            ${{ steps.artifacts.outputs.zip_path }}
-            ${{ steps.artifacts.outputs.installer_path }}
->>>>>>> Stashed changes
+          files: ${{ steps.artifacts.outputs.zip_path }},${{ steps.release_notes.outputs.release_notes_path }}
           tag_name: ${{ steps.vars.outputs.tag }}
-          body_path: ${{ steps.release_notes.outputs.release_notes_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Installer to GitHub Release
+        if: ${{ steps.artifacts.outputs.installer_path != '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.artifacts.outputs.installer_path }},${{ steps.release_notes.outputs.release_notes_path }}
+          tag_name: ${{ steps.vars.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
