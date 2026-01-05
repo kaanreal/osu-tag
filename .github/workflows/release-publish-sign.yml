@@ -132,7 +132,7 @@ jobs:
           # Sign installer if cert.pfx exists and password is provided
           $installer = "build\\dist\\installer\\OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe"
           $exe = "build\\dist\\publish\\OsuTag.exe"
-          if (Test-Path cert.pfx -and $env:SIGN_PW -and $env:SIGN_PW.Trim() -ne '') {
+          if ((Test-Path 'cert.pfx') -and (-not [string]::IsNullOrWhiteSpace($env:SIGN_PW))) {
               Write-Host "Signing $installer"
               & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer
               if (Test-Path $exe) {
