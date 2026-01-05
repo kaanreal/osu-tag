@@ -121,6 +121,11 @@ jobs:
           } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $($zipCandidates -join ', ')" }
 
 
+      - name: Fetch all tags and history
+        run: |
+          git fetch --prune --unshallow || true
+          git fetch --tags
+
       - name: Generate Release Notes
         id: release_notes
         run: |
