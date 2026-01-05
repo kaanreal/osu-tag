@@ -67,6 +67,9 @@ jobs:
         run: |
           echo "PUBLISH_ZIP=build/dist/OsuTag-${{ needs.build-and-package.outputs.version }}.zip" >> $GITHUB_ENV
           echo "INSTALLER=build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe" >> $GITHUB_ENV
+          powershell -Command "if (Test-Path 'build/dist/OsuTag-${{ needs.build-and-package.outputs.version }}.zip') { echo 'PUBLISH_ZIP_EXISTS=true' >> $env:GITHUB_ENV } else { echo 'PUBLISH_ZIP_EXISTS=false' >> $env:GITHUB_ENV }"
+          powershell -Command "if (Test-Path 'build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe') { echo 'INSTALLER_EXISTS=true' >> $env:GITHUB_ENV } else { echo 'INSTALLER_EXISTS=false' >> $env:GITHUB_ENV }"
+          powershell -Command "if (Test-Path 'build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt') { echo 'SHA_EXISTS=true' >> $env:GITHUB_ENV } else { echo 'SHA_EXISTS=false' >> $env:GITHUB_ENV }"
 
       - name: Optional: decode signing cert
         if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
@@ -107,7 +110,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create SHA256 of installer
-        if: ${{ (exists('build/dist/installer/OsuTag-Setup-' + needs.build-and-package.outputs.version + '.exe')) }}
+        if: ${{ env.INSTALLER_EXISTS == 'true' }}
         run: |
           $installer = "build\\dist\\installer\\OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe"
           $sha = Get-FileHash -Algorithm SHA256 $installer | Select -ExpandProperty Hash
@@ -115,7 +118,7 @@ jobs:
         shell: powershell
 
       - name: Upload publish ZIP
-        if: ${{ (exists('build/dist/OsuTag-' + needs.build-and-package.outputs.version + '.zip')) }}
+        if: ${{ env.PUBLISH_ZIP_EXISTS == 'true' }}
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -126,7 +129,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer (if exists)
-        if: ${{ (exists('build/dist/installer/OsuTag-Setup-' + needs.build-and-package.outputs.version + '.exe')) }}
+        if: ${{ env.INSTALLER_EXISTS == 'true' }}
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -137,7 +140,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer SHA256
-        if: ${{ (exists('build/dist/installer/OsuTag-Setup-' + needs.build-and-package.outputs.version + '.sha256.txt')) }}
+        if: ${{ env.SHA_EXISTS == 'true' }}
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
