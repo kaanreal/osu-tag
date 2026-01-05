@@ -122,6 +122,7 @@ jobs:
             Write-Host "Found ZIP: $zipFound (relative: $relzip)"
           } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $($zipCandidates -join ', ')" }
 
+<<<<<<< Updated upstream
       - name: Upload ZIP to GitHub Release
         if: ${{ steps.artifacts.outputs.zip_path != '' }}
         uses: softprops/action-gh-release@v1
@@ -130,13 +131,65 @@ jobs:
           tag_name: ${{ steps.vars.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+=======
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # Get commits since previous tag
+          $prevTag = git describe --tags --abbrev=0 HEAD^
+          $commits = git log $prevTag..HEAD --pretty=format:"%s"
 
-      - name: Upload Installer to GitHub Release
-        if: ${{ steps.artifacts.outputs.installer_path != '' }}
+          # Initialize sections
+          $features = ""
+          $improvements = ""
+          $bugs = ""
+          $internal = ""
+
+          foreach ($c in $commits) {
+            if ($c -match '^(feat|feature):') { $features += "- $c`n" }
+            elseif ($c -match '^(perf|improvement):') { $improvements += "- $c`n" }
+            elseif ($c -match '^fix:') { $bugs += "- $c`n" }
+            else { $internal += "- $c`n" }
+          }
+
+          # Build release notes in osu!tag style
+          $notes = @"
+          # osu!tag ${{ steps.vars.outputs.version }} – Release Notes
+
+          ## ✨ New Features
+          $features
+          ## 🛠 Improvements
+          $improvements
+          ## 🐞 Bug Fixes
+          $bugs
+          ## 🔧 Under the Hood
+          $internal
+
+          ---
+
+          Thank you for using **osu!tag**!  
+          Download the new version and enjoy a smoother experience and easier installation.
+          "@
+
+                    $notesPath = "$PWD/release_notes.md"
+                    $notes | Out-File -FilePath $notesPath -Encoding utf8
+                    echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+              
+          
+>>>>>>> Stashed changes
+
+      - name: Upload Artifacts and Set Release Notes
         uses: softprops/action-gh-release@v1
         with:
+<<<<<<< Updated upstream
           files: ${{ steps.artifacts.outputs.installer_path }}
+=======
+          files: |
+            ${{ steps.artifacts.outputs.zip_path }}
+            ${{ steps.artifacts.outputs.installer_path }}
+>>>>>>> Stashed changes
           tag_name: ${{ steps.vars.outputs.tag }}
+          body_path: ${{ steps.release_notes.outputs.release_notes_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
