@@ -164,21 +164,16 @@ jobs:
                     echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
               
           
-      - name: Upload ZIP to GitHub Release
-        if: ${{ steps.artifacts.outputs.zip_path != '' }}
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.artifacts.outputs.zip_path }},${{ steps.release_notes.outputs.release_notes_path }}
-          tag_name: ${{ steps.vars.outputs.tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Installer to GitHub Release
-        if: ${{ steps.artifacts.outputs.installer_path != '' }}
+      - name: Upload Artifacts and Set Release Notes
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.artifacts.outputs.installer_path }},${{ steps.release_notes.outputs.release_notes_path }}
+          files: |
+            ${{ steps.artifacts.outputs.zip_path }}
+            ${{ steps.artifacts.outputs.installer_path }}
           tag_name: ${{ steps.vars.outputs.tag }}
+          body_path: ${{ steps.release_notes.outputs.release_notes_path }}
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
