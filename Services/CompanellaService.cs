@@ -1,3 +1,6 @@
+// https://github.com/Leinadix/companella
+
+
 using System;
 using System.Collections.Generic;
 using System.IO;
