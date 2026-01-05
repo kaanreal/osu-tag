@@ -58,7 +58,14 @@ jobs:
 
       - name: Build installer with Inno Setup
         run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.set_version.outputs.version }} /DSourcePath="${{ github.workspace }}\\build\\dist\\publish" "${{ github.workspace }}\\build\\innosetup\\OsuTagInstaller.iss"
+          $ver = '${{ steps.set_version.outputs.version }}'
+          $source = "${{ github.workspace }}\\build\\dist\\publish"
+          $iss = "${{ github.workspace }}\\build\\innosetup\\OsuTagInstaller.iss"
+          $args = @()
+          if (-not [string]::IsNullOrWhiteSpace($ver) -and $ver -ne 'unspecified') { $args += "/DMyAppVersion=$ver" }
+          $args += ("/DSourcePath=`"$source`"")
+          Write-Host "Running Inno Setup: C:\Program Files (x86)\Inno Setup 6\ISCC.exe $($args -join ' ') $iss"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" $args $iss
         shell: powershell
 
       - name: Create installer output folder and copy installer
