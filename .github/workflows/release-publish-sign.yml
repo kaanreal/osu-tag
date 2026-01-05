@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional version (e.g., v1.2.3). If omitted, using tag when triggered by push.'
+        required: false
 
 env:
   BUILD_RUNTIME: win-x64
@@ -21,7 +25,15 @@ jobs:
 
       - name: Set version from tag
         id: set_version
-        run: echo "::set-output name=version::${{ github.ref_name }}"
+        shell: powershell
+        run: |
+          if ("${{ github.ref_name }}" -ne "") {
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          } elseif ("${{ github.event.inputs.version }}" -ne "") {
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          } else {
+            echo "version=unspecified" >> $GITHUB_OUTPUT
+          }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -101,6 +113,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
+        if: ${{ needs.build-and-package.outputs.version != 'unspecified' }}
         uses: actions/create-release@v1
         with:
           tag_name: ${{ needs.build-and-package.outputs.version }}
@@ -119,7 +132,7 @@ jobs:
         shell: powershell
 
       - name: Upload publish ZIP
-        if: ${{ env.PUBLISH_ZIP_EXISTS == 'true' }}
+        if: ${{ needs.build-and-package.outputs.version != 'unspecified' && env.PUBLISH_ZIP_EXISTS == 'true' }}
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -130,7 +143,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer (if exists)
-        if: ${{ env.INSTALLER_EXISTS == 'true' }}
+        if: ${{ needs.build-and-package.outputs.version != 'unspecified' && env.INSTALLER_EXISTS == 'true' }}
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -141,7 +154,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer SHA256
-        if: ${{ env.SHA_EXISTS == 'true' }}
+        if: ${{ needs.build-and-package.outputs.version != 'unspecified' && env.SHA_EXISTS == 'true' }}
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
