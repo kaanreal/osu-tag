@@ -71,14 +71,14 @@ jobs:
           powershell -Command "if (Test-Path 'build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe') { echo 'INSTALLER_EXISTS=true' >> $env:GITHUB_ENV } else { echo 'INSTALLER_EXISTS=false' >> $env:GITHUB_ENV }"
           powershell -Command "if (Test-Path 'build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt') { echo 'SHA_EXISTS=true' >> $env:GITHUB_ENV } else { echo 'SHA_EXISTS=false' >> $env:GITHUB_ENV }"
 
-      - name: Optional: decode signing cert
+      - name: "Optional: decode signing cert"
         if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
         env:
           SIGN_CERT_B64: ${{ secrets.SIGN_CERT }}
         run: |
           powershell -Command "[IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64))"
 
-      - name: Optional: Sign installer and exe
+      - name: "Optional: Sign installer and exe"
         if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
         env:
           SIGN_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
