@@ -35,6 +35,34 @@ jobs:
             echo "version=unspecified" >> $GITHUB_OUTPUT
           }
 
+      - name: Get app version from source
+        id: get_app_version
+        shell: powershell
+        run: |
+          $file = 'Services\UpdateService.cs'
+          $app = ''
+          if (Test-Path $file) {
+            $content = Get-Content $file -Raw
+            if ($content -match 'Current\s*=\s*"(?<v>[^\"]+)"') { $app = $matches['v'] }
+          }
+          echo "app_version=$app" >> $GITHUB_OUTPUT
+
+      - name: Verify tag matches app version
+        if: ${{ steps.set_version.outputs.version != 'unspecified' }}
+        shell: powershell
+        run: |
+          $tag = '${{ steps.set_version.outputs.version }}'.TrimStart('v')
+          $app = '${{ steps.get_app_version.outputs.app_version }}'
+          if ([string]::IsNullOrWhiteSpace($app)) {
+            Write-Host "No app version found in source; skipping match check"
+            exit 0
+          }
+          if ($tag -ne $app) {
+            Write-Error "Tag ($tag) does not match app version ($app). Update Services/UpdateService.cs or use a matching tag."
+            exit 1
+          }
+          Write-Host "Tag matches app version: $tag"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
@@ -144,6 +172,21 @@ jobs:
           }
         shell: powershell
 
+      - name: Prepare release body
+        id: prepare_release_body
+        shell: powershell
+        run: |
+          $template = 'RELEASE_TEMPLATE.md'
+          if (Test-Path $template) {
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            Get-Content $template -Raw >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          } else {
+            $v = '${{ needs.build-and-package.outputs.version }}'
+            if ($v -eq 'unspecified' -or [string]::IsNullOrWhiteSpace($v)) { $v = 'unspecified' }
+            echo "body=Release $v" >> $GITHUB_OUTPUT
+          }
+
       - name: Create GitHub Release
         id: create_release
         if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' }}
@@ -151,6 +194,7 @@ jobs:
         with:
           tag_name: ${{ needs.build-and-package.outputs.version }}
           release_name: ${{ needs.build-and-package.outputs.version }}
+          body: ${{ steps.prepare_release_body.outputs.body }}
           draft: false
           prerelease: false
         env:
