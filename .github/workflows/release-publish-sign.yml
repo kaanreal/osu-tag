@@ -259,10 +259,10 @@ jobs:
         shell: powershell
 
       - name: Upload publish ZIP
-        if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' && env.PUBLISH_ZIP_EXISTS == 'true' }}
+        if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' && env.PUBLISH_ZIP_EXISTS == 'true' && steps.find_or_create_release.outputs.upload_url != '' }}
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.find_or_create_release.outputs.upload_url }}
           asset_path: build/dist/OsuTag-${{ needs.build-and-package.outputs.version }}.zip
           asset_name: OsuTag-${{ needs.build-and-package.outputs.version }}.zip
           asset_content_type: application/zip
@@ -270,10 +270,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer (if exists)
-        if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' && env.INSTALLER_EXISTS == 'true' }}
+        if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' && env.INSTALLER_EXISTS == 'true' && steps.find_or_create_release.outputs.upload_url != '' }}
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.find_or_create_release.outputs.upload_url }}
           asset_path: build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe
           asset_name: OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe
           asset_content_type: application/octet-stream
@@ -281,10 +281,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer SHA256
-        if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' && env.SHA_EXISTS == 'true' }}
+        if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' && env.SHA_EXISTS == 'true' && steps.find_or_create_release.outputs.upload_url != '' }}
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.find_or_create_release.outputs.upload_url }}
           asset_path: build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt
           asset_name: OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt
           asset_content_type: text/plain
