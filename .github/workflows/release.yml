@@ -49,6 +49,25 @@ jobs:
       - name: Show .NET info
         run: dotnet --info
 
+      - name: Restore NuGet packages
+        run: dotnet restore ./OsuTag.csproj
+
+      - name: Publish (explicit, show errors)
+        id: publish
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: |
+          $v = $env:VERSION
+          $publishOut = Join-Path $PWD 'build\dist\publish'
+          if (Test-Path $publishOut) { Remove-Item $publishOut -Recurse -Force }
+          Write-Host "Publishing to: $publishOut with version: $v"
+          dotnet publish .\OsuTag.csproj -c Release -r win-x64 --self-contained false -o $publishOut -p:Version=$v -p:FileVersion=$v.0 -v:detailed
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "dotnet publish failed with exit code $LASTEXITCODE. See logs above for details."
+            exit $LASTEXITCODE
+          }
+
       - name: Install Inno Setup (choco)
         shell: pwsh
         run: |
@@ -63,12 +82,13 @@ jobs:
           VERSION: ${{ steps.vars.outputs.version }}
         run: |
           $v = $env:VERSION
+          $publishOut = Join-Path $PWD 'build\dist\publish'
           if ([string]::IsNullOrWhiteSpace($v)) {
             Write-Host "No version supplied; script will auto-detect from source"
-            powershell -ExecutionPolicy Bypass -File build/create-installer.ps1
+            powershell -ExecutionPolicy Bypass -File build/create-installer.ps1 -PublishPath $publishOut
           } else {
-            Write-Host "Building with Version: $v"
-            powershell -ExecutionPolicy Bypass -File build/create-installer.ps1 -Version $v
+            Write-Host "Using published output at: $publishOut"
+            powershell -ExecutionPolicy Bypass -File build/create-installer.ps1 -Version $v -PublishPath $publishOut
           }
 
       - name: Collect artifact paths
