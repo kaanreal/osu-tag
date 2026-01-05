@@ -120,6 +120,7 @@ jobs:
             Write-Host "Found ZIP: $zipFound (relative: $relzip)"
           } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $($zipCandidates -join ', ')" }
 
+
       - name: Generate Release Notes
         id: release_notes
         run: |
@@ -127,13 +128,29 @@ jobs:
           $prevTag = git describe --tags --abbrev=0 HEAD^
           $commits = git log $prevTag..HEAD --pretty=format:"%s"
 
+          # Define your placeholder replacements here
+          $replacements = @{
+            "{{FEATURE_NAME}}" = "Audio Tagging"
+            "{{MODULE_NAME}}" = "Mp3Tagger"
+            # Add more as needed
+          }
+
+          # Replace placeholders in each commit message
+          $processedCommits = @()
+          foreach ($c in $commits) {
+            foreach ($key in $replacements.Keys) {
+              $c = $c -replace [regex]::Escape($key), $replacements[$key]
+            }
+            $processedCommits += $c
+          }
+
           # Initialize sections
           $features = ""
           $improvements = ""
           $bugs = ""
           $internal = ""
 
-          foreach ($c in $commits) {
+          foreach ($c in $processedCommits) {
             if ($c -match '^(feat|feature):') { $features += "- $c`n" }
             elseif ($c -match '^(perf|improvement):') { $improvements += "- $c`n" }
             elseif ($c -match '^fix:') { $bugs += "- $c`n" }
@@ -159,9 +176,9 @@ jobs:
           Download the new version and enjoy a smoother experience and easier installation.
           "@
 
-                    $notesPath = "$PWD/release_notes.md"
-                    $notes | Out-File -FilePath $notesPath -Encoding utf8
-                    echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+          $notesPath = "$PWD/release_notes.md"
+          $notes | Out-File -FilePath $notesPath -Encoding utf8
+          echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
               
           
 
