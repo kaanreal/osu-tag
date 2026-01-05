@@ -16,7 +16,7 @@ namespace OsuTag.Services
         // APTABASE CONFIGURATION
         // ============================================
         // App Key: This identifies your app (format: A-XX-XXXXXXXXXX)
-        private const string AptabaseAppKey = "A-EU-0927435991";
+        private const string AptabaseAppKey = "A-EU-8378867321";
         
         // Endpoint: Your self-hosted Aptabase server URL
         // Note: Use http:// for localhost to avoid SSL certificate issues
@@ -324,64 +324,6 @@ namespace OsuTag.Services
             }
         }
         
-        /// <summary>
-        /// Track app launch
-        /// </summary>
-        public static async Task TrackAppLaunch()
-        {
-            // Start a session and ensure session_start is processed before app_launched
-            _sessionStartTime = DateTime.UtcNow;
-            await TrackEventAsync("session_start");
-            await TrackEventAsync("app_launched");
-        }
-
-        /// <summary>
-        /// Mark the start of a session (useful for duration calculation)
-        /// </summary>
-        public static Task TrackSessionStart()
-        {
-            _sessionStartTime = DateTime.UtcNow;
-            return TrackEventAsync("session_start");
-        }
-
-        /// <summary>
-        /// Mark the end of a session and send duration (seconds)
-        /// </summary>
-        public static Task TrackSessionStop()
-        {
-            double durationSeconds = 0;
-            if (_sessionStartTime.HasValue)
-            {
-                durationSeconds = Math.Round((DateTime.UtcNow - _sessionStartTime.Value).TotalSeconds, 2);
-            }
-            _sessionStartTime = null;
-            return TrackEventAsync("session_stop", new Dictionary<string, object> { ["duration_seconds"] = durationSeconds });
-        }
-        
-        /// <summary>
-        /// Track beatmap scan
-        /// </summary>
-        public static Task TrackScan(int mapCount, double durationSeconds)
-        {
-            return TrackEventAsync("scan_completed", new Dictionary<string, object>
-            {
-                ["map_count"] = mapCount,
-                ["duration_seconds"] = Math.Round(durationSeconds, 2)
-            });
-        }
-        
-        /// <summary>
-        /// Track export operation
-        /// </summary>
-        public static Task TrackExport(int mapCount, bool withCovers, bool withRates)
-        {
-            return TrackEventAsync("export_completed", new Dictionary<string, object>
-            {
-                ["map_count"] = mapCount,
-                ["with_covers"] = withCovers,
-                ["with_rates"] = withRates
-            });
-        }
 
         /// <summary>
         /// Track total conversions (number of songs converted)
@@ -395,24 +337,6 @@ namespace OsuTag.Services
             });
         }
         
-        /// <summary>
-        /// Track feature usage
-        /// </summary>
-        public static Task TrackFeatureUsed(string featureName)
-        {
-            return TrackEventAsync("feature_used", new Dictionary<string, object>
-            {
-                ["feature"] = featureName
-            });
-        }
-        
-        /// <summary>
-        /// Track settings changed
-        /// </summary>
-        public static Task TrackSettingsChanged(Dictionary<string, object> settings)
-        {
-            return TrackEventAsync("settings_changed", settings);
-        }
         
         /// <summary>
         /// Track error (without personal data)
