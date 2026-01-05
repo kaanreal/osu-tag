@@ -127,6 +127,7 @@ jobs:
           git fetch --tags
 
 
+
       - name: Generate Release Notes
         id: release_notes
         shell: pwsh
@@ -151,43 +152,21 @@ jobs:
             $commits = git log "$currTag" --pretty=format:"%s"
           }
 
+          # Only include commits with placeholders (containing '{{' and '}}')
+          $placeholderCommits = $commits | Where-Object { $_ -match '\{\{.*\}\}' }
 
-            # Initialize sections
-            $features = ""
-            $improvements = ""
-            $bugs = ""
-            $hood = ""
+          # If no placeholder commits, add a default message
+          if (-not $placeholderCommits) {
+            $placeholderCommits = @('No placeholder commits found for this release.')
+          }
 
-            # Categorize commits, remove placeholders from output
-            foreach ($c in $commits) {
-              $cTrim = $c.Trim()
-              $cLower = $cTrim.ToLower()
-              if ($cLower -match '^(feat|feature):') {
-                $msg = $cTrim -replace '^(feat|feature):\s*', ''
-                $features += "- $msg`n"
-              }
-              elseif ($cLower -match '^(perf|improvement):') {
-                $msg = $cTrim -replace '^(perf|improvement):\s*', ''
-                $improvements += "- $msg`n"
-              }
-              elseif ($cLower -match '^fix:') {
-                $msg = $cTrim -replace '^fix:\s*', ''
-                $bugs += "- $msg`n"
-              }
-              else {
-                $msg = $cTrim -replace '^(hood):\s*', ''
-                $hood += "- $msg`n"
-              }
-            }
-
-            # Build release notes in osu!tag style, only show sections if not empty
-            $notes = "# osu!tag ${{ steps.vars.outputs.version }} – Release Notes`n`n"
-            if ($features.Trim()) { $notes += "## ✨ New Features`n$features`n" }
-            if ($improvements.Trim()) { $notes += "## 🛠 Improvements`n$improvements`n" }
-            if ($bugs.Trim()) { $notes += "## 🐞 Bug Fixes`n$bugs`n" }
-            # Only show hood section if it contains at least one 'hood:' commit
-            if ($hood.Trim()) { $notes += "## 🔧 Under the Hood`n$hood`n" }
-            $notes += "---`n`nThank you for using **osu!tag**!  `nDownload the new version and enjoy a smoother experience and easier installation.`n"
+          # Build release notes in osu!tag style, only showing placeholder commits
+          $notes = "# osu!tag ${{ steps.vars.outputs.version }} – Release Notes`n`n"
+          $notes += "## 📝 Placeholder Commits`n"
+          foreach ($c in $placeholderCommits) {
+            $notes += "- $c`n"
+          }
+          $notes += "---`n`nThank you for using **osu!tag**!  `nDownload the new version and enjoy a smoother experience and easier installation.`n"
 
           # Save release notes
           $notesPath = "$PWD/release_notes.md"
