@@ -141,12 +141,14 @@ jobs:
           $allTags = git tag --sort=-creatordate
           $prevTag = $allTags | Where-Object { $_ -ne $currTag } | Select-Object -First 1
 
-          # Determine commit range
+          # Determine commit range (robust: always include current tag commit if range is empty)
           if ($prevTag) {
-              $commits = git log $prevTag..$currTag --pretty=format:"%s"
+            $commits = git log "$prevTag..$currTag" --pretty=format:"%s"
+            if (-not $commits) {
+              $commits = git log "$currTag" -n 1 --pretty=format:"%s"
+            }
           } else {
-              # Only one tag exists; take all commits reachable from it
-              $commits = git log $currTag --pretty=format:"%s"
+            $commits = git log "$currTag" --pretty=format:"%s"
           }
 
           # Initialize sections
@@ -157,12 +159,12 @@ jobs:
 
           # Categorize commits
           foreach ($c in $commits) {
-              $cTrim = $c.Trim()
-              $cLower = $cTrim.ToLower()
-              if ($cLower -match '^(feat|feature):') { $features += "- $cTrim`n" }
-              elseif ($cLower -match '^(perf|improvement):') { $improvements += "- $cTrim`n" }
-              elseif ($cLower -match '^fix:') { $bugs += "- $cTrim`n" }
-              else { $internal += "- $cTrim`n" }
+            $cTrim = $c.Trim()
+            $cLower = $cTrim.ToLower()
+            if ($cLower -match '^(feat|feature):') { $features += "- $cTrim`n" }
+            elseif ($cLower -match '^(perf|improvement):') { $improvements += "- $cTrim`n" }
+            elseif ($cLower -match '^fix:') { $bugs += "- $cTrim`n" }
+            else { $internal += "- $cTrim`n" }
           }
 
           # Build release notes in osu!tag style
