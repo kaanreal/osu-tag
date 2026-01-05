@@ -129,15 +129,24 @@ jobs:
 
       - name: Generate Release Notes
         id: release_notes
+        shell: pwsh
         run: |
-          # Get commits between previous and current tag, or all commits if only one tag exists
+          # Ensure all tags are fetched
+          git fetch --tags
+          
+          # Get current tag
           $currTag = git describe --tags --abbrev=0
-          try {
-            $prevTag = git describe --tags --abbrev=0 $currTag^
-            $commits = git log $prevTag..$currTag --pretty=format:"%s"
-          } catch {
-            # Only one tag exists, get all history up to this tag
-            $commits = git log $currTag --pretty=format:"%s"
+
+          # Get previous tag by date order (skip current)
+          $allTags = git tag --sort=-creatordate
+          $prevTag = $allTags | Where-Object { $_ -ne $currTag } | Select-Object -First 1
+
+          # Determine commit range
+          if ($prevTag) {
+              $commits = git log $prevTag..$currTag --pretty=format:"%s"
+          } else {
+              # Only one tag exists; take all commits reachable from it
+              $commits = git log $currTag --pretty=format:"%s"
           }
 
           # Initialize sections
@@ -146,11 +155,14 @@ jobs:
           $bugs = ""
           $internal = ""
 
+          # Categorize commits
           foreach ($c in $commits) {
-            if ($c -match '^(feat|feature):') { $features += "- $c`n" }
-            elseif ($c -match '^(perf|improvement):') { $improvements += "- $c`n" }
-            elseif ($c -match '^fix:') { $bugs += "- $c`n" }
-            else { $internal += "- $c`n" }
+              $cTrim = $c.Trim()
+              $cLower = $cTrim.ToLower()
+              if ($cLower -match '^(feat|feature):') { $features += "- $cTrim`n" }
+              elseif ($cLower -match '^(perf|improvement):') { $improvements += "- $cTrim`n" }
+              elseif ($cLower -match '^fix:') { $bugs += "- $cTrim`n" }
+              else { $internal += "- $cTrim`n" }
           }
 
           # Build release notes in osu!tag style
@@ -172,9 +184,12 @@ jobs:
           Download the new version and enjoy a smoother experience and easier installation.
           "@
 
+          # Save release notes
           $notesPath = "$PWD/release_notes.md"
           $notes | Out-File -FilePath $notesPath -Encoding utf8
           echo "release_notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+          Write-Host "Generated release notes at: $notesPath"
+
 
       - name: Upload Artifacts and Set Release Notes
         uses: softprops/action-gh-release@v1
