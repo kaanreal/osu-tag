@@ -10,11 +10,20 @@ using OsuTag.Models;
 
 namespace OsuTag.Services
 {
-    public class OsuMapScanner
+    internal class OsuMapScanner
     {
+        // Tuning constants for IO scanning behavior (named for clarity)
+        internal const int MinParallelism = 2;
+        internal const int ParallelismDivider = 2; // used to scale parallelism conservatively
+        internal const int FileYieldBatch = 16; // yield every N files to avoid IO burst
+        internal const int FileYieldSleepMs = 1; // brief sleep on batch yield
+        internal const int HighAvBackoffMs = 10; // short sleep when AV is very busy
+
         /// <summary>
         /// Scans all beatmap folders in the specified directory in parallel.
+        /// Uses conservative parallelism to reduce simultaneous I/O pressure.
         /// </summary>
+        /// <param name="songsDir">Top-level songs folder</param>
         public IEnumerable<OsuMap> ScanMaps(string songsDir)
         {
             if (!Directory.Exists(songsDir))
@@ -23,7 +32,7 @@ namespace OsuTag.Services
             var folders = Directory.GetDirectories(songsDir);
             var maps = new ConcurrentBag<OsuMap>();
 
-            int parallelism = Math.Max(2, Environment.ProcessorCount / 2);
+            int parallelism = Math.Max(MinParallelism, Environment.ProcessorCount / ParallelismDivider);
             Parallel.ForEach(folders, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, folder =>
             {
                 var folderMaps = ScanSingleFolder(folder);
@@ -39,11 +48,13 @@ namespace OsuTag.Services
         /// <summary>
         /// Scans a single beatmap folder and returns the map data.
         /// Returns multiple maps if it's a practice pack with different audio files.
+        /// This method performs small adaptive backoffs to avoid creating large I/O bursts that can trigger AV scanning.
         /// </summary>
+        /// <param name="folder">Folder path to scan</param>
         public IEnumerable<OsuMap> ScanSingleFolder(string folder)
         {
             var results = new List<OsuMap>();
-            
+
             try
             {
                 var osuFiles = Directory.GetFiles(folder, "*.osu");
@@ -52,7 +63,7 @@ namespace OsuTag.Services
 
                 // Parse all .osu files and group by audio file
                 var diffsByAudio = new Dictionary<string, List<(string osuFile, Dictionary<string, string?> metadata)>>(StringComparer.OrdinalIgnoreCase);
-                
+
                 int fileCounter = 0;
                 foreach (var osuFile in osuFiles)
                 {
@@ -63,16 +74,16 @@ namespace OsuTag.Services
                         var cpuTask = AntimalwareMonitor.GetCpuPercentAsync();
                         if (cpuTask.IsCompletedSuccessfully && cpuTask.Result > 60.0)
                         {
-                            System.Threading.Thread.Sleep(10);
+                            System.Threading.Thread.Sleep(HighAvBackoffMs);
                         }
                     }
-                    catch { }
+                    catch { /* Ignore and continue parsing other files */ }
 
                     // Use sequential scan hint when opening the .osu file to reduce AV overhead (already done inside ParseOsuFile)
                     var metadata = ParseOsuFile(osuFile);
                     if (metadata == null)
                         continue;
-                    
+
                     // Get audio filename for this difficulty
                     string audioKey = "default";
                     if (metadata.TryGetValue("AudioFilename", out var audioFile) && !string.IsNullOrEmpty(audioFile))
@@ -83,24 +94,24 @@ namespace OsuTag.Services
                             audioKey = audioFile.ToLowerInvariant();
                         }
                     }
-                    
+
                     if (!diffsByAudio.ContainsKey(audioKey))
                         diffsByAudio[audioKey] = new List<(string, Dictionary<string, string?>)>();
-                    
+
                     diffsByAudio[audioKey].Add((osuFile, metadata));
 
-                    // Yield briefly every 16 files to avoid creating large IO bursts for AV
+                    // Yield briefly every FileYieldBatch files to avoid creating large IO bursts for AV
                     fileCounter++;
-                    if ((fileCounter & 15) == 0)
-                        System.Threading.Thread.Sleep(1);
+                    if ((fileCounter & (FileYieldBatch - 1)) == 0)
+                        System.Threading.Thread.Sleep(FileYieldSleepMs);
                 }
-                
+
                 if (diffsByAudio.Count == 0)
                     return results;
-                
+
                 // Check if this is a practice pack (multiple unique audio files)
                 bool isPracticePack = diffsByAudio.Count > 1;
-                
+
                 if (isPracticePack)
                 {
                     // Create separate OsuMap for each unique audio file
@@ -124,7 +135,7 @@ namespace OsuTag.Services
             {
                 // Ignore errors
             }
-            
+
             return results;
         }
 
@@ -138,15 +149,15 @@ namespace OsuTag.Services
             await AntimalwareMonitor.WaitIfHighAsync();
             return await Task.Run(() => ScanSingleFolder(folder));
         }
-        
+
         private OsuMap? CreateMapFromDifficulties(string folder, List<(string osuFile, Dictionary<string, string?> metadata)> diffs, string audioKey)
         {
             if (diffs.Count == 0)
                 return null;
-            
+
             // Use the first difficulty's metadata for the map info
             var primaryMetadata = diffs[0].metadata;
-            
+
             // Get the mp3 path
             string? mp3Path = null;
             if (primaryMetadata.TryGetValue("AudioFilename", out var audioFile) && !string.IsNullOrEmpty(audioFile))
@@ -155,7 +166,7 @@ namespace OsuTag.Services
                 if (File.Exists(potentialMp3))
                     mp3Path = potentialMp3;
             }
-            
+
             // Fallback to first mp3 in folder
             if (mp3Path == null)
             {
@@ -163,16 +174,16 @@ namespace OsuTag.Services
                 if (mp3Path == null)
                     return null;
             }
-            
+
             int previewTime = -1;
-            if (primaryMetadata.TryGetValue("PreviewTime", out var previewStr) && 
+            if (primaryMetadata.TryGetValue("PreviewTime", out var previewStr) &&
                 int.TryParse(previewStr, out int parsedTime))
             {
                 previewTime = parsedTime;
             }
 
             string? coverPath = null;
-            
+
             // Try to get the background image from the .osu file
             if (primaryMetadata.TryGetValue("BackgroundFile", out var bgFile) && !string.IsNullOrEmpty(bgFile))
             {
@@ -180,24 +191,24 @@ namespace OsuTag.Services
                 if (File.Exists(bgPath))
                     coverPath = bgPath;
             }
-            
+
             // Fallback to finding any image in the folder
             if (coverPath == null)
                 coverPath = FindCoverImage(folder);
 
             var difficulties = new List<OsuMapDifficulty>(diffs.Count);
-            
+
             foreach (var (osuFile, diffMetadata) in diffs)
             {
                 string diffMp3Path = mp3Path;
-                if (diffMetadata.TryGetValue("AudioFilename", out var diffAudioFile) && 
+                if (diffMetadata.TryGetValue("AudioFilename", out var diffAudioFile) &&
                     !string.IsNullOrEmpty(diffAudioFile))
                 {
                     string potentialMp3 = Path.Combine(folder, diffAudioFile);
                     if (File.Exists(potentialMp3))
                         diffMp3Path = potentialMp3;
                 }
-                
+
                 string diffName = Path.GetFileNameWithoutExtension(osuFile);
                 difficulties.Add(new OsuMapDifficulty
                 {

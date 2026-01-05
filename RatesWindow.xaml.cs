@@ -22,9 +22,9 @@ namespace OsuTag
             // Apply transform to root border, not window
             RootBorder.RenderTransform = new ScaleTransform(0.95, 0.95);
             RootBorder.Opacity = 0;
-            
+
             var storyboard = new Storyboard();
-            
+
             // Fade in
             var fadeIn = new DoubleAnimation
             {
@@ -36,7 +36,7 @@ namespace OsuTag
             Storyboard.SetTarget(fadeIn, RootBorder);
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(OpacityProperty));
             storyboard.Children.Add(fadeIn);
-            
+
             // Scale in
             var scaleX = new DoubleAnimation
             {
@@ -48,7 +48,7 @@ namespace OsuTag
             Storyboard.SetTarget(scaleX, RootBorder);
             Storyboard.SetTargetProperty(scaleX, new PropertyPath("RenderTransform.ScaleX"));
             storyboard.Children.Add(scaleX);
-            
+
             var scaleY = new DoubleAnimation
             {
                 From = 0.95,
@@ -59,7 +59,7 @@ namespace OsuTag
             Storyboard.SetTarget(scaleY, RootBorder);
             Storyboard.SetTargetProperty(scaleY, new PropertyPath("RenderTransform.ScaleY"));
             storyboard.Children.Add(scaleY);
-            
+
             storyboard.Begin();
         }
 

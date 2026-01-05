@@ -18,22 +18,22 @@ namespace OsuTag
             InitializeComponent();
             DataContext = mapGroup;
             _mapGroup = mapGroup;
-            
+
             _mediaPlayer = new System.Windows.Media.MediaPlayer();
             _mediaPlayer.Volume = Properties.Settings.Default.PreviewVolume / 100.0;
-            
+
             Closing += (s, e) => _mediaPlayer?.Stop();
             Loaded += (s, e) => PlayOpenAnimation();
         }
-        
+
         private void PlayOpenAnimation()
         {
             // Apply transform to root border, not window
             RootBorder.RenderTransform = new ScaleTransform(0.95, 0.95);
             RootBorder.Opacity = 0;
-            
+
             var storyboard = new Storyboard();
-            
+
             // Fade in
             var fadeIn = new DoubleAnimation
             {
@@ -45,7 +45,7 @@ namespace OsuTag
             Storyboard.SetTarget(fadeIn, RootBorder);
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(OpacityProperty));
             storyboard.Children.Add(fadeIn);
-            
+
             // Scale in
             var scaleX = new DoubleAnimation
             {
@@ -57,7 +57,7 @@ namespace OsuTag
             Storyboard.SetTarget(scaleX, RootBorder);
             Storyboard.SetTargetProperty(scaleX, new PropertyPath("RenderTransform.ScaleX"));
             storyboard.Children.Add(scaleX);
-            
+
             var scaleY = new DoubleAnimation
             {
                 From = 0.95,
@@ -68,7 +68,7 @@ namespace OsuTag
             Storyboard.SetTarget(scaleY, RootBorder);
             Storyboard.SetTargetProperty(scaleY, new PropertyPath("RenderTransform.ScaleY"));
             storyboard.Children.Add(scaleY);
-            
+
             storyboard.Begin();
         }
 
@@ -97,7 +97,7 @@ namespace OsuTag
                     {
                         _mediaPlayer?.Stop();
                         _mediaPlayer?.Open(new Uri(audioFile.Mp3Path));
-                        
+
                         if (audioFile.PreviewTime > 0 && _mediaPlayer != null)
                         {
                             _mediaPlayer.MediaOpened += OnMediaOpened;
@@ -107,10 +107,10 @@ namespace OsuTag
                                 _mediaPlayer.MediaOpened -= OnMediaOpened;
                             }
                         }
-                        
+
                         _mediaPlayer?.Play();
                     }
-                    catch { }
+                    catch { /* Ignore audio preview errors */ }
                 }
                 e.Handled = true;
             }

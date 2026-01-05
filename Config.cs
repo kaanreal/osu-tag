@@ -20,8 +20,8 @@ namespace OsuTag
                 "Songs"
             );
 
-            OutputDir = !string.IsNullOrEmpty(outputPath) 
-                ? outputPath 
+            OutputDir = !string.IsNullOrEmpty(outputPath)
+                ? outputPath
                 : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
             SpotifyCoverSize = (3000, 3000);

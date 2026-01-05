@@ -18,15 +18,15 @@ namespace OsuTag
             LoadSettings();
             Loaded += (s, e) => PlayOpenAnimation();
         }
-        
+
         private void PlayOpenAnimation()
         {
             // Apply transform to root border, not window
             RootBorder.RenderTransform = new ScaleTransform(0.95, 0.95);
             RootBorder.Opacity = 0;
-            
+
             var storyboard = new Storyboard();
-            
+
             // Fade in
             var fadeIn = new DoubleAnimation
             {
@@ -38,7 +38,7 @@ namespace OsuTag
             Storyboard.SetTarget(fadeIn, RootBorder);
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(OpacityProperty));
             storyboard.Children.Add(fadeIn);
-            
+
             // Scale in
             var scaleX = new DoubleAnimation
             {
@@ -50,7 +50,7 @@ namespace OsuTag
             Storyboard.SetTarget(scaleX, RootBorder);
             Storyboard.SetTargetProperty(scaleX, new PropertyPath("RenderTransform.ScaleX"));
             storyboard.Children.Add(scaleX);
-            
+
             var scaleY = new DoubleAnimation
             {
                 From = 0.95,
@@ -61,7 +61,7 @@ namespace OsuTag
             Storyboard.SetTarget(scaleY, RootBorder);
             Storyboard.SetTargetProperty(scaleY, new PropertyPath("RenderTransform.ScaleY"));
             storyboard.Children.Add(scaleY);
-            
+
             storyboard.Begin();
         }
 
@@ -74,31 +74,31 @@ namespace OsuTag
             VolumeValueText.Text = $"{(int)Properties.Settings.Default.PreviewVolume}%";
             RememberPathCheckBox.IsChecked = Properties.Settings.Default.RememberSongsPath;
             SmartScanCheckBox.IsChecked = Properties.Settings.Default.SmartScan;
-            
+
             // Load Companella settings
             SortByMostPlayedCheckBox.IsChecked = Properties.Settings.Default.SortByMostPlayed;
             var companellaPath = Properties.Settings.Default.CompanellaPath;
-            
+
             // Auto-detect Companella path if not set
             if (string.IsNullOrEmpty(companellaPath))
             {
                 companellaPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Companella");
             }
-            
+
             CompanellaPathTextBox.Text = companellaPath;
             UpdateCompanellaStatus();
-            
+
             // Load update settings
             CheckForUpdatesCheckBox.IsChecked = Properties.Settings.Default.CheckForUpdates;
-            
+
             // Load privacy settings
             TelemetryEnabledCheckBox.IsChecked = Properties.Settings.Default.TelemetryEnabled;
             DiscordRpcEnabledCheckBox.IsChecked = Properties.Settings.Default.DiscordRpcEnabled;
-            
+
             // Set version text
             VersionText.Text = AppVersion.Display;
         }
-        
+
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (VolumeValueText != null)
@@ -112,11 +112,11 @@ namespace OsuTag
             var path = CompanellaPathTextBox.Text;
             var sessionsDbPath = Path.Combine(path, "sessions.db");
             var mapsDbPath = Path.Combine(path, "maps.db");
-            
+
             if (Directory.Exists(path) && File.Exists(sessionsDbPath))
             {
-                var status = File.Exists(mapsDbPath) 
-                    ? "✓ Companella databases found (sessions.db + maps.db)" 
+                var status = File.Exists(mapsDbPath)
+                    ? "✓ Companella databases found (sessions.db + maps.db)"
                     : "✓ sessions.db found (maps.db not found, using fallback)";
                 CompanellaStatusText.Text = status;
                 CompanellaStatusText.Foreground = new System.Windows.Media.SolidColorBrush(
@@ -169,30 +169,30 @@ namespace OsuTag
             Properties.Settings.Default.PreviewVolume = PreviewVolumeSlider.Value;
             Properties.Settings.Default.RememberSongsPath = RememberPathCheckBox.IsChecked ?? false;
             Properties.Settings.Default.SmartScan = SmartScanCheckBox.IsChecked ?? true;
-            
+
             // Save Companella settings
             Properties.Settings.Default.SortByMostPlayed = SortByMostPlayedCheckBox.IsChecked ?? false;
             Properties.Settings.Default.CompanellaPath = CompanellaPathTextBox.Text;
-            
+
             // Save update settings
             Properties.Settings.Default.CheckForUpdates = CheckForUpdatesCheckBox.IsChecked ?? true;
-            
+
             // Save privacy settings
             Properties.Settings.Default.TelemetryEnabled = TelemetryEnabledCheckBox.IsChecked ?? true;
             Properties.Settings.Default.DiscordRpcEnabled = DiscordRpcEnabledCheckBox.IsChecked ?? true;
-            
+
             Properties.Settings.Default.Save();
-            
+
             // Handle settings changes for services
             DiscordRpcService.HandleSettingsChanged();
-            
+
             // Track settings change (only if telemetry is enabled)
             _ = TelemetryService.TrackSettingsChanged(new Dictionary<string, object>
             {
                 ["telemetry_enabled"] = Properties.Settings.Default.TelemetryEnabled,
                 ["discord_rpc_enabled"] = Properties.Settings.Default.DiscordRpcEnabled
             });
-            
+
             DialogResult = true;
             Close();
         }
@@ -202,23 +202,23 @@ namespace OsuTag
             DialogResult = false;
             Close();
         }
-        
+
         private void ClearCache_Click(object sender, RoutedEventArgs e)
         {
             Properties.Settings.Default.ScannedFolders = "";
             Properties.Settings.Default.Save();
             System.Windows.MessageBox.Show("Scan cache cleared. Next scan will reload all beatmaps.", "Cache Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        
+
         private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
         {
             UpdateStatusText.Text = "Checking for updates...";
             UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9B9DA3"));
-            
+
             try
             {
                 var updateInfo = await UpdateService.CheckForUpdatesAsync();
-                
+
                 if (updateInfo == null)
                 {
                     UpdateStatusText.Text = "⚠ Could not check for updates. Please try again later.";
@@ -228,7 +228,7 @@ namespace OsuTag
                 {
                     UpdateStatusText.Text = $"✓ New version available: {updateInfo.Version}";
                     UpdateStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
-                    
+
                     // Close settings and show update modal on main window
                     if (Owner is MainWindow mainWindow)
                     {

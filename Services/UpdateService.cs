@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace OsuTag.Services
 {
-    public class UpdateInfo
+    internal class UpdateInfo
     {
         public string Version { get; set; } = "";
         public string DownloadUrl { get; set; } = "";
@@ -20,15 +20,15 @@ namespace OsuTag.Services
         public string FileName { get; set; } = "";
     }
 
-    public class UpdateService
+    internal class UpdateService
     {
         // GitHub repository info
         private const string GITHUB_OWNER = "kaanreal";
         private const string GITHUB_REPO = "osu-tag";
         private const string GITHUB_API_URL = "https://api.github.com/repos/{0}/{1}/releases/latest";
-        
+
         private static readonly HttpClient _httpClient = new HttpClient();
-        
+
         static UpdateService()
         {
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "OsuTag-UpdateChecker");
@@ -44,20 +44,20 @@ namespace OsuTag.Services
             {
                 var url = string.Format(GITHUB_API_URL, GITHUB_OWNER, GITHUB_REPO);
                 var response = await _httpClient.GetStringAsync(url);
-                
+
                 using var doc = JsonDocument.Parse(response);
                 var root = doc.RootElement;
-                
+
                 var tagName = root.GetProperty("tag_name").GetString() ?? "";
                 var releaseName = root.GetProperty("name").GetString() ?? "";
                 var body = root.GetProperty("body").GetString() ?? "";
                 var publishedAt = root.GetProperty("published_at").GetDateTime();
                 var htmlUrl = root.GetProperty("html_url").GetString() ?? "";
-                
+
                 string downloadUrl = htmlUrl;
                 string fileName = "";
                 long fileSize = 0;
-                
+
                 if (root.TryGetProperty("assets", out var assets))
                 {
                     foreach (var asset in assets.EnumerateArray())
@@ -78,10 +78,10 @@ namespace OsuTag.Services
                         }
                     }
                 }
-                
+
                 var latestVersion = NormalizeVersion(tagName);
                 var currentVersion = NormalizeVersion(AppVersion.Current);
-                
+
                 return new UpdateInfo
                 {
                     Version = tagName,
@@ -100,7 +100,7 @@ namespace OsuTag.Services
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Download update with progress reporting
         /// </summary>
@@ -110,36 +110,36 @@ namespace OsuTag.Services
             {
                 var tempDir = Path.Combine(Path.GetTempPath(), "OsuTagUpdate");
                 Directory.CreateDirectory(tempDir);
-                
-                var fileName = !string.IsNullOrEmpty(updateInfo.FileName) 
-                    ? updateInfo.FileName 
+
+                var fileName = !string.IsNullOrEmpty(updateInfo.FileName)
+                    ? updateInfo.FileName
                     : $"OsuTag_{updateInfo.Version}.exe";
                 var downloadPath = Path.Combine(tempDir, fileName);
-                
+
                 foreach (var file in Directory.GetFiles(tempDir))
                 {
-                    try { File.Delete(file); } catch { }
+                    try { File.Delete(file); } catch { /* Ignore delete errors - cleanup best-effort */ }
                 }
-                
+
                 using var response = await _httpClient.GetAsync(updateInfo.DownloadUrl, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
-                
+
                 var totalBytes = response.Content.Headers.ContentLength ?? updateInfo.FileSize;
-                
+
                 using var contentStream = await response.Content.ReadAsStreamAsync();
                 using var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-                
+
                 var buffer = new byte[8192];
                 long totalRead = 0;
                 int bytesRead;
-                
+
                 while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                 {
                     await fileStream.WriteAsync(buffer, 0, bytesRead);
                     totalRead += bytesRead;
                     progress?.Report((totalRead, totalBytes));
                 }
-                
+
                 return downloadPath;
             }
             catch (Exception)
@@ -148,7 +148,7 @@ namespace OsuTag.Services
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Apply the update - creates a batch script that replaces the exe after app closes
         /// </summary>
@@ -158,11 +158,11 @@ namespace OsuTag.Services
             {
                 var currentExePath = Process.GetCurrentProcess().MainModule?.FileName;
                 if (string.IsNullOrEmpty(currentExePath)) return false;
-                
+
                 var currentDir = Path.GetDirectoryName(currentExePath)!;
                 var currentExeName = Path.GetFileName(currentExePath);
                 var backupPath = Path.Combine(currentDir, $"{currentExeName}.backup");
-                
+
                 var batchPath = Path.Combine(Path.GetTempPath(), "OsuTagUpdater.bat");
                 var batchContent = $@"@echo off
 chcp 65001 >nul
@@ -191,9 +191,9 @@ start """" ""{currentExePath}""
 
 (goto) 2>nul & del ""%~f0""
 ";
-                
+
                 File.WriteAllText(batchPath, batchContent);
-                
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
@@ -202,7 +202,7 @@ start """" ""{currentExePath}""
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden
                 };
-                
+
                 Process.Start(startInfo);
                 return true;
             }
@@ -212,18 +212,18 @@ start """" ""{currentExePath}""
                 return false;
             }
         }
-        
+
         public static void OpenDownloadPage(string url)
         {
             try
             {
                 Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
             }
-            catch { }
+            catch { /* Ignore errors - update checks are non-critical */ }
         }
-        
+
         private static string NormalizeVersion(string version) => version.TrimStart('v', 'V').Trim();
-        
+
         private static int CompareVersions(string v1, string v2)
         {
             try
@@ -234,7 +234,7 @@ start """" ""{currentExePath}""
             }
             catch { return string.Compare(v1, v2, StringComparison.OrdinalIgnoreCase); }
         }
-        
+
         private static string NormalizeVersionForParsing(string version)
         {
             var normalized = NormalizeVersion(version);
@@ -244,7 +244,7 @@ start """" ""{currentExePath}""
             return normalized;
         }
     }
-    
+
     public static class AppVersion
     {
         public const string Current = "1.0.0";

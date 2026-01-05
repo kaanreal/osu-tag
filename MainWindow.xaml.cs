@@ -21,7 +21,7 @@ namespace OsuTag
     {
         private MediaPlayer? _mediaPlayer;
         private int _previousSelectedCount = 0;
-        
+
         public MainWindow()
         {
             InitializeComponent();
@@ -29,17 +29,18 @@ namespace OsuTag
 
             var viewModel = new MainViewModel();
             DataContext = viewModel;
-            
+
             // Subscribe to property changes for animation
             viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            
+
             _mediaPlayer = new MediaPlayer();
             _mediaPlayer.Volume = Properties.Settings.Default.PreviewVolume / 100.0;
-            
+
             // Initialize Discord RPC
             DiscordRpcService.Initialize();
 
-            Closing += (s, e) => {
+            Closing += (s, e) =>
+            {
                 StopPreview();
                 DiscordRpcService.Shutdown();
             };
@@ -74,7 +75,7 @@ namespace OsuTag
         private void AnimateSelectionPanelIn()
         {
             if (SelectionPanel == null) return;
-            
+
             // Create slide-up and fade-in animation
             var slideAnim = new DoubleAnimation
             {
@@ -83,7 +84,7 @@ namespace OsuTag
                 Duration = TimeSpan.FromMilliseconds(300),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
-            
+
             var fadeAnim = new DoubleAnimation
             {
                 From = 0,
@@ -91,7 +92,7 @@ namespace OsuTag
                 Duration = TimeSpan.FromMilliseconds(300),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
-            
+
             // Apply to the selection panel
             if (SelectionPanel.RenderTransform is TranslateTransform transform)
             {
@@ -108,12 +109,12 @@ namespace OsuTag
             // Don't animate multi-audio cards (they expand instead)
             if (cardBorder.DataContext is MapItemGroup mapGroup && mapGroup.HasMultipleDifferentAudios)
                 return;
-            
+
             try
             {
                 // Get card position relative to the window
                 var cardPos = cardBorder.TransformToAncestor(this).Transform(new Point(0, 0));
-                
+
                 // Create a visual copy of the card with glow effect
                 var cardVisual = new VisualBrush(cardBorder);
                 var ghost = new Border
@@ -135,20 +136,20 @@ namespace OsuTag
                         Opacity = 0.8
                     }
                 };
-                
+
                 // Enable bitmap caching for smoother animation
                 ghost.CacheMode = new BitmapCache { EnableClearType = false, SnapsToDevicePixels = true };
-                
+
                 // Set high z-index so it's above everything
                 Panel.SetZIndex(ghost, 9999);
-                
+
                 // If in a grid, span all rows/columns
                 if (Content is Grid mainGrid)
                 {
                     Grid.SetRowSpan(ghost, 100);
                     Grid.SetColumnSpan(ghost, 100);
                     mainGrid.Children.Add(ghost);
-                    
+
                     // Get the exact position of the selection panel
                     double targetX, targetY;
                     if (SelectionPanel != null && SelectionPanel.IsVisible)
@@ -163,11 +164,11 @@ namespace OsuTag
                         targetX = 100;
                         targetY = this.ActualHeight - 80;
                     }
-                    
+
                     // Calculate for card center to land at target
                     targetX -= cardBorder.ActualWidth * 0.075; // Account for scale (0.15/2)
                     targetY -= cardBorder.ActualHeight * 0.075;
-                    
+
                     // Animate margin for position with smooth curve
                     var animMargin = new ThicknessAnimation
                     {
@@ -176,11 +177,11 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(450),
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
                     };
-                    
+
                     // Scale down smoothly
                     var scaleTransform = new ScaleTransform(1, 1);
                     ghost.RenderTransform = scaleTransform;
-                    
+
                     var scaleAnim = new DoubleAnimation
                     {
                         From = 1,
@@ -188,14 +189,14 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(450),
                         EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
                     };
-                    
+
                     // Slight rotation for more dynamic feel
                     var rotateTransform = new RotateTransform(0);
                     var transformGroup = new TransformGroup();
                     transformGroup.Children.Add(scaleTransform);
                     transformGroup.Children.Add(rotateTransform);
                     ghost.RenderTransform = transformGroup;
-                    
+
                     var rotateAnim = new DoubleAnimation
                     {
                         From = 0,
@@ -203,7 +204,7 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(450),
                         EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
                     };
-                    
+
                     // Fade out at the end
                     var fadeAnim = new DoubleAnimation
                     {
@@ -212,7 +213,7 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(120),
                         BeginTime = TimeSpan.FromMilliseconds(380)
                     };
-                    
+
                     // Animate the glow getting brighter then fading
                     var glowAnim = new DoubleAnimation
                     {
@@ -221,12 +222,12 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(450),
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
                     };
-                    
+
                     fadeAnim.Completed += (s, e) =>
                     {
                         mainGrid.Children.Remove(ghost);
                     };
-                    
+
                     ghost.BeginAnimation(MarginProperty, animMargin);
                     scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
                     scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
@@ -248,17 +249,17 @@ namespace OsuTag
             {
                 VersionText.Text = $"osu!tag {AppVersion.Display}";
             }
-            
+
             // Check for updates on startup if enabled
             if (Properties.Settings.Default.CheckForUpdates)
             {
                 await CheckForUpdatesAsync();
             }
         }
-        
+
         private UpdateInfo? _latestUpdateInfo;
         private bool _isDownloading = false;
-        
+
         private async Task CheckForUpdatesAsync()
         {
             try
@@ -275,10 +276,10 @@ namespace OsuTag
                         UpdateVersionDisplay(true, updateInfo.Version);
                         return;
                     }
-                    
+
                     _latestUpdateInfo = updateInfo;
                     UpdateVersionDisplay(true, updateInfo.Version);
-                    
+
                     // Show update modal after a short delay
                     await Task.Delay(1000);
                     ShowUpdateModal(updateInfo);
@@ -289,7 +290,7 @@ namespace OsuTag
                 // Silently ignore update check failures
             }
         }
-        
+
         private void UpdateVersionDisplay(bool updateAvailable, string newVersion = "")
         {
             if (VersionText != null)
@@ -305,15 +306,15 @@ namespace OsuTag
                 }
             }
         }
-        
+
         private void ShowUpdateModal(UpdateInfo updateInfo)
         {
             if (UpdateOverlay == null) return;
-            
+
             // Populate modal content
             UpdateModalCurrentVersion.Text = AppVersion.Display;
             UpdateModalNewVersion.Text = updateInfo.Version;
-            
+
             // Format release notes (render Markdown -> HTML)
             var notes = updateInfo.ReleaseNotes;
             if (string.IsNullOrEmpty(notes))
@@ -346,7 +347,7 @@ namespace OsuTag
                     UpdateModalNotesFallbackBorder.Visibility = Visibility.Visible;
                 }
             }
-            
+
             // Reset UI state
             DownloadProgressPanel.Visibility = Visibility.Collapsed;
             UpdateButtonsPanel.Visibility = Visibility.Visible;
@@ -355,16 +356,16 @@ namespace OsuTag
             // Ensure FlowViewer is visible and buttons are not covered
             if (UpdateModalFlowViewer != null) UpdateModalFlowViewer.Visibility = Visibility.Visible;
             _isDownloading = false;
-            
+
             // Show overlay with animation
             UpdateOverlay.Visibility = Visibility.Visible;
             AnimateUpdateModalIn();
         }
-        
+
         private void AnimateUpdateModalIn()
         {
             var storyboard = new Storyboard();
-            
+
             // Fade in the overlay
             UpdateOverlay.Opacity = 0;
             var fadeIn = new DoubleAnimation
@@ -377,11 +378,11 @@ namespace OsuTag
             Storyboard.SetTarget(fadeIn, UpdateOverlay);
             Storyboard.SetTargetProperty(fadeIn, new PropertyPath(OpacityProperty));
             storyboard.Children.Add(fadeIn);
-            
+
             storyboard.Begin();
         }
-        
-        public void ShowUpdateModalFromSettings(UpdateInfo updateInfo)
+
+        internal void ShowUpdateModalFromSettings(UpdateInfo updateInfo)
         {
             _latestUpdateInfo = updateInfo;
             ShowUpdateModal(updateInfo);
@@ -467,13 +468,13 @@ namespace OsuTag
                 _suppressOverlayUpdate = false;
             }
         }
-        
+
         private void HideUpdateModal()
         {
             if (UpdateOverlay == null || _isDownloading) return;
             UpdateOverlay.Visibility = Visibility.Collapsed;
         }
-        
+
         private void UpdateOverlay_Click(object sender, MouseButtonEventArgs e)
         {
             // Close when clicking outside the modal (but not during download)
@@ -482,46 +483,46 @@ namespace OsuTag
                 HideUpdateModal();
             }
         }
-        
+
 
         // No longer used — FlowDocument hyperlinks open via their Click handler
 
         private async void UpdateNow_Click(object sender, RoutedEventArgs e)
         {
             if (_latestUpdateInfo == null || _isDownloading) return;
-            
+
             _isDownloading = true;
             UpdateNowButton.IsEnabled = false;
             UpdateNowButton.Content = "Downloading...";
-            
+
             // Show progress panel
             DownloadProgressPanel.Visibility = Visibility.Visible;
             DownloadProgressBar.Value = 0;
             DownloadProgressText.Text = "0%";
             DownloadStatusText.Text = "Downloading update...";
-            
+
             // Create progress reporter
             var progress = new Progress<(long downloaded, long total)>(p =>
             {
                 var percent = p.total > 0 ? (int)((double)p.downloaded / p.total * 100) : 0;
                 DownloadProgressBar.Value = percent;
                 DownloadProgressText.Text = $"{percent}%";
-                
+
                 var downloadedMB = p.downloaded / 1024.0 / 1024.0;
                 var totalMB = p.total / 1024.0 / 1024.0;
                 DownloadStatusText.Text = $"Downloading... {downloadedMB:F1} MB / {totalMB:F1} MB";
             });
-            
+
             // Download the update
             var downloadPath = await UpdateService.DownloadUpdateAsync(_latestUpdateInfo, progress);
-            
+
             if (downloadPath != null)
             {
                 DownloadStatusText.Text = "Installing update...";
                 DownloadProgressText.Text = "100%";
-                
+
                 await Task.Delay(500);
-                
+
                 // Apply the update (this will close the app)
                 if (UpdateService.ApplyUpdate(downloadPath))
                 {
@@ -545,17 +546,17 @@ namespace OsuTag
                 _isDownloading = false;
                 UpdateNowButton.IsEnabled = true;
                 UpdateNowButton.Content = "Retry";
-                
+
                 await Task.Delay(2000);
                 DownloadProgressPanel.Visibility = Visibility.Collapsed;
             }
         }
-        
+
         private void UpdateLater_Click(object sender, RoutedEventArgs e)
         {
             HideUpdateModal();
         }
-        
+
         private void SkipVersion_Click(object sender, RoutedEventArgs e)
         {
             if (_latestUpdateInfo != null)
@@ -566,7 +567,7 @@ namespace OsuTag
             }
             HideUpdateModal();
         }
-        
+
         private void UpdateAvailableText_Click(object sender, MouseButtonEventArgs e)
         {
             if (_latestUpdateInfo != null)
@@ -576,7 +577,7 @@ namespace OsuTag
         }
 
         // Convert a simple subset of Markdown to a FlowDocument for native rendering (headings, lists, bold, italic, code, links)
-        
+
         private FlowDocument RenderMarkdownToFlowDocument(string markdown)
         {
             var doc = new FlowDocument();
@@ -628,7 +629,7 @@ namespace OsuTag
                 if (listMatch.Success)
                 {
                     var itemText = listMatch.Groups[1].Value.Trim();
-                    if (list == null) { list = new List() { MarkerStyle = TextMarkerStyle.Disc, Margin = new Thickness(0,4,0,8) }; }
+                    if (list == null) { list = new List() { MarkerStyle = TextMarkerStyle.Disc, Margin = new Thickness(0, 4, 0, 8) }; }
                     var li = new ListItem(new Paragraph());
                     foreach (var inline in ParseInlines(itemText)) li.Blocks.Add(new Paragraph(new Span(inline)));
                     list.ListItems.Add(li);
@@ -663,8 +664,9 @@ namespace OsuTag
                     var linkText = m.Groups[2].Value;
                     var url = m.Groups[3].Value;
                     var hl = new Hyperlink(new Run(linkText)) { NavigateUri = new Uri(url, UriKind.RelativeOrAbsolute) };
-                    hl.Click += (s, e) => {
-                        try { Process.Start(new ProcessStartInfo(hl.NavigateUri.AbsoluteUri) { UseShellExecute = true }); } catch { }
+                    hl.Click += (s, e) =>
+                    {
+                        try { Process.Start(new ProcessStartInfo(hl.NavigateUri.AbsoluteUri) { UseShellExecute = true }); } catch { /* Ignore external launch failures */ }
                     };
                     yield return hl;
                 }
@@ -677,7 +679,7 @@ namespace OsuTag
                 else if (m.Groups[6].Success)
                 {
                     // code `text`
-                    var span = new Span(new Run(m.Groups[7].Value)) { Background = new SolidColorBrush(Color.FromRgb(16,19,22)) , FontFamily = new FontFamily("Consolas"), FontSize = 12 };
+                    var span = new Span(new Run(m.Groups[7].Value)) { Background = new SolidColorBrush(Color.FromRgb(16, 19, 22)), FontFamily = new FontFamily("Consolas"), FontSize = 12 };
                     yield return span;
                 }
                 else if (m.Groups[8].Success)
@@ -707,7 +709,7 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(200),
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
-                    
+
                     if (border.RenderTransform is TransformGroup transformGroup)
                     {
                         var translateTransform = transformGroup.Children.OfType<TranslateTransform>().FirstOrDefault();
@@ -716,7 +718,7 @@ namespace OsuTag
                             translateTransform.BeginAnimation(TranslateTransform.YProperty, translateAnim);
                         }
                     }
-                    
+
                     // Increase shadow
                     if (border.Effect is DropShadowEffect shadow)
                     {
@@ -726,7 +728,7 @@ namespace OsuTag
                             Duration = TimeSpan.FromMilliseconds(200)
                         };
                         shadow.BeginAnimation(DropShadowEffect.OpacityProperty, shadowAnim);
-                        
+
                         var depthAnim = new DoubleAnimation
                         {
                             To = 8,
@@ -736,14 +738,14 @@ namespace OsuTag
                     }
                 }
                 catch { /* Ignore animation errors */ }
-                
+
                 // Only play preview if card is not expanded
                 if (!mapGroup.IsExpanded && !string.IsNullOrEmpty(mapGroup.PreviewMp3Path) && System.IO.File.Exists(mapGroup.PreviewMp3Path))
                 {
                     try
                     {
                         _mediaPlayer?.Open(new Uri(mapGroup.PreviewMp3Path));
-                        
+
                         // Seek to preview time once media is loaded
                         if (mapGroup.PreviewTime > 0 && _mediaPlayer != null)
                         {
@@ -752,7 +754,7 @@ namespace OsuTag
                                 _mediaPlayer.Position = TimeSpan.FromMilliseconds(mapGroup.PreviewTime);
                             };
                         }
-                        
+
                         _mediaPlayer?.Play();
                     }
                     catch { }
@@ -773,7 +775,7 @@ namespace OsuTag
                         Duration = TimeSpan.FromMilliseconds(200),
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
-                    
+
                     if (border.RenderTransform is TransformGroup transformGroup)
                     {
                         var translateTransform = transformGroup.Children.OfType<TranslateTransform>().FirstOrDefault();
@@ -781,7 +783,7 @@ namespace OsuTag
                         {
                             translateTransform.BeginAnimation(TranslateTransform.YProperty, translateAnim);
                         }
-                        
+
                         // Reset rotations
                         var rotateTransforms = transformGroup.Children.OfType<RotateTransform>().ToList();
                         if (rotateTransforms.Count >= 2)
@@ -796,7 +798,7 @@ namespace OsuTag
                             rotateTransforms[1].BeginAnimation(RotateTransform.AngleProperty, resetAnim);
                         }
                     }
-                    
+
                     // Reset shadow
                     if (border.Effect is DropShadowEffect shadow)
                     {
@@ -806,7 +808,7 @@ namespace OsuTag
                             Duration = TimeSpan.FromMilliseconds(200)
                         };
                         shadow.BeginAnimation(DropShadowEffect.OpacityProperty, shadowAnim);
-                        
+
                         var depthAnim = new DoubleAnimation
                         {
                             To = 3,
@@ -817,7 +819,7 @@ namespace OsuTag
                 }
                 catch { /* Ignore animation errors */ }
             }
-            
+
             StopPreview();
         }
 
@@ -827,22 +829,22 @@ namespace OsuTag
             {
                 // Steam trading card 3D tilt effect
                 if (mapGroup.IsExpanded) return; // No tilt when expanded
-                
+
                 try
                 {
                     var position = e.GetPosition(border);
                     var centerX = border.ActualWidth / 2;
                     var centerY = border.ActualHeight / 2;
-                    
+
                     // Calculate relative position (-1 to 1)
                     var relativeX = (position.X - centerX) / centerX;
                     var relativeY = (position.Y - centerY) / centerY;
-                    
+
                     // Calculate subtle tilt angles (max 3 degrees)
                     var maxTilt = 3.0;
                     var tiltY = relativeX * maxTilt; // Horizontal tilt
                     var tiltX = -relativeY * maxTilt; // Vertical tilt (inverted)
-                    
+
                     if (border.RenderTransform is TransformGroup transformGroup)
                     {
                         var rotateTransforms = transformGroup.Children.OfType<RotateTransform>().ToList();
@@ -851,7 +853,7 @@ namespace OsuTag
                             // Stop any ongoing animations first
                             rotateTransforms[0].BeginAnimation(RotateTransform.AngleProperty, null);
                             rotateTransforms[1].BeginAnimation(RotateTransform.AngleProperty, null);
-                            
+
                             // Apply smooth tilt - direct set for smooth tracking
                             rotateTransforms[0].Angle = tiltX;
                             rotateTransforms[1].Angle = tiltY;
@@ -891,14 +893,14 @@ namespace OsuTag
                         }
                     }
                 }
-                
+
                 StopPreview();
-                
+
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.SelectedMapGroup = mapGroup;
                 }
-                
+
                 if (mapGroup.HasMultipleDifferentRates || mapGroup.HasMultipleDifferentAudios)
                 {
                     // Toggle expanded state
@@ -909,13 +911,13 @@ namespace OsuTag
                     // Toggle selection for simple maps
                     bool wasSelected = mapGroup.IsSelected;
                     mapGroup.IsSelected = !mapGroup.IsSelected;
-                    
+
                     // Animate card flying to selection panel when selecting
                     if (!wasSelected && mapGroup.IsSelected)
                     {
                         AnimateCardToSelectionPanel(border);
                     }
-                    
+
                     // Refresh selection panel
                     if (DataContext is MainViewModel vm)
                     {
@@ -934,7 +936,7 @@ namespace OsuTag
                     try
                     {
                         _mediaPlayer?.Open(new Uri(audioFile.Mp3Path));
-                        
+
                         if (audioFile.PreviewTime > 0 && _mediaPlayer != null)
                         {
                             _mediaPlayer.MediaOpened += (s, args) =>
@@ -942,7 +944,7 @@ namespace OsuTag
                                 _mediaPlayer.Position = TimeSpan.FromMilliseconds(audioFile.PreviewTime);
                             };
                         }
-                        
+
                         _mediaPlayer?.Play();
                     }
                     catch { }
@@ -960,11 +962,11 @@ namespace OsuTag
             if (sender is Border border && border.DataContext is AudioFileItem audioFile)
             {
                 var itemsControl = FindParent<ItemsControl>(border);
-                
+
                 if (itemsControl?.DataContext is MapItemGroup mapGroup)
                 {
                     bool wasSelected = audioFile.IsSelected;
-                    
+
                     if (audioFile.IsSelected)
                     {
                         // Clicking on already selected file deselects it and the card
@@ -978,11 +980,11 @@ namespace OsuTag
                         {
                             file.IsSelected = false;
                         }
-                        
+
                         // Select the clicked file and the card
                         audioFile.IsSelected = true;
                         mapGroup.IsSelected = true;
-                        
+
                         // Animate the card flying to selection panel
                         var cardBorder = FindParent<Border>(itemsControl);
                         if (cardBorder != null && cardBorder.DataContext is MapItemGroup)
@@ -990,14 +992,14 @@ namespace OsuTag
                             AnimateCardToSelectionPanel(cardBorder);
                         }
                     }
-                    
+
                     // Refresh selection panel
                     if (DataContext is MainViewModel viewModel)
                     {
                         viewModel.RefreshSelectedItems();
                     }
                 }
-                
+
                 e.Handled = true;
             }
         }
@@ -1012,7 +1014,7 @@ namespace OsuTag
                     {
                         _mediaPlayer?.Stop();
                         _mediaPlayer?.Open(new Uri(audioFile.Mp3Path));
-                        
+
                         if (audioFile.PreviewTime > 0 && _mediaPlayer != null)
                         {
                             _mediaPlayer.MediaOpened += OnMediaOpened;
@@ -1022,7 +1024,7 @@ namespace OsuTag
                                 _mediaPlayer.MediaOpened -= OnMediaOpened;
                             }
                         }
-                        
+
                         _mediaPlayer?.Play();
                     }
                     catch { }
@@ -1030,14 +1032,14 @@ namespace OsuTag
                 e.Handled = true;
             }
         }
-        
+
         private void Difficulty_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is Border border && border.DataContext is DifficultyItem difficulty)
             {
                 // Find the parent MapItemGroup
                 var itemsControl = FindParent<ItemsControl>(border);
-                
+
                 if (itemsControl?.DataContext is MapItemGroup mapGroup)
                 {
                     // If clicking on already selected difficulty, deselect it and the card
@@ -1053,35 +1055,35 @@ namespace OsuTag
                         {
                             diff.IsSelected = false;
                         }
-                        
+
                         // Select only this one
                         difficulty.IsSelected = true;
-                        
+
                         // Also select the card
                         mapGroup.IsSelected = true;
                     }
-                    
+
                     // Refresh selection panel
                     if (DataContext is MainViewModel viewModel)
                     {
                         viewModel.RefreshSelectedItems();
                     }
                 }
-                
+
                 e.Handled = true;
             }
         }
-        
+
         private T? FindParent<T>(DependencyObject child) where T : DependencyObject
         {
             var parent = VisualTreeHelper.GetParent(child);
-            
+
             if (parent == null)
                 return null;
-                
+
             if (parent is T typedParent)
                 return typedParent;
-                
+
             return FindParent<T>(parent);
         }
 
@@ -1106,7 +1108,7 @@ namespace OsuTag
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
             };
-            
+
             if (settingsWindow.ShowDialog() == true)
             {
                 // Update media player volume
@@ -1114,13 +1116,13 @@ namespace OsuTag
                 {
                     _mediaPlayer.Volume = Properties.Settings.Default.PreviewVolume / 100.0;
                 }
-                
+
                 // Reload settings from Properties.Settings
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ProcessCovers = Properties.Settings.Default.ProcessCovers;
                     viewModel.CreateBackups = Properties.Settings.Default.CreateBackups;
-                    
+
                     // Refresh Companella sorting if maps are already loaded
                     if (viewModel.MapsLoaded)
                     {
@@ -1153,7 +1155,7 @@ namespace OsuTag
                 }
             }
         }
-        
+
         private void BuyMeCoffee_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1166,12 +1168,12 @@ namespace OsuTag
             }
             catch { }
         }
-        
+
         private void CardsScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             // Disabled auto-loading - user clicks Load More button instead
         }
-        
+
         private void SelectionPanel_HeaderClick(object sender, MouseButtonEventArgs e)
         {
             if (DataContext is MainViewModel viewModel)
@@ -1179,7 +1181,7 @@ namespace OsuTag
                 viewModel.IsSelectionPanelExpanded = !viewModel.IsSelectionPanelExpanded;
             }
         }
-        
+
         private void SelectionPanel_ClearClick(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel viewModel)
@@ -1187,7 +1189,7 @@ namespace OsuTag
                 viewModel.ClearSelection();
             }
         }
-        
+
         private void SelectionPanel_RemoveItem(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.DataContext is SelectedItemInfo item)

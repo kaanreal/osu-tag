@@ -29,7 +29,7 @@
 * 💾 **Remember Path** – Automatically loads your Songs folder on startup
 * 🟣 **Discord Rich Presence** – Shows conversion status, selection count, and app activity on your Discord profile
 * ⚙️ **Discord RPC Toggle** – Enable or disable Discord integration instantly from the settings window
-* 📊 **Anonymous Telemetry** – Optional anonymous usage statistics to help improve osu!tag (can be disabled in settings)
+* 📊 **Anonymous Telemetry** – Optional anonymous usage statistics to help improve osu!tag (can be disabled in settings). Telemetry is disabled by default in release builds and requires an environment-provided API key to enable.
 * 📈 **Companella! Integration** – Automatically detects the Companella! database in AppData to display play count and stats ([Companella!](https://github.com/Leinadix/companella))
 * 🔄 **Update Checker** – Checks for new releases on startup and manually from the settings window
 

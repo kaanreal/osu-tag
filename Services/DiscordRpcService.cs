@@ -5,7 +5,7 @@ using DiscordRPC;
 
 namespace OsuTag.Services
 {
-    public static class DiscordRpcService
+    internal static class DiscordRpcService
     {
         private static DiscordRpcClient? _client;
         private static int _convertedCount = 0;

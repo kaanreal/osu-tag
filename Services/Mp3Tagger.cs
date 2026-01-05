@@ -7,7 +7,7 @@ using IOFile = System.IO.File;
 
 namespace OsuTag.Services
 {
-    public class Mp3Tagger
+    internal class Mp3Tagger
     {
         public void TagMp3(string mp3Path, OsuMap metadata, string? coverPath = null)
         {

@@ -5,7 +5,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace OsuTag.Services
 {
-    public class ImageProcessor
+    internal class ImageProcessor
     {
         public void ProcessCover(string inputPath, string outputPath, int targetWidth, int targetHeight)
         {
@@ -15,7 +15,7 @@ namespace OsuTag.Services
             try
             {
                 using var image = Image.Load(inputPath);
-                
+
                 // Crop to square (1:1 ratio)
                 int minDim = Math.Min(image.Width, image.Height);
                 int left = (image.Width - minDim) / 2;

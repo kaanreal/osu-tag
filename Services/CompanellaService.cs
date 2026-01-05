@@ -11,7 +11,7 @@ namespace OsuTag.Services
     /// - sessions.db: Contains SessionPlays table with BeatmapPath
     /// - maps.db: Contains Maps table with metadata (Title, Artist, etc.)
     /// </summary>
-    public class CompanellaService
+    internal class CompanellaService
     {
         private readonly string _sessionsDbPath;
         private readonly string _mapsDbPath;
@@ -89,18 +89,18 @@ namespace OsuTag.Services
 
             using var cmd = new SqliteCommand(query, connection);
             using var reader = cmd.ExecuteReader();
-            
+
             while (reader.Read())
             {
                 var artist = reader.IsDBNull(0) ? "" : reader.GetString(0);
                 var title = reader.IsDBNull(1) ? "" : reader.GetString(1);
                 var count = reader.GetInt32(2);
-                
+
                 if (string.IsNullOrEmpty(artist) && string.IsNullOrEmpty(title))
                     continue;
-                    
+
                 var key = $"{artist} - {title}";
-                
+
                 if (playCounts.ContainsKey(key))
                     playCounts[key] += count;
                 else
@@ -135,20 +135,20 @@ namespace OsuTag.Services
 
             using var cmd = new SqliteCommand(query, connection);
             using var reader = cmd.ExecuteReader();
-            
+
             while (reader.Read())
             {
                 var beatmapPath = reader.IsDBNull(0) ? null : reader.GetString(0);
                 if (string.IsNullOrEmpty(beatmapPath))
                     continue;
-                    
+
                 var count = reader.GetInt32(1);
-                
+
                 // Get folder name as key (e.g., "2179506 Long ZhixiangWu Feihua - Da Xiang Jiao")
                 var folderName = GetFolderName(beatmapPath);
                 if (string.IsNullOrEmpty(folderName))
                     continue;
-                
+
                 if (playCounts.ContainsKey(folderName))
                     playCounts[folderName] += count;
                 else
@@ -183,19 +183,19 @@ namespace OsuTag.Services
 
             using var cmd = new SqliteCommand(query, connection);
             using var reader = cmd.ExecuteReader();
-            
+
             while (reader.Read())
             {
                 var beatmapPath = reader.IsDBNull(0) ? null : reader.GetString(0);
                 if (string.IsNullOrEmpty(beatmapPath))
                     continue;
-                    
+
                 var count = reader.GetInt32(1);
-                
+
                 // Extract "Artist - Title" from the folder name in the path
                 // BeatmapPath is typically like: C:\...\Songs\123456 Artist - Title\file.osu
                 var key = ExtractMapKeyFromPath(beatmapPath);
-                
+
                 if (playCounts.ContainsKey(key))
                     playCounts[key] += count;
                 else
@@ -235,11 +235,11 @@ namespace OsuTag.Services
                 var folder = Path.GetDirectoryName(beatmapPath);
                 if (string.IsNullOrEmpty(folder))
                     return beatmapPath;
-                    
+
                 var folderName = Path.GetFileName(folder);
                 if (string.IsNullOrEmpty(folderName))
                     return beatmapPath;
-                
+
                 // Remove leading beatmap set ID (numbers followed by space)
                 var trimmed = folderName.TrimStart();
                 var spaceIndex = 0;
@@ -247,12 +247,12 @@ namespace OsuTag.Services
                 {
                     spaceIndex++;
                 }
-                
+
                 if (spaceIndex > 0 && spaceIndex < trimmed.Length && trimmed[spaceIndex] == ' ')
                 {
                     return trimmed.Substring(spaceIndex + 1);
                 }
-                
+
                 return folderName;
             }
             catch

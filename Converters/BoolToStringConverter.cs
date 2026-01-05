@@ -38,7 +38,7 @@ namespace OsuTag.Converters
             throw new NotImplementedException();
         }
     }
-    
+
     public class InverseBoolToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -55,7 +55,7 @@ namespace OsuTag.Converters
             throw new NotImplementedException();
         }
     }
-    
+
     public class IntToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

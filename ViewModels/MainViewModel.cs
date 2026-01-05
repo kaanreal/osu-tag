@@ -18,13 +18,13 @@ namespace OsuTag.ViewModels
     public class AudioFileItem : ObservableObject
     {
         private bool _isSelected = false;
-        
+
         public bool IsSelected
         {
             get => _isSelected;
             set => SetProperty(ref _isSelected, value);
         }
-        
+
         public required string Mp3Path { get; set; }
         public required string DisplayName { get; set; }
         public int PreviewTime { get; set; }
@@ -79,7 +79,7 @@ namespace OsuTag.ViewModels
         public int PreviewTime { get; set; }
         public ObservableCollection<DifficultyItem> Difficulties { get; } = new();
         public ObservableCollection<AudioFileItem> UniqueAudioFiles { get; } = new();
-        
+
         public bool HasMultipleDifferentAudios
         {
             get
@@ -88,7 +88,7 @@ namespace OsuTag.ViewModels
                 return uniqueMp3s > 1;
             }
         }
-        
+
         public int UniqueAudioCount
         {
             get
@@ -108,7 +108,7 @@ namespace OsuTag.ViewModels
                 return uniqueRates > 1;
             }
         }
-        
+
         public int UniqueRateCount
         {
             get
@@ -189,51 +189,51 @@ namespace OsuTag.ViewModels
         private Dictionary<string, int> _playCountCache = new();
         private ObservableCollection<object> _selectedItems = new();
         private bool _isSelectionPanelExpanded = false;
-        
+
         public ObservableCollection<object> SelectedItems
         {
             get => _selectedItems;
             set => SetProperty(ref _selectedItems, value);
         }
-        
+
         public int SelectedCount => _selectedItems.Count;
-        
+
         public bool IsSelectionPanelExpanded
         {
             get => _isSelectionPanelExpanded;
             set => SetProperty(ref _isSelectionPanelExpanded, value);
         }
-        
+
         public bool CanLoadMore
         {
             get => _canLoadMore;
             set => SetProperty(ref _canLoadMore, value);
         }
-        
+
         public bool IsScanning
         {
             get => _isScanning;
             set => SetProperty(ref _isScanning, value);
         }
-        
+
         public bool IsSearching
         {
             get => _isSearching;
             set => SetProperty(ref _isSearching, value);
         }
-        
+
         public int ScanProgress
         {
             get => _scanProgress;
             set => SetProperty(ref _scanProgress, value);
         }
-        
+
         public string ScanStatusMessage
         {
             get => _scanStatusMessage;
             set => SetProperty(ref _scanStatusMessage, value);
         }
-        
+
         public string SearchQuery
         {
             get => _searchQuery;
@@ -245,18 +245,18 @@ namespace OsuTag.ViewModels
                 }
             }
         }
-        
+
         private async void DebouncedSearch()
         {
             _searchDebounceToken?.Cancel();
             _searchDebounceToken = new CancellationTokenSource();
             var token = _searchDebounceToken.Token;
-            
+
             // Immediately show loading and clear - set new empty collection (single UI update)
             IsSearching = true;
             MapGroups = new ObservableCollection<MapItemGroup>();
             _displayedCount = 0;
-            
+
             try
             {
                 await Task.Delay(SEARCH_DEBOUNCE_MS, token);
@@ -265,7 +265,7 @@ namespace OsuTag.ViewModels
                     await FilterMapsAsync(token);
                 }
             }
-            catch (TaskCanceledException) 
+            catch (TaskCanceledException)
             {
                 // Search was cancelled by new input - keep showing loading
             }
@@ -337,12 +337,12 @@ namespace OsuTag.ViewModels
             set => SetProperty(ref _selectedMapGroup, value);
         }
 
-        public ObservableCollection<MapItemGroup> MapGroups 
-        { 
+        public ObservableCollection<MapItemGroup> MapGroups
+        {
             get => _mapGroups;
             set => SetProperty(ref _mapGroups, value);
         }
-        
+
         private async Task FilterMapsAsync(CancellationToken token = default)
         {
             try
@@ -351,11 +351,11 @@ namespace OsuTag.ViewModels
                 var query = _searchQuery;
                 var sortByMostPlayed = Properties.Settings.Default.SortByMostPlayed;
                 var playCounts = _playCountCache;
-                
+
                 var filteredList = await Task.Run(() =>
                 {
                     List<MapItemGroup> result;
-                    
+
                     if (string.IsNullOrWhiteSpace(query))
                     {
                         result = _allMapGroups.ToList();
@@ -365,45 +365,45 @@ namespace OsuTag.ViewModels
                         result = _allMapGroups.Where(map =>
                         {
                             // Use StringComparison for faster case-insensitive search
-                            if (map.Artist.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+                            if (map.Artist.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                                 map.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
                                 return true;
-                                
+
                             if (map.Creator.Contains(query, StringComparison.OrdinalIgnoreCase))
                                 return true;
-                                
+
                             if (map.Difficulties.Any(d => d.DifficultyName.Contains(query, StringComparison.OrdinalIgnoreCase)))
                                 return true;
-                                
+
                             if (!string.IsNullOrEmpty(map.Tags) && map.Tags.Contains(query, StringComparison.OrdinalIgnoreCase))
                                 return true;
-                                
+
                             if (!string.IsNullOrEmpty(map.Source) && map.Source.Contains(query, StringComparison.OrdinalIgnoreCase))
                                 return true;
-                                
+
                             return false;
                         }).ToList();
                     }
-                    
+
                     // Sort by most played if enabled
                     if (sortByMostPlayed && playCounts.Count > 0)
                     {
                         result = result.OrderByDescending(map => GetPlayCount(map, playCounts)).ToList();
                     }
-                    
+
                     return result;
                 }, token);
-                
+
                 if (token.IsCancellationRequested) return;
-                
+
                 _filteredMapGroups = filteredList;
-                
+
                 // Get initial items to display
                 var initialItems = _filteredMapGroups.Take(ITEMS_PER_PAGE).ToList();
-                
+
                 // Set new collection in one go (single UI update instead of 50)
                 MapGroups = new ObservableCollection<MapItemGroup>(initialItems);
-                
+
                 _displayedCount = initialItems.Count;
                 CanLoadMore = _displayedCount < _filteredMapGroups.Count;
             }
@@ -412,12 +412,12 @@ namespace OsuTag.ViewModels
                 IsSearching = false;
             }
         }
-        
+
         private static int GetPlayCount(MapItemGroup map, Dictionary<string, int> playCounts)
         {
             if (playCounts.Count == 0)
                 return 0;
-            
+
             // Get folder name from any difficulty's mp3 path
             var mp3Path = map.Difficulties.FirstOrDefault()?.Difficulty.Mp3Path;
             if (!string.IsNullOrEmpty(mp3Path))
@@ -430,22 +430,22 @@ namespace OsuTag.ViewModels
                         return count;
                 }
             }
-            
+
             // Fallback: try Artist - Title match
             var key = $"{map.Artist} - {map.Title}";
             if (playCounts.TryGetValue(key, out int artistTitleCount))
                 return artistTitleCount;
-            
+
             return 0;
         }
-        
+
         private async Task LoadCompanellaPlayCounts()
         {
             if (!Properties.Settings.Default.SortByMostPlayed)
                 return;
-                
+
             var companellaPath = Properties.Settings.Default.CompanellaPath;
-            
+
             // Auto-detect Companella path if not set
             if (string.IsNullOrEmpty(companellaPath))
             {
@@ -454,10 +454,10 @@ namespace OsuTag.ViewModels
                 Properties.Settings.Default.CompanellaPath = companellaPath;
                 Properties.Settings.Default.Save();
             }
-            
+
             if (string.IsNullOrEmpty(companellaPath))
                 return;
-                
+
             try
             {
                 _playCountCache = await Task.Run(() =>
@@ -475,7 +475,7 @@ namespace OsuTag.ViewModels
                 _playCountCache = new Dictionary<string, int>();
             }
         }
-        
+
         /// <summary>
         /// Reloads Companella play counts and re-sorts the map list.
         /// Call this after settings change to apply new sorting.
@@ -485,13 +485,13 @@ namespace OsuTag.ViewModels
             await LoadCompanellaPlayCounts();
             FilterMaps();
         }
-        
+
         private void FilterMaps()
         {
             // Sync version for initial load
             _ = FilterMapsAsync();
         }
-        
+
         public void LoadMoreItems()
         {
             if (_displayedCount >= _filteredMapGroups.Count)
@@ -499,14 +499,14 @@ namespace OsuTag.ViewModels
                 CanLoadMore = false;
                 return;
             }
-            
+
             // Get items to add
             var count = Math.Min(ITEMS_PER_PAGE, _filteredMapGroups.Count - _displayedCount);
             var allItems = _filteredMapGroups.Take(_displayedCount + count).ToList();
-            
+
             // Replace entire collection (single UI update instead of many)
             MapGroups = new ObservableCollection<MapItemGroup>(allItems);
-            
+
             _displayedCount += count;
             CanLoadMore = _displayedCount < _filteredMapGroups.Count;
         }
@@ -524,12 +524,12 @@ namespace OsuTag.ViewModels
         public MainViewModel()
         {
             // Load settings
-            _outputPath = string.IsNullOrEmpty(Properties.Settings.Default.LastUsedPath) 
+            _outputPath = string.IsNullOrEmpty(Properties.Settings.Default.LastUsedPath)
                 ? Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)
                 : Properties.Settings.Default.LastUsedPath;
             _processCovers = Properties.Settings.Default.ProcessCovers;
             _createBackups = Properties.Settings.Default.CreateBackups;
-            
+
             BrowseCommand = new RelayCommand(_ => Browse());
             UseDefaultPathCommand = new RelayCommand(_ => UseDefaultPath());
             RescanCommand = new RelayCommand(_ => Rescan(), _ => MapsLoaded && !IsScanning);
@@ -538,9 +538,9 @@ namespace OsuTag.ViewModels
             StartConversionCommand = new RelayCommand(_ => StartConversion(), _ => !IsProcessing && HasAnySelection());
             SettingsCommand = new RelayCommand(_ => OpenSettings());
             LoadMoreCommand = new RelayCommand(_ => LoadMoreItems(), _ => CanLoadMore);
-            
+
             // Auto-load saved path if enabled - load from cache then smart scan for new
-            if (Properties.Settings.Default.RememberSongsPath && 
+            if (Properties.Settings.Default.RememberSongsPath &&
                 !string.IsNullOrEmpty(Properties.Settings.Default.LastSongsPath) &&
                 Directory.Exists(Properties.Settings.Default.LastSongsPath))
             {
@@ -569,7 +569,7 @@ namespace OsuTag.ViewModels
             );
             _ = SetPathAsync(defaultPath, useSmartScan: false);
         }
-        
+
         private void Rescan()
         {
             if (!string.IsNullOrEmpty(SelectedPath) && Directory.Exists(SelectedPath))
@@ -579,7 +579,7 @@ namespace OsuTag.ViewModels
                 _ = SetPathAsync(SelectedPath, useSmartScan: false);
             }
         }
-        
+
         private void ClearCache()
         {
             try
@@ -636,7 +636,7 @@ namespace OsuTag.ViewModels
             var dict = folders.ToDictionary(f => f, f => 0L);
             SaveScannedFoldersInfo(dict);
         }
-        
+
         private string GetCacheFilePath()
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -645,7 +645,7 @@ namespace OsuTag.ViewModels
                 Directory.CreateDirectory(cacheDir);
             return Path.Combine(cacheDir, "mapcache.json");
         }
-        
+
         private class CachedMapData
         {
             public string Artist { get; set; } = "";
@@ -658,7 +658,7 @@ namespace OsuTag.ViewModels
             public int PreviewTime { get; set; }
             public List<CachedDifficulty> Difficulties { get; set; } = new();
         }
-        
+
         private class CachedDifficulty
         {
             public string DifficultyName { get; set; } = "";
@@ -666,7 +666,7 @@ namespace OsuTag.ViewModels
             public string OsuFilePath { get; set; } = "";
             public string? Rate { get; set; }
         }
-        
+
         private void SaveMapCache()
         {
             try
@@ -689,13 +689,13 @@ namespace OsuTag.ViewModels
                         Rate = d.Difficulty.Rate
                     }).ToList()
                 }).ToList();
-                
+
                 var json = JsonSerializer.Serialize(cacheData);
                 File.WriteAllText(GetCacheFilePath(), json);
             }
             catch { /* Ignore cache save errors */ }
         }
-        
+
         private List<MapItemGroup> LoadMapCache()
         {
             var groups = new List<MapItemGroup>();
@@ -704,76 +704,82 @@ namespace OsuTag.ViewModels
                 var cachePath = GetCacheFilePath();
                 if (!File.Exists(cachePath))
                     return groups;
-                    
-                var json = File.ReadAllText(cachePath);
-                var cacheData = JsonSerializer.Deserialize<List<CachedMapData>>(json);
-                
-                if (cacheData == null)
-                    return groups;
-                
-                foreach (var cached in cacheData)
+
+using (var fs = new FileStream(cachePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan))
+                using (var reader = new StreamReader(fs, System.Text.Encoding.UTF8))
                 {
-                    // Verify at least one difficulty file still exists
-                    if (!cached.Difficulties.Any(d => File.Exists(d.OsuFilePath)))
-                        continue;
-                        
-                    var mapGroup = new MapItemGroup
+                    var json = reader.ReadToEnd();
+                    var cacheData = JsonSerializer.Deserialize<List<CachedMapData>>(json);
+
+                    if (cacheData == null)
+                        return groups;
+
+                    foreach (var cached in cacheData)
                     {
-                        Artist = cached.Artist,
-                        Title = cached.Title,
-                        Creator = cached.Creator,
-                        Source = cached.Source,
-                        Tags = cached.Tags,
-                        CoverPath = cached.CoverPath,
-                        PreviewMp3Path = cached.PreviewMp3Path,
-                        PreviewTime = cached.PreviewTime
-                    };
-                    
-                    foreach (var diff in cached.Difficulties)
-                    {
-                        if (!File.Exists(diff.OsuFilePath))
+                        // Verify at least one difficulty file still exists
+                        if (!cached.Difficulties.Any(d => File.Exists(d.OsuFilePath)))
                             continue;
-                            
-                        mapGroup.Difficulties.Add(new DifficultyItem
+                        
+                        var mapGroup = new MapItemGroup
                         {
-                            DifficultyName = diff.DifficultyName,
-                            Difficulty = new OsuMapDifficulty
+                            Artist = cached.Artist,
+                            Title = cached.Title,
+                            Creator = cached.Creator,
+                            Source = cached.Source,
+                            Tags = cached.Tags,
+                            CoverPath = cached.CoverPath,
+                            PreviewMp3Path = cached.PreviewMp3Path,
+                            PreviewTime = cached.PreviewTime
+                        };
+                        
+                        foreach (var diff in cached.Difficulties)
+                        {
+                            if (!File.Exists(diff.OsuFilePath))
+                                continue;
+                                
+                            mapGroup.Difficulties.Add(new DifficultyItem
                             {
                                 DifficultyName = diff.DifficultyName,
-                                Mp3Path = diff.Mp3Path,
-                                OsuFilePath = diff.OsuFilePath,
-                                Rate = diff.Rate
-                            },
-                            IsSelected = true
-                        });
-                    }
-                    
-                    // Create unique audio files list
-                    var uniqueMp3s = mapGroup.Difficulties
-                        .Select(d => d.Difficulty.Mp3Path)
-                        .Distinct()
-                        .ToList();
+                                Difficulty = new OsuMapDifficulty
+                                {
+                                    DifficultyName = diff.DifficultyName,
+                                    Mp3Path = diff.Mp3Path,
+                                    OsuFilePath = diff.OsuFilePath,
+                                    Rate = diff.Rate
+                                },
+                                IsSelected = true
+                            });
+                        }
+                        
+                        // Create unique audio files list
+                        var uniqueMp3s = mapGroup.Difficulties
+                            .Select(d => d.Difficulty.Mp3Path)
+                            .Distinct()
+                            .ToList();
 
-                    foreach (var mp3Path in uniqueMp3s)
-                    {
-                        var fileName = Path.GetFileName(mp3Path);
-                        mapGroup.UniqueAudioFiles.Add(new AudioFileItem
+                        foreach (var mp3Path in uniqueMp3s)
                         {
-                            Mp3Path = mp3Path,
-                            DisplayName = fileName,
-                            PreviewTime = cached.PreviewTime
-                        });
+                            var fileName = Path.GetFileName(mp3Path);
+                            mapGroup.UniqueAudioFiles.Add(new AudioFileItem
+                            {
+                                Mp3Path = mp3Path,
+                                DisplayName = fileName,
+                                PreviewTime = cached.PreviewTime
+                            });
+                        }
+                        
+                        if (mapGroup.Difficulties.Count > 0)
+                            groups.Add(mapGroup);
                     }
-                    
-                    if (mapGroup.Difficulties.Count > 0)
-                        groups.Add(mapGroup);
                 }
+
+
             }
             catch { /* Ignore cache load errors */ }
-            
+
             return groups;
         }
-        
+
         private async Task LoadFromCacheAndSmartScan(string path)
         {
             SelectedPath = path;
@@ -785,10 +791,10 @@ namespace OsuTag.ViewModels
             IsScanning = true;
             ScanProgress = 0;
             ScanStatusMessage = "Loading cached maps...";
-            
+
             // Load from cache first
             var cachedGroups = await Task.Run(() => LoadMapCache());
-            
+
             if (cachedGroups.Count > 0)
             {
                 foreach (var group in cachedGroups)
@@ -797,7 +803,7 @@ namespace OsuTag.ViewModels
                 }
                 ScanStatusMessage = $"Loaded {cachedGroups.Count} cached map sets, checking for new maps...";
             }
-            
+
             // Now do a smart scan for new maps only
             await SetPathAsync(path, useSmartScan: true);
         }
@@ -806,24 +812,24 @@ namespace OsuTag.ViewModels
         {
             SelectedPath = path;
             ErrorMessage = "";
-            
+
             // Save path if remember is enabled
             if (Properties.Settings.Default.RememberSongsPath)
             {
                 Properties.Settings.Default.LastSongsPath = path;
                 Properties.Settings.Default.Save();
             }
-            
+
             // Only clear if not using smart scan, or if smart scan is disabled in settings
             bool smartScanEnabled = useSmartScan && Properties.Settings.Default.SmartScan;
-            
+
             if (!smartScanEnabled)
             {
                 MapGroups.Clear();
                 _allMapGroups.Clear();
                 _filteredMapGroups.Clear();
             }
-            
+
             MapsLoaded = false;
             IsScanning = true;
             ScanProgress = 0;
@@ -841,7 +847,7 @@ namespace OsuTag.ViewModels
             {
                 // Get folder count first for progress
                 var allFolders = Directory.GetDirectories(path);
-                
+
                 // For smart scan, filter out already scanned folders using saved timestamps
                 var scannedInfo = smartScanEnabled ? GetScannedFoldersInfo() : new Dictionary<string, long>();
                 var existingFolderNames = _allMapGroups
@@ -913,7 +919,7 @@ namespace OsuTag.ViewModels
                 var updateInterval = TimeSpan.FromMilliseconds(100);
 
                 // Limit degree of parallelism to reduce heavy simultaneous I/O that can trigger AV scanning
-                int parallelism = Math.Max(2, Environment.ProcessorCount / 2);
+                int parallelism = Math.Max(Services.OsuMapScanner.MinParallelism, Environment.ProcessorCount / Services.OsuMapScanner.ParallelismDivider);
 
                 await Parallel.ForEachAsync(foldersToScan, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, async (folder, ct) =>
                 {
@@ -950,7 +956,7 @@ namespace OsuTag.ViewModels
                             scannedFoldersDict[name] = DateTime.UtcNow.Ticks;
                         }
                     }
-                    catch { }
+catch { /* Ignore per-folder errors while scanning to continue other folders */ }
 
                     var currentProcessed = System.Threading.Interlocked.Increment(ref processed);
 
@@ -961,7 +967,7 @@ namespace OsuTag.ViewModels
                         lastUpdate = now;
                         int progress = (int)((currentProcessed / (double)totalFolders) * 100);
 
-                        System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             ScanProgress = progress;
                             ScanStatusMessage = $"Scanning... {currentProcessed}/{totalFolders} folders ({mapsBag.Count} maps found)";
@@ -994,7 +1000,7 @@ namespace OsuTag.ViewModels
                     IsScanning = false;
                     return;
                 }
-                
+
                 if (maps.Count == 0 && _allMapGroups.Count > 0)
                 {
                     // Smart scan found no new maps but we have existing ones
@@ -1088,7 +1094,7 @@ namespace OsuTag.ViewModels
                     PathStatusMessage = $"✓ {maps.Count} maps found in {_allMapGroups.Count} map sets";
                 }
                 MapsLoaded = true;
-                
+
                 // Save cache for next startup
                 if (Properties.Settings.Default.RememberSongsPath)
                 {
@@ -1163,7 +1169,7 @@ namespace OsuTag.ViewModels
         public void RefreshSelectedItems()
         {
             var newSelection = new List<object>();
-            
+
             foreach (var group in _allMapGroups)
             {
                 if (group.HasMultipleDifferentAudios)
@@ -1192,7 +1198,7 @@ namespace OsuTag.ViewModels
                     });
                 }
             }
-            
+
             SelectedItems = new ObservableCollection<object>(newSelection);
             OnPropertyChanged(nameof(SelectedCount));
         }
@@ -1226,9 +1232,9 @@ namespace OsuTag.ViewModels
         /// </summary>
         private bool HasAnySelection()
         {
-            return _allMapGroups.Any(g => 
+            return _allMapGroups.Any(g =>
                 // Simple maps: check if group is selected
-                (g.IsSelected && !g.HasMultipleDifferentAudios) || 
+                (g.IsSelected && !g.HasMultipleDifferentAudios) ||
                 // Multi-audio maps: check if any audio file is selected
                 (g.HasMultipleDifferentAudios && g.UniqueAudioFiles.Any(a => a.IsSelected))
             );
@@ -1237,8 +1243,8 @@ namespace OsuTag.ViewModels
         private async void StartConversion()
         {
             // Check if any maps are selected (either simple selection or expanded with audio files selected)
-            bool hasSelection = _allMapGroups.Any(g => 
-                (g.IsSelected && !g.HasMultipleDifferentAudios) || 
+            bool hasSelection = _allMapGroups.Any(g =>
+                (g.IsSelected && !g.HasMultipleDifferentAudios) ||
                 (g.HasMultipleDifferentAudios && g.UniqueAudioFiles.Any(a => a.IsSelected))
             );
 
@@ -1287,7 +1293,7 @@ namespace OsuTag.ViewModels
                         var diffsForThisAudio = group.Difficulties
                             .Where(d => d.Difficulty.Mp3Path == audioFile.Mp3Path)
                             .ToList();
-                        
+
                         if (diffsForThisAudio.Any())
                         {
                             // Use the first difficulty for this audio file
@@ -1401,5 +1407,6 @@ namespace OsuTag.ViewModels
         {
             // Settings are handled in MainWindow.xaml.cs
             // After dialog closes, reload settings
-        }    }
+        }
+    }
 }

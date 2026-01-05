@@ -6,47 +6,46 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.IO; 
+using System.IO;
 
 namespace OsuTag.Services
 {
-    public static class TelemetryService
+    internal static class TelemetryService
     {
         // ============================================
         // APTABASE CONFIGURATION
         // ============================================
-        // App Key: This identifies your app (format: A-XX-XXXXXXXXXX)
-        private const string AptabaseAppKey = "A-EU-0927435991";
-        
-        // Endpoint: Your self-hosted Aptabase server URL
-        // Note: Use http:// for localhost to avoid SSL certificate issues
-        private const string AptabaseEndpoint = "https://eu.aptabase.com/";
+        // App Key and Endpoint are configurable via environment variables for release hardening.
+        // Defaults are preserved for backwards compatibility if environment variables are not set.
+        // Do NOT ship hard-coded keys in release. App key must be provided via environment variables to enable telemetry.
+        private static string AptabaseAppKey => Environment.GetEnvironmentVariable("APTABASE_APP_KEY") ?? string.Empty;
+        private static string AptabaseEndpoint => Environment.GetEnvironmentVariable("APTABASE_ENDPOINT") ?? string.Empty;
         // ============================================
-        
+
         private static HttpClient? _httpClient;
         private static bool _initialized = false;
         private static string? _sessionId;
         private static DateTime? _sessionStartTime;
-        
+
         /// <summary>
         /// Initialize the telemetry service (call once at app startup)
         /// </summary>
         public static void Initialize()
         {
             if (_initialized) return;
-            
+
             // Create HttpClientHandler
             var handler = new HttpClientHandler();
-            
+
             // Bypass SSL validation for HTTPS localhost endpoints (if needed)
             if (AptabaseEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-                (AptabaseEndpoint.Contains("localhost", StringComparison.OrdinalIgnoreCase) || 
+                (AptabaseEndpoint.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
                  AptabaseEndpoint.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
             {
-                handler.ServerCertificateCustomValidationCallback = 
+                handler.ServerCertificateCustomValidationCallback =
                     (httpRequestMessage, cert, cetChain, policyErrors) => true;
             }
-            
+
             _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("App-Key", AptabaseAppKey);
@@ -61,7 +60,7 @@ namespace OsuTag.Services
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "macOS";
             return "Unknown";
         }
-        
+
         /// <summary>
         /// Track an event if telemetry is enabled
         /// </summary>
@@ -70,43 +69,27 @@ namespace OsuTag.Services
             // Check if telemetry is enabled
             if (!Properties.Settings.Default.TelemetryEnabled)
             {
-#if DEBUG
-                try
-                {
-                    var temp = Path.Combine(Path.GetTempPath(), "aptabase_debug.log");
-                    File.AppendAllText(temp, $"Telemetry disabled - skipping event: {eventName}\n");
-                    System.Diagnostics.Debug.WriteLine($"Telemetry disabled - skipping event: {eventName}");
-                }
-                catch { }
-#endif
+                // Telemetry disabled - do nothing in release builds
                 return;
             }
-            
+
             // Validate configuration - skip if still using placeholder values
             if (string.IsNullOrWhiteSpace(AptabaseAppKey) || AptabaseAppKey == "A-EU-0000000000" ||
                 string.IsNullOrWhiteSpace(AptabaseEndpoint) || AptabaseEndpoint == "https://your-aptabase-server.com")
                 return;
-            
+
             try
             {
                 Initialize();
-                
+
                 // Generate session ID if not already created (persists for app lifetime)
                 if (_sessionId == null)
                 {
                     _sessionId = Guid.NewGuid().ToString();
                 }
 
-#if DEBUG
-                try
-                {
-                    var temp = Path.Combine(Path.GetTempPath(), "aptabase_debug.log");
-                    File.AppendAllText(temp, $"Sending event: {eventName}, SessionId: {_sessionId}, Endpoint: {AptabaseEndpoint}\n");
-                    System.Diagnostics.Debug.WriteLine($"Sending event: {eventName}, SessionId: {_sessionId}, Endpoint: {AptabaseEndpoint}");
-                }
-                catch { }
-#endif
-                
+
+
                 // Build custom properties (sorted for consistent display)
                 var customProps = new SortedDictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                 if (props != null)
@@ -116,7 +99,7 @@ namespace OsuTag.Services
                         customProps[kvp.Key] = kvp.Value;
                     }
                 }
-                
+
                 // Ensure canonical, display-friendly keys are present
                 customProps["version"] = AppVersion.Current;
                 customProps["app_version"] = AppVersion.Current;
@@ -152,11 +135,8 @@ namespace OsuTag.Services
                     // ignore - leave as unknown
                 }
 
-#if DEBUG
-                var isDebug = true;
-#else
+                // isDebug left false in Release; debug mode is not compiled into production.
                 var isDebug = false;
-#endif
 
                 // Try to provide both English name and ISO country code (flags often require ISO2 code)
                 string countryCode = "";
@@ -212,18 +192,7 @@ namespace OsuTag.Services
 
                 var json = JsonSerializer.Serialize(payload);
 
-#if DEBUG
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine($"Aptabase payload: {json}");
-                    var tempPath = Path.Combine(Path.GetTempPath(), "aptabase_last_payload.json");
-                    File.WriteAllText(tempPath, json);
-                }
-                catch
-                {
-                    // ignore logging errors
-                }
-#endif
+
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -232,15 +201,7 @@ namespace OsuTag.Services
 
                 if (_httpClient == null)
                 {
-#if DEBUG
-                    try
-                    {
-                        var temp = Path.Combine(Path.GetTempPath(), "aptabase_debug.log");
-                        File.AppendAllText(temp, $"HttpClient is null - cannot send event: {eventName}\n");
-                        System.Diagnostics.Debug.WriteLine($"HttpClient is null - cannot send event: {eventName}");
-                    }
-                    catch { }
-#endif
+                    // HttpClient not available - skip sending telemetry in release.
                 }
                 else
                 {
@@ -257,73 +218,30 @@ namespace OsuTag.Services
                             request.Headers.Add("X-Client-Country", countryCodeUpper);
                         }
 
-#if DEBUG
-                        try
-                        {
-                            var temp = Path.Combine(Path.GetTempPath(), "aptabase_debug.log");
-                            File.AppendAllText(temp, $"Sending headers CF-IPCountry={countryCodeUpper}\n");
-                            System.Diagnostics.Debug.WriteLine($"Sending headers CF-IPCountry={countryCodeUpper}");
-                        }
-                        catch { }
-#endif
-
                         var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
 
                         if (!response.IsSuccessStatusCode)
                         {
                             var responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-#if DEBUG
-                            try
-                            {
-                                var temp = Path.Combine(Path.GetTempPath(), "aptabase_error.log");
-                                File.AppendAllText(temp, $"Aptabase error for event {eventName}: {response.StatusCode} - {responseBody}\n");
-                                System.Diagnostics.Debug.WriteLine($"Aptabase error: {response.StatusCode} - {responseBody}");
-                            }
-                            catch { }
-#endif
+                            // In release, swallow telemetry errors silently
                         }
                         else
                         {
-#if DEBUG
-                            try
-                            {
-                                var temp = Path.Combine(Path.GetTempPath(), "aptabase_debug.log");
-                                File.AppendAllText(temp, $"Event sent successfully: {eventName}\n");
-                                System.Diagnostics.Debug.WriteLine($"✓ Aptabase event sent: {eventName}");
-                            }
-                            catch { }
-#endif
+                            // Success - nothing to do in release
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-#if DEBUG
-                        try
-                        {
-                            var temp = Path.Combine(Path.GetTempPath(), "aptabase_error.log");
-                            File.AppendAllText(temp, $"Exception sending event {eventName}: {ex.Message}\n");
-                            System.Diagnostics.Debug.WriteLine($"Aptabase post exception: {ex.Message}");
-                        }
-                        catch { }
-#endif
+                        // Silently ignore telemetry exceptions in release
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                #if DEBUG
-                var errorMsg = ex.Message;
-                if (ex.InnerException != null)
-                {
-                    errorMsg += $" (Inner: {ex.InnerException.Message})";
-                }
-                System.Diagnostics.Debug.WriteLine($"Aptabase telemetry error: {errorMsg}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-            #endif
                 // Silently fail - telemetry should never break the app
             }
         }
-        
+
         /// <summary>
         /// Track app launch
         /// </summary>
@@ -357,7 +275,7 @@ namespace OsuTag.Services
             _sessionStartTime = null;
             return TrackEventAsync("session_stop", new Dictionary<string, object> { ["duration_seconds"] = durationSeconds });
         }
-        
+
         /// <summary>
         /// Track beatmap scan
         /// </summary>
@@ -369,7 +287,7 @@ namespace OsuTag.Services
                 ["duration_seconds"] = Math.Round(durationSeconds, 2)
             });
         }
-        
+
         /// <summary>
         /// Track export operation
         /// </summary>
@@ -394,7 +312,7 @@ namespace OsuTag.Services
                 ["converted_count"] = convertedCount
             });
         }
-        
+
         /// <summary>
         /// Track feature usage
         /// </summary>
@@ -405,7 +323,7 @@ namespace OsuTag.Services
                 ["feature"] = featureName
             });
         }
-        
+
         /// <summary>
         /// Track settings changed
         /// </summary>
@@ -413,7 +331,7 @@ namespace OsuTag.Services
         {
             return TrackEventAsync("settings_changed", settings);
         }
-        
+
         /// <summary>
         /// Track error (without personal data)
         /// </summary>
