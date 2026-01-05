@@ -9,6 +9,10 @@ on:
       version:
         description: 'Optional version (e.g., v1.2.3). If omitted, using tag when triggered by push.'
         required: false
+      publish_release:
+        description: 'If true, the created release will be published instead of draft (default: false)'
+        required: false
+        default: 'false'
 
 env:
   BUILD_RUNTIME: win-x64
@@ -187,18 +191,45 @@ jobs:
             echo "body=Release $v" >> $GITHUB_OUTPUT
           }
 
-      - name: Create GitHub Release
-        id: create_release
+      - name: Find or create release
+        id: find_or_create_release
         if: ${{ needs.build-and-package.outputs.version != '' && needs.build-and-package.outputs.version != 'unspecified' }}
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ needs.build-and-package.outputs.version }}
-          release_name: ${{ needs.build-and-package.outputs.version }}
-          body: ${{ steps.prepare_release_body.outputs.body }}
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.build-and-package.outputs.version }}
+          PUBLISH: ${{ github.event.inputs.publish_release }}
+        shell: powershell
+        run: |
+          $repo = '${{ github.repository }}'
+          $tag = $env:TAG
+          $token = $env:GITHUB_TOKEN
+          $body = '${{ steps.prepare_release_body.outputs.body }}'
+
+          Write-Host "Looking for existing release for tag: $tag"
+          $uri = "https://api.github.com/repos/$repo/releases/tags/$tag"
+          $resp = (Invoke-RestMethod -Headers @{ Authorization = "token $token" ; Accept = 'application/vnd.github+json' } -Uri $uri -Method Get -ErrorAction SilentlyContinue)
+          if ($resp) {
+            $upload = $resp.upload_url
+            Write-Host "Found existing release id $($resp.id)"
+            echo "release_id=$($resp.id)" >> $GITHUB_OUTPUT
+            echo "upload_url=$upload" >> $GITHUB_OUTPUT
+          } else {
+            Write-Host "No existing release found; creating new release (draft unless publish_release=true)"
+            $draft = $true
+            if ($env:PUBLISH -and $env:PUBLISH -eq 'true') { $draft = $false }
+            $createUri = "https://api.github.com/repos/$repo/releases"
+            $payload = @{ tag_name = $tag; name = $tag; body = $body; draft = $draft } | ConvertTo-Json -Depth 4
+            $created = Invoke-RestMethod -Headers @{ Authorization = "token $token" ; Accept = 'application/vnd.github+json' } -Uri $createUri -Method Post -Body $payload
+            echo "release_id=$($created.id)" >> $GITHUB_OUTPUT
+            echo "upload_url=$($created.upload_url)" >> $GITHUB_OUTPUT
+            Write-Host "Created release id $($created.id) (draft=$draft)"
+          }
+
+      - name: Debug release info
+        run: |
+          echo "RELEASE_ID=${{ steps.find_or_create_release.outputs.release_id }}"
+          echo "UPLOAD_URL=${{ steps.find_or_create_release.outputs.upload_url }}"
+        shell: powershell
 
       - name: Create SHA256 of installer
         if: ${{ env.INSTALLER_EXISTS == 'true' }}
