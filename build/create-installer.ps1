@@ -202,7 +202,11 @@ if ($inno) {
     # Ensure publish path is a full resolved path
     try { $PublishPath = (Resolve-Path $PublishPath -ErrorAction Stop).Path } catch { Write-Error "Cannot resolve publish path '$PublishPath'"; exit 1 }
 
-    $args = @("/DMyAppVersion=$Version", "/DSourcePath=`"$PublishPath`"")
+    $args = @()
+    if (-not [string]::IsNullOrWhiteSpace($Version) -and $Version -ne '0.0.0' -and $Version -ne 'unspecified') {
+        $args += ("/DMyAppVersion=$Version")
+    }
+    $args += ("/DSourcePath=`"$PublishPath`"")
     if (Test-Path $wizardBmp) { $args += ("/DWizardBmpPath=`"$wizardBmp`"") }
     if ($setupIconPath) { $args += ("/DSetupIconPath=`"$setupIconPath`"") }
     $args += ("`"$iss`"")
