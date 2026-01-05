@@ -1,0 +1,106 @@
+name: Release - Build & Upload
+
+on:
+  release:
+    types: [published]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_upload:
+    name: Build and upload release artifacts
+    runs-on: windows-latest
+    concurrency:
+      group: release-${{ github.ref_name }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine tag and version
+        id: vars
+        shell: pwsh
+        run: |
+          $event = Get-Content $env:GITHUB_EVENT_PATH | ConvertFrom-Json
+          if ($env:GITHUB_EVENT_NAME -eq 'release' -and $event.release -ne $null) {
+            $tag = $event.release.tag_name
+          } elseif ($env:GITHUB_REF -match 'refs/tags/(.+)$') {
+            $tag = $Matches[1]
+          } else {
+            Write-Error "No tag found. This workflow must be triggered by a release or a tag push."
+            exit 1
+          }
+          $version = $tag -replace '^[vV]', ''
+          Write-Host "Tag: $tag  Version: $version"
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Show .NET info
+        run: dotnet --info
+
+      - name: Install Inno Setup (choco)
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          $inno = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $inno) { Write-Error "ISCC.exe not found after install"; exit 1 }
+          Write-Host "ISCC located at: $($inno.Path)"
+
+      - name: Run installer build script
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: |
+          $v = $env:VERSION
+          if ([string]::IsNullOrWhiteSpace($v)) {
+            Write-Host "No version supplied; script will auto-detect from source"
+            powershell -ExecutionPolicy Bypass -File build/create-installer.ps1
+          } else {
+            Write-Host "Building with Version: $v"
+            powershell -ExecutionPolicy Bypass -File build/create-installer.ps1 -Version $v
+          }
+
+      - name: Collect artifact paths
+        id: artifacts
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: |
+          $installer = Get-ChildItem -Path build\dist\installer -Filter 'OsuTag-Setup-*.exe' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($installer) { echo "installer_path=$($installer.FullName)" >> $env:GITHUB_OUTPUT; Write-Host "Found installer: $($installer.FullName)" } else { Write-Host "No installer found in build\dist\installer" }
+
+          $zip = Join-Path 'build' "OsuTag-$env:VERSION.zip"
+          if (Test-Path $zip) { echo "zip_path=$zip" >> $env:GITHUB_OUTPUT; Write-Host "Found ZIP: $zip" } else { Write-Host "No ZIP found at: $zip" }
+
+      - name: Upload ZIP to GitHub Release
+        if: ${{ steps.artifacts.outputs.zip_path != '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.artifacts.outputs.zip_path }}
+          tag_name: ${{ steps.vars.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Installer to GitHub Release
+        if: ${{ steps.artifacts.outputs.installer_path != '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.artifacts.outputs.installer_path }}
+          tag_name: ${{ steps.vars.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Done
+        run: |
+          echo "Release workflow finished. Uploaded artifacts (if found)."
