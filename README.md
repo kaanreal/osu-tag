@@ -47,6 +47,8 @@
 3. Extract to any folder
 4. Run `OsuTag.exe`
 
+or just use the installer
+
 ## Usage
 
 1. **Select Songs Folder** – Click "Browse" or "Use Default Path" to select your osu! Songs folder
