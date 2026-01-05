@@ -98,10 +98,24 @@ jobs:
           VERSION: ${{ steps.vars.outputs.version }}
         run: |
           $installer = Get-ChildItem -Path build\dist\installer -Filter 'OsuTag-Setup-*.exe' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if ($installer) { echo "installer_path=$($installer.FullName)" >> $env:GITHUB_OUTPUT; Write-Host "Found installer: $($installer.FullName)" } else { Write-Host "No installer found in build\dist\installer" }
+          if ($installer) {
+            # Convert to repository-relative path with forward slashes so actions that expect globs can match it
+            $repo = (Get-Location).Path.TrimEnd('\')
+            $rel = $installer.FullName
+            if ($rel.StartsWith($repo)) { $rel = $rel.Substring($repo.Length + 1) }
+            $rel = $rel -replace '\\','/'
+            echo "installer_path=$rel" >> $env:GITHUB_OUTPUT
+            Write-Host "Found installer: $($installer.FullName) (relative: $rel)"
+          } else { echo "installer_path=" >> $env:GITHUB_OUTPUT; Write-Host "No installer found in build\dist\installer" }
 
           $zip = Join-Path 'build' "OsuTag-$env:VERSION.zip"
-          if (Test-Path $zip) { echo "zip_path=$zip" >> $env:GITHUB_OUTPUT; Write-Host "Found ZIP: $zip" } else { Write-Host "No ZIP found at: $zip" }
+          if (Test-Path $zip) {
+            $relzip = $zip
+            if ($relzip.StartsWith($repo)) { $relzip = $relzip.Substring($repo.Length + 1) }
+            $relzip = $relzip -replace '\\','/'
+            echo "zip_path=$relzip" >> $env:GITHUB_OUTPUT
+            Write-Host "Found ZIP: $zip (relative: $relzip)"
+          } else { echo "zip_path=" >> $env:GITHUB_OUTPUT; Write-Host "No ZIP found at: $zip" }
 
       - name: Upload ZIP to GitHub Release
         if: ${{ steps.artifacts.outputs.zip_path != '' }}
