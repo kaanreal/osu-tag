@@ -117,7 +117,12 @@ jobs:
           SIGN_CERT_B64: ${{ secrets.SIGN_CERT }}
           SIGN_CERT_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
         run: |
-          powershell -Command "if ($env:SIGN_CERT_B64 -and $env:SIGN_CERT_B64.Trim() -ne '') { [IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64)); Write-Host 'Decoded cert.pfx' } else { Write-Host 'No SIGN_CERT provided; skipping decode' }"
+          if (-not [string]::IsNullOrWhiteSpace($env:SIGN_CERT_B64)) {
+            [IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64))
+            Write-Host 'Decoded cert.pfx'
+          } else {
+            Write-Host 'No SIGN_CERT provided; skipping decode'
+          }
         shell: powershell
 
       - name: "Optional: Sign installer and exe"
