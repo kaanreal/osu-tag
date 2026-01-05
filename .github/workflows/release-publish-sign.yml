@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
 
 env:
   BUILD_RUNTIME: win-x64
@@ -72,21 +73,21 @@ jobs:
           powershell -Command "if (Test-Path 'build/dist/installer/OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.sha256.txt') { echo 'SHA_EXISTS=true' >> $env:GITHUB_ENV } else { echo 'SHA_EXISTS=false' >> $env:GITHUB_ENV }"
 
       - name: "Optional: decode signing cert"
-        if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
         env:
           SIGN_CERT_B64: ${{ secrets.SIGN_CERT }}
+          SIGN_CERT_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
         run: |
-          powershell -Command "[IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64))"
+          powershell -Command "if ($env:SIGN_CERT_B64 -and $env:SIGN_CERT_B64.Trim() -ne '') { [IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64)); Write-Host 'Decoded cert.pfx' } else { Write-Host 'No SIGN_CERT provided; skipping decode' }"
+        shell: powershell
 
       - name: "Optional: Sign installer and exe"
-        if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
         env:
           SIGN_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
         run: |
-          # Sign installer
+          # Sign installer if cert.pfx exists and password is provided
           $installer = "build\\dist\\installer\\OsuTag-Setup-${{ needs.build-and-package.outputs.version }}.exe"
           $exe = "build\\dist\\publish\\OsuTag.exe"
-          if (Test-Path cert.pfx) {
+          if (Test-Path cert.pfx -and $env:SIGN_PW -and $env:SIGN_PW.Trim() -ne '') {
               Write-Host "Signing $installer"
               & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer
               if (Test-Path $exe) {
@@ -94,7 +95,7 @@ jobs:
                   & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe
               }
           } else {
-              Write-Host "cert.pfx not found, skipping signing"
+              Write-Host "cert.pfx or SIGN_PW missing; skipping signing"
           }
         shell: powershell
 
@@ -151,6 +152,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cleanup certificate
-        if: ${{ secrets.SIGN_CERT && secrets.SIGN_CERT_PASSWORD }}
-        run: del cert.pfx
+        run: |
+          if (Test-Path cert.pfx) { del cert.pfx; Write-Host 'Deleted cert.pfx' } else { Write-Host 'cert.pfx not found; nothing to clean' }
         shell: powershell
