@@ -1,209 +1,105 @@
-name: Build, Sign and Publish Release
+name: Release, Build & Publish
 
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Optional version (overrides tag)'
-        required: false
-      publish_release:
-        description: 'If true, the created release will be published instead of draft (default: false)'
-        required: false
-        default: 'false'
+      - 'v*'
 
-env:
-  BUILD_RUNTIME: win-x64
-  BUILD_CONFIGURATION: Release
+permissions:
+  contents: write # required for creating releases and uploading artifacts
+  packages: write
 
 jobs:
-  release:
+  build-and-publish:
     runs-on: windows-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set version from App.xaml or tag
-        id: set_version
-        shell: powershell
-        run: |
-          $tag = '${{ github.ref_name }}'
-          $inputVersion = '${{ github.event.inputs.version }}'
-
-          $appVer = ''
-          $file = 'App.xaml'
-          if (Test-Path $file) {
-              $content = Get-Content $file -Raw
-              if ($content -match 'Version="(?<v>[0-9]+\.[0-9]+\.[0-9]+)"') {
-                  $appVer = $matches['v']
-              }
-          }
-
-          if (-not [string]::IsNullOrWhiteSpace($tag)) {
-              Write-Host "Using Git tag: $tag"
-              echo "version=$tag" >> $GITHUB_OUTPUT
-          } elseif (-not [string]::IsNullOrWhiteSpace($inputVersion)) {
-              Write-Host "Using workflow input version: $inputVersion"
-              echo "version=$inputVersion" >> $GITHUB_OUTPUT
-          } elseif (-not [string]::IsNullOrWhiteSpace($appVer)) {
-              $vtag = "v$appVer"
-              Write-Host "Detected version from App.xaml: $appVer → using tag $vtag"
-              echo "version=$vtag" >> $GITHUB_OUTPUT
-          } else {
-              Write-Host "No version found; using unspecified"
-              echo "version=unspecified" >> $GITHUB_OUTPUT
-          }
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          TAG_REF=${GITHUB_REF#refs/tags/}
+          # normalize: strip leading 'v' or 'V'
+          VERSION=${TAG_REF#v}
+          echo "TAG_REF=$TAG_REF" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "::set-output name=version::$VERSION"
+
+      - name: Display version
+        run: echo "Releasing version: ${{ env.VERSION }}"
+
       - name: Restore
-        run: dotnet restore OsuTag.csproj
+        run: dotnet restore
 
-      - name: Publish
+      - name: Build with version
         run: |
-          dotnet publish OsuTag.csproj `
-            -c ${{ env.BUILD_CONFIGURATION }} `
-            -r ${{ env.BUILD_RUNTIME }} `
-            --self-contained false `
-            -o .\build\dist\publish
+          dotnet build -c Release -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }} -p:FileVersion=${{ env.VERSION }} -p:AssemblyInformationalVersion=${{ env.VERSION }}
 
-      - name: Create ZIP
+      - name: Run unit tests
+        run: dotnet test -c Release --no-build
+
+      - name: Publish self-contained single-file publish (x64)
         run: |
-          $ver = '${{ steps.set_version.outputs.version }}'
-          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = 'unspecified' }
-          $zipPath = "./build/dist/OsuTag-$ver.zip"
-          Write-Host "Creating ZIP: $zipPath"
-          Compress-Archive -Path './build/dist/publish/*' -DestinationPath $zipPath -Force
-        shell: powershell
+          dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ env.VERSION }} -o ./publish/win-x64
 
-      - name: Install Inno Setup
-        run: choco install innosetup -y
-        shell: powershell
-
-      - name: Build Installer
-        run: |
-          $ver = '${{ steps.set_version.outputs.version }}'
-          $source = "${{ github.workspace }}\build\dist\publish"
-          $iss = "${{ github.workspace }}\build\innosetup\OsuTagInstaller.iss"
-          $args = @("/DSourcePath=`"$source`"")
-          if (-not [string]::IsNullOrWhiteSpace($ver) -and $ver -ne 'unspecified') { $args += "/DMyAppVersion=$ver" }
-          Write-Host "Running Inno Setup: C:\Program Files (x86)\Inno Setup 6\ISCC.exe $($args -join ' ') $iss"
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" $args $iss
-        shell: powershell
-
-      - name: Copy Installer to dist
-        run: |
-          $ver = '${{ steps.set_version.outputs.version }}'
-          $src = Get-ChildItem -Path 'build\innosetup\Output' -Filter 'OsuTag-Setup-*.exe' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if ($src) {
-              $dest = Join-Path 'build\dist\installer' ("OsuTag-Setup-$ver.exe")
-              if (!(Test-Path 'build\dist\installer')) { New-Item -ItemType Directory -Path 'build\dist\installer' | Out-Null }
-              Copy-Item $src.FullName -Destination $dest -Force
-              Write-Host "Installer placed at: $dest"
-          } else { Write-Warning "No installer found" }
-        shell: powershell
-
-      - name: Optional: decode signing cert
-        if: ${{ secrets.SIGN_CERT }}
+      - name: Create installer (Inno Setup)
         env:
-          SIGN_CERT_B64: ${{ secrets.SIGN_CERT }}
-          SIGN_CERT_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
+          Version: ${{ env.VERSION }}
         run: |
-          [IO.File]::WriteAllBytes('cert.pfx',[Convert]::FromBase64String($env:SIGN_CERT_B64))
-          Write-Host 'Decoded cert.pfx'
-        shell: powershell
+          powershell -ExecutionPolicy Bypass -File build\create-installer.ps1 -Version $env:Version
 
-      - name: Optional: Sign installer and exe
-        if: ${{ secrets.SIGN_CERT }}
-        env:
-          SIGN_PW: ${{ secrets.SIGN_CERT_PASSWORD }}
+      - name: Prepare release notes
+        id: release_notes
         run: |
-          $installer = "build\dist\installer\OsuTag-Setup-${{ steps.set_version.outputs.version }}.exe"
-          $exe = "build\dist\publish\OsuTag.exe"
-          if (Test-Path 'cert.pfx' -and -not [string]::IsNullOrWhiteSpace($env:SIGN_PW)) {
-              Write-Host "Signing $installer"
-              & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer
-              if (Test-Path $exe) {
-                  Write-Host "Signing $exe"
-                  & signtool sign /f cert.pfx /p $env:SIGN_PW /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe
-              }
-          } else { Write-Host "No cert.pfx or password; skipping signing" }
-        shell: powershell
+          # Use a simple templated release body. You can expand this to use a file or generate notes from commits.
+          echo "Release ${VERSION}" > release_notes.txt
+          echo "\nChangelog: (add changelog here)" >> release_notes.txt
+          echo "::set-output name=body::$(cat release_notes.txt)"
 
-      - name: Prepare release body
-        id: prepare_release_body
-        shell: powershell
-        run: |
-          $template = 'RELEASE_TEMPLATE.md'
-          if (Test-Path $template) {
-              echo "body<<EOF" >> $GITHUB_OUTPUT
-              Get-Content $template -Raw >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
-          } else {
-              $v = '${{ steps.set_version.outputs.version }}'
-              if ([string]::IsNullOrWhiteSpace($v)) { $v = 'unspecified' }
-              echo "body=Release $v" >> $GITHUB_OUTPUT
-          }
-
-      - name: Create or find GitHub Release
-        id: release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.set_version.outputs.version }}
-          PUBLISH: ${{ github.event.inputs.publish_release }}
-        shell: powershell
-        run: |
-          $repo = '${{ github.repository }}'
-          $tag = $env:TAG
-          $token = $env:GITHUB_TOKEN
-          $body = '${{ steps.prepare_release_body.outputs.body }}'
-
-          # Check existing release
-          $uri = "https://api.github.com/repos/$repo/releases/tags/$tag"
-          $resp = (Invoke-RestMethod -Headers @{ Authorization = "token $token"; Accept = 'application/vnd.github+json' } -Uri $uri -Method Get -ErrorAction SilentlyContinue)
-
-          if ($resp) {
-              $upload = $resp.upload_url
-              echo "release_id=$($resp.id)" >> $GITHUB_OUTPUT
-              echo "upload_url=$upload" >> $GITHUB_OUTPUT
-              Write-Host "Found existing release id $($resp.id)"
-          } else {
-              $draft = $true
-              if ($env:PUBLISH -eq 'true') { $draft = $false }
-              $createUri = "https://api.github.com/repos/$repo/releases"
-              $payload = @{ tag_name = $tag; name = $tag; body = $body; draft = $draft } | ConvertTo-Json -Depth 4
-              $created = Invoke-RestMethod -Headers @{ Authorization = "token $token"; Accept = 'application/vnd.github+json' } -Uri $createUri -Method Post -Body $payload
-              echo "release_id=$($created.id)" >> $GITHUB_OUTPUT
-              echo "upload_url=$($created.upload_url)" >> $GITHUB_OUTPUT
-              Write-Host "Created release id $($created.id) (draft=$draft)"
-          }
-
-      - name: Upload ZIP
-        uses: actions/upload-release-asset@v1
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: build/dist/OsuTag-${{ steps.set_version.outputs.version }}.zip
-          asset_name: OsuTag-${{ steps.set_version.outputs.version }}.zip
-          asset_content_type: application/zip
+          tag_name: ${{ env.TAG_REF }}
+          name: ${{ env.TAG_REF }}
+          body_path: release_notes.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Installer
-        uses: actions/upload-release-asset@v1
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: build/dist/installer/OsuTag-Setup-${{ steps.set_version.outputs.version }}.exe
-          asset_name: OsuTag-Setup-${{ steps.set_version.outputs.version }}.exe
-          asset_content_type: application/octet-stream
+          tag_name: ${{ env.TAG_REF }}
+          files: |
+            build/dist/installer/**
+            build/**.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cleanup certificate
+      - name: (Optional) Sign artifacts with signtool
+        if: secrets.SIGN_CERT_PFX != '' && secrets.SIGN_CERT_PFX != null
+        env:
+          PFX_BASE64: ${{ secrets.SIGN_CERT_PFX }}
+          PFX_PASSWORD: ${{ secrets.SIGN_CERT_PFX_PASSWORD }}
         run: |
-          if (Test-Path cert.pfx) { Remove-Item cert.pfx; Write-Host "Deleted cert.pfx" }
-        shell: powershell
+          echo "$PFX_BASE64" | PowerShell -Command "[System.Convert]::FromBase64String((Get-Content -Raw -Encoding ASCII -)) -as [byte[]] | Set-Content -Path cert.pfx -Encoding Byte"
+          # Sign the main exe - adjust path as needed
+          signtool sign /fd SHA256 /a /f cert.pfx /p "$PFX_PASSWORD" publish\win-x64\OsuTag.exe
+
+      - name: Cleanup temporary files
+        if: ${{ always() }}
+        run: git clean -fdx
+
+      - name: Final message
+        run: echo "Release ${{ env.VERSION }} finished"
