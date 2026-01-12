@@ -14,6 +14,10 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
+    <Window.Resources>
+        <converters:BoolToDoubleConverter x:Key="BoolToDoubleConverter"/>
+    </Window.Resources>
+
     <Grid RowDefinitions="80,*">
         <!-- Premium Header -->
         <Border Grid.Row="0" Background="{StaticResource SurfaceElevatedBrush}" 
@@ -147,7 +151,8 @@
                                             <Border.RenderTransform>
                                                 <TransformGroup>
                                                     <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
-                                                    <TranslateTransform Y="-16"/>
+                                                    <TranslateTransform Y="-12"/>
+                                                    <RotateTransform Angle="-3"/>
                                                 </TransformGroup>
                                             </Border.RenderTransform>
                                         </Border>
@@ -158,7 +163,8 @@
                                             <Border.RenderTransform>
                                                 <TransformGroup>
                                                      <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
-                                                     <TranslateTransform Y="-8"/>
+                                                     <TranslateTransform Y="-6"/>
+                                                     <RotateTransform Angle="2"/>
                                                 </TransformGroup>
                                             </Border.RenderTransform>
                                         </Border>
@@ -205,16 +211,85 @@
                                                                TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
                                                 </StackPanel>
  
-                                                <!-- Selected Overlay -->
-                                                <Border Grid.Row="0" Grid.RowSpan="2" 
-                                                        CornerRadius="4" 
-                                                        Background="{StaticResource AccentBrush}"
-                                                        Opacity="0.9"
+                                                <!-- Selection Glow & Energy Flow -->
+                                                <Border Grid.Row="0" Grid.RowSpan="2"
+                                                        CornerRadius="4"
+                                                        ClipToBounds="True"
+                                                        IsHitTestVisible="False"
                                                         IsVisible="{Binding IsSelected}">
-                                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                        <TextBlock Text="✓" FontSize="32" Foreground="White" HorizontalAlignment="Center"/>
-                                                        <TextBlock Text="SELECTED" FontSize="12" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                                                    </StackPanel>
+                                                    
+                                                    <!-- Animated Entrance/Exit -->
+                                                    <Border.Styles>
+                                                        <Style Selector="Border[IsVisible=true]">
+                                                            <Style.Animations>
+                                                                <Animation Duration="0:0:0.6" Easing="CubicEaseOut" FillMode="Forward">
+                                                                    <KeyFrame Cue="0%">
+                                                                        <Setter Property="Opacity" Value="0"/>
+                                                                        <Setter Property="ScaleTransform.ScaleX" Value="0.95"/>
+                                                                        <Setter Property="ScaleTransform.ScaleY" Value="0.95"/>
+                                                                    </KeyFrame>
+                                                                    <KeyFrame Cue="100%">
+                                                                        <Setter Property="Opacity" Value="1"/>
+                                                                        <Setter Property="ScaleTransform.ScaleX" Value="1.02"/>
+                                                                        <Setter Property="ScaleTransform.ScaleY" Value="1.02"/>
+                                                                    </KeyFrame>
+                                                                </Animation>
+                                                            </Style.Animations>
+                                                        </Style>
+                                                    </Border.Styles>
+
+                                                    <Panel Width="180" Height="260">
+                                                        <!-- Majestic Flowing Border (Energy Stream) -->
+                                                        <Rectangle Stroke="#00FF44"
+                                                                   StrokeThickness="4"
+                                                                   StrokeDashArray="12,8"
+                                                                   RadiusX="4" RadiusY="4">
+                                                            <Rectangle.Styles>
+                                                                <Style Selector="Rectangle">
+                                                                    <Style.Animations>
+                                                                        <Animation Duration="0:0:3" IterationCount="Infinite">
+                                                                            <KeyFrame Cue="0%">
+                                                                                <Setter Property="StrokeDashOffset" Value="0"/>
+                                                                            </KeyFrame>
+                                                                            <KeyFrame Cue="100%">
+                                                                                <Setter Property="StrokeDashOffset" Value="40"/>
+                                                                            </KeyFrame>
+                                                                        </Animation>
+                                                                    </Style.Animations>
+                                                                </Style>
+                                                            </Rectangle.Styles>
+                                                            <Rectangle.Effect>
+                                                                <DropShadowEffect Color="#00FF44" BlurRadius="25" Opacity="0.8"/>
+                                                            </Rectangle.Effect>
+                                                        </Rectangle>
+
+                                                        <!-- Pulse Glow Layer -->
+                                                        <Rectangle Stroke="#00FF44" StrokeThickness="2" RadiusX="4" RadiusY="4" Opacity="0.4">
+                                                            <Rectangle.Styles>
+                                                                <Style Selector="Rectangle">
+                                                                    <Style.Animations>
+                                                                        <Animation Duration="0:0:2" IterationCount="Infinite" PlaybackDirection="Alternate">
+                                                                            <KeyFrame Cue="0%">
+                                                                                <Setter Property="Opacity" Value="0.2"/>
+                                                                            </KeyFrame>
+                                                                            <KeyFrame Cue="100%">
+                                                                                <Setter Property="Opacity" Value="0.6"/>
+                                                                            </KeyFrame>
+                                                                        </Animation>
+                                                                    </Style.Animations>
+                                                                </Style>
+                                                            </Rectangle.Styles>
+                                                        </Rectangle>
+                                                        
+                                                        <!-- Corner Badge -->
+                                                        <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                                Background="#00FF44"
+                                                                CornerRadius="0,4,0,4"
+                                                                Width="36" Height="36"
+                                                                BoxShadow="0 0 15 0 #8000FF44">
+                                                            <PathIcon Data="M20,6 L9,17 L4,12" Width="18" Height="18" Foreground="Black" FontWeight="Bold" />
+                                                        </Border>
+                                                    </Panel>
                                                 </Border>
 
 
@@ -260,6 +335,19 @@
                         
                     </StackPanel>
                 </ScrollViewer>
+
+
+                <!-- Persistent Progress Bar (Visible when Queue Bar is collapsed/hidden but processing is active) -->
+                <!-- Or just general progress bar at bottom of list -->
+                <Border VerticalAlignment="Bottom" Margin="32,0,32,10" 
+                        IsVisible="{Binding !IsBottomBarExpanded}" 
+                        CornerRadius="2" ClipToBounds="True">
+                    <ProgressBar Minimum="0" Maximum="100" 
+                                 Value="{Binding ProgressPercentage}" 
+                                 Height="4" 
+                                 Foreground="{StaticResource AccentBrush}"
+                                 IsVisible="{Binding IsProcessing}"/>
+                </Border>
             </Grid>
         </Grid>
 
@@ -272,12 +360,21 @@
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1"
                 BoxShadow="0 10 30 0 #4D000000"
-                IsVisible="{Binding SelectedCount, Converter={StaticResource NumericToBoolConverter}}"
+                IsHitTestVisible="{Binding SelectedCount, Converter={StaticResource NumericToBoolConverter}}"
                 Height="{Binding IsBottomBarExpanded, Converter={StaticResource BoolToHeightConverter}, ConverterParameter='80,500'}">
+
+            <Border.RenderTransform>
+                <TransformGroup>
+                    <!-- Majestic Entrance: If SelectedCount > 0, translate to 0. Else, hide at 300. -->
+                    <TranslateTransform Y="{Binding SelectedCount, Converter={StaticResource BoolToDoubleConverter}, ConverterParameter='300,0'}"/> 
+                </TransformGroup>
+            </Border.RenderTransform>
             <Border.Transitions>
                 <Transitions>
-                    <DoubleTransition Property="Height" Duration="0:0:0.3" Easing="QuarticEaseOut"/>
-                    <ThicknessTransition Property="Margin" Duration="0:0:0.3" Easing="QuarticEaseOut"/>
+                    <DoubleTransition Property="Height" Duration="0:0:0.5" Easing="QuarticEaseOut"/>
+                    <ThicknessTransition Property="Margin" Duration="0:0:0.5" Easing="QuarticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.4"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.6" Easing="CubicEaseOut"/>
                 </Transitions>
             </Border.Transitions>
 
@@ -360,18 +457,31 @@
                                     <Border Background="{StaticResource SurfaceBrush}" 
                                             CornerRadius="12" Padding="16,12" Margin="0,0,0,8"
                                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                                         <Grid ColumnDefinitions="40,*,Auto">
-                                             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="6" ClipToBounds="True">
-                                                 <Image Source="{Binding MapGroup.CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
-                                             </Border>
-                                             <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
-                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13"/>
-                                                 <TextBlock Text="{Binding SubDisplayName}" FontSize="11" Foreground="{StaticResource AccentBrush}"
-                                                            IsVisible="{Binding SubDisplayName, Converter={StaticResource NullToBoolConverter}}"/>
-                                             </StackPanel>
-                                             <!-- Remove logic could go here -->
-                                         </Grid>
-                                    </Border>
+                                             <Grid ColumnDefinitions="40,*,Auto">
+                                                 <Border Grid.Column="0" Width="40" Height="40" CornerRadius="6" ClipToBounds="True">
+                                                     <Image Source="{Binding MapGroup.CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                                                 </Border>
+                                                 <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
+                                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13"/>
+                                                     <TextBlock Text="{Binding SubDisplayName}" FontSize="11" Foreground="{StaticResource AccentBrush}"
+                                                                IsVisible="{Binding SubDisplayName, Converter={StaticResource NullToBoolConverter}}"/>
+                                                 </StackPanel>
+                                                 
+                                                 <!-- Queue Actions -->
+                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                                     <Button Classes="Secondary" Padding="8" Width="32" Height="32" ToolTip.Tip="Edit Metadata / Crop"
+                                                             Command="{Binding DataContext.EditItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                             CommandParameter="{Binding}">
+                                                         <PathIcon Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6.02 20.71,5.63L18.37,3.29C17.98,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04Z" Width="14" Height="14"/>
+                                                     </Button>
+                                                     <Button Classes="Secondary" Padding="8" Width="32" Height="32" ToolTip.Tip="Remove"
+                                                             Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                             CommandParameter="{Binding}">
+                                                         <TextBlock Text="✕" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                     </Button>
+                                                 </StackPanel>
+                                             </Grid>
+                                        </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -384,7 +494,9 @@
                                 <TextBlock Text="{Binding ProgressMessage}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 <TextBlock Grid.Column="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold"/>
                             </Grid>
-                            <ProgressBar Value="{Binding ProgressPercentage}" Maximum="100" Height="4" Foreground="{StaticResource AccentBrush}"/>
+                            <Border Height="8" CornerRadius="4" Background="{StaticResource SurfaceBrush}" ClipToBounds="True">
+                                <ProgressBar Value="{Binding ProgressPercentage}" Maximum="100" Height="8" Foreground="{StaticResource AccentBrush}" ShowProgressText="False"/>
+                            </Border>
                         </StackPanel>
                     </Border>
                 </Grid>

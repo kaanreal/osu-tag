@@ -151,6 +151,9 @@ namespace OsuTag.ViewModels
         public AudioFileItem? AudioFile { get; set; }
         public required string DisplayName { get; set; }
         public string? SubDisplayName { get; set; }
+        public string? OverrideTitle { get; set; }
+        public string? OverrideArtist { get; set; }
+        public string? OverrideCoverPath { get; set; }
     }
 
     public class RelayCommand : ICommand
@@ -604,8 +607,77 @@ namespace OsuTag.ViewModels
             MapGroups = new ObservableCollection<MapItemGroup>(allItems);
 
             _displayedCount += count;
-            IsLoadingMore = false;
             CanLoadMore = _displayedCount < _filteredMapGroups.Count;
+        }
+
+        private void RemoveItem(SelectedItemInfo? info)
+        {
+            if (info == null) return;
+
+            // Find the corresponding MapGroup or DifficultyItem and deselect it
+            if (info.MapGroup != null)
+            {
+                // Unset Group Selection
+                if (info.SubDisplayName == null) // It's a whole group
+                {
+                     if (info.MapGroup.IsSelected)
+                         ToggleMapSelection(info.MapGroup);
+                }
+                else // It's a specific difficulty
+                {
+                    var diff = info.MapGroup.Difficulties.FirstOrDefault(d => 
+                        d.DifficultyName == info.SubDisplayName); // Or check ID if we had one
+                    
+                    if (diff != null && diff.IsSelected)
+                    {
+                        // Logic from SelectDifficulty: "diff.IsSelected = !diff.IsSelected"
+                        // We just want to set it to false.
+                        diff.IsSelected = false;
+                        
+                        // Update group partial state
+                        var anySelected = info.MapGroup.Difficulties.Any(d => d.IsSelected);
+                        info.MapGroup.SetIsSelectedWithoutPropagation(anySelected);
+
+                        RefreshSelectedItems();
+                    }
+                }
+            }
+        }
+        
+        private async void EditItem(SelectedItemInfo? info)
+        {
+            if (info == null) return;
+            
+            var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+            if (topLevel != null)
+            {
+                var vm = new EditMetadataViewModel(info);
+                var win = new Views.EditMetadataWindow
+                {
+                    DataContext = vm
+                };
+                await win.ShowDialog(topLevel);
+                
+                // Refresh list if needed (to update display name if title changed?)
+                // Since DisplayName is set on selection, if override changes, 
+                // we might want to update DisplayName to reflect 'OverrideTitle'.
+                // Ideally SelectedItemInfo.DisplayName should be property with notification, or we update it here.
+                
+                if (!string.IsNullOrEmpty(info.OverrideTitle))
+                {
+                    info.DisplayName = info.OverrideTitle;
+                    // Force refresh of the collection to update UI?
+                    // ObservableCollection doesn't detect property changes inside items unless they implement INotifyPropertyChanged
+                    // SelectedItemInfo doesn't implement INPC currently.
+                    
+                    // Hack: Toggle property or replace item
+                    var index = SelectedItems.IndexOf(info);
+                    if (index >= 0)
+                    {
+                        SelectedItems[index] = info; // Re-set to trigger binding update
+                    }
+                }
+            }
         }
 
         public ObservableCollection<ConversionResult> ConversionResults { get; } = new();
@@ -623,6 +695,8 @@ namespace OsuTag.ViewModels
         public ICommand BrowseOutputPathCommand { get; }
         public ICommand CloseOverlayCommand { get; }
         public ICommand SelectDifficultyCommand { get; }
+        public ICommand RemoveItemCommand { get; }
+        public ICommand EditItemCommand { get; }
 
         public MainViewModel()
         {
@@ -646,6 +720,9 @@ namespace OsuTag.ViewModels
             ToggleBottomBarCommand = new RelayCommand(_ => IsBottomBarExpanded = !IsBottomBarExpanded);
             CloseOverlayCommand = new RelayCommand(_ => CloseOverlay());
             SelectDifficultyCommand = new RelayCommand(param => SelectDifficulty(param as DifficultyItem));
+            RemoveItemCommand = new RelayCommand(param => RemoveItem(param as SelectedItemInfo));
+            EditItemCommand = new RelayCommand(param => EditItem(param as SelectedItemInfo));
+
 
             // Auto-load saved path if enabled - load from cache then smart scan for new
             if (SettingsService.Settings.RememberSongsPath &&
@@ -1623,13 +1700,41 @@ namespace OsuTag.ViewModels
 
                 ProgressPercentage = (int)((i + 1.0) / itemsToConvert.Count * 100);
                 
-                // Determine effective metadata (prefer specific difficulty data for stacks/mappacks)
+                // Determine effective metadata (Separated from UI Display Title)
+                // Heuristic: If it's a compilation pack (different songs), use Version as Title. 
+                // If it's a rate pack (same song), use the song Title.
+                
                 string effArtist = !string.IsNullOrEmpty(diff.Artist) ? diff.Artist : group.Artist;
-                string effTitle = !string.IsNullOrEmpty(diff.Title) ? diff.Title : group.Title;
+                string diffTitle = !string.IsNullOrEmpty(diff.Title) ? diff.Title : group.Title; // The raw title from .osu (often the song name)
+                
+                // Detection: Is this specific difficulty part of a "Compilation Pack"?
+                // We consider it a compilation if the group has difficulties with different song titles.
+                bool isCompilation = group.Difficulties.Select(d => d.Difficulty.Title).Distinct().Count() > 1;
+                bool isMultiArtist = group.Difficulties.Select(d => d.Artist).Distinct().Count() > 1;
+                
+                string effTitle = diffTitle; 
+                if ((isCompilation || isMultiArtist) && !string.IsNullOrEmpty(diffName))
+                {
+                    // For compilations, the "Version" (diffName) is usually the actual song title in Mappacks
+                    effTitle = diffName;
+                }
+
                 string? effCoverPath = !string.IsNullOrEmpty(diff.CoverPath) && File.Exists(diff.CoverPath) 
                     ? diff.CoverPath 
                     : group.CoverPath;
                 int effPreviewTime = diff.PreviewTime > 0 ? diff.PreviewTime : group.PreviewTime;
+
+                // CHECK FOR MANUAL OVERRIDES (From SelectedItemInfo)
+                var selectedInfo = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info => 
+                    info.MapGroup == group && 
+                    (string.IsNullOrEmpty(info.SubDisplayName) || info.SubDisplayName == diffName));
+
+                if (selectedInfo != null)
+                {
+                     if (!string.IsNullOrEmpty(selectedInfo.OverrideTitle)) effTitle = selectedInfo.OverrideTitle;
+                     if (!string.IsNullOrEmpty(selectedInfo.OverrideArtist)) effArtist = selectedInfo.OverrideArtist;
+                     if (!string.IsNullOrEmpty(selectedInfo.OverrideCoverPath)) effCoverPath = selectedInfo.OverrideCoverPath;
+                }
 
                 ProgressMessage = $"{i + 1}/{itemsToConvert.Count}: {effArtist} - {effTitle}";
 
@@ -1647,7 +1752,21 @@ namespace OsuTag.ViewModels
                     if (ProcessCovers && !string.IsNullOrEmpty(effCoverPath) && File.Exists(effCoverPath))
                     {
                         coverOutput = Path.Combine(mapOutputDir, "cover.jpg");
-                        imageProcessor.ProcessCover(effCoverPath, coverOutput, 3000, 3000);
+                        
+                        // Heuristic: If cover path contains "crops" (our manual crop folder), assume it's already perfect 1:1
+                        // Just copy it or process lightly (don't upscale to 3000 if it's small)
+                        bool isManualCrop = effCoverPath.Contains("crops") && effCoverPath.Contains("osu!tag");
+
+                        if (isManualCrop)
+                        {
+                            // Just copy the file to the output
+                            File.Copy(effCoverPath, coverOutput, true);
+                        }
+                        else
+                        {
+                            // Standard processing (Crop center + Resize to 3000x3000)
+                            imageProcessor.ProcessCover(effCoverPath, coverOutput, 3000, 3000);
+                        }
                     }
 
                     string mp3Output = Path.Combine(mapOutputDir, $"{safeTitle}.mp3");
@@ -1686,6 +1805,9 @@ namespace OsuTag.ViewModels
                 DiscordRpcService.UpdateStatus("completed", itemsToConvert.Count);
             }
 
+            ProgressMessage = "Conversion Complete!";
+            ProgressPercentage = 100;
+
             AddResult("Done!", $"All maps saved to: {config.OutputDir}");
 
             // Telemetry: send conversion count
@@ -1713,36 +1835,9 @@ namespace OsuTag.ViewModels
             {
                 // Only override titles if the group actually has multiple different audio files (i.e. is a stack)
                 // AND has variance in metadata (Artist, Title, or Cover) to distinguish "Compilations" from "Rate Packs".
-                if (group.IsStack && group.HasMultipleDifferentAudios)
-                {
-                    // Heuristic: Check for metadata variance
-                    bool hasDifferentArtists = group.Difficulties.Select(d => d.Artist).Distinct().Count() > 1;
-                    bool hasDifferentTitles = group.Difficulties.Select(d => d.Difficulty.Title).Distinct().Count() > 1; // Use raw diff title
-                    bool hasDifferentCovers = group.Difficulties.Select(d => d.CoverPath).Distinct().Count() > 1;
-
-                    // Additional Heuristic: If metadata is identical but it's a specific "Practice Pack",
-                    // check if the DifficultyName (Version) looks like a song name rather than a rate (e.g. "1.2x").
-                    // If it DOES NOT look like a rate, treat it as a Song Title.
-                    bool looksLikeRatePack = group.Difficulties.All(d => 
-                        System.Text.RegularExpressions.Regex.IsMatch(d.DifficultyName, @"^\d+(\.\d+)?[xX]$"));
-
-                    bool forceVersionAsTitle = !looksLikeRatePack;
-
-                    // If it looks like a Compilation Pack (varied songs OR explicitly not a rate pack), use the Version/DifficultyName as the Title
-                    if (hasDifferentArtists || hasDifferentTitles || hasDifferentCovers || forceVersionAsTitle)
-                    {
-                         foreach (var diff in group.Difficulties)
-                        {
-                            // Override Display Title with the Version/DifficultyName
-                            if (!string.IsNullOrEmpty(diff.DifficultyName))
-                            {
-                                diff.Title = diff.DifficultyName;
-                                diff.Difficulty.Title = diff.DifficultyName; // ALSO update the underlying model used for conversion
-                            }
-                        }
-                    }
-                    // Else: It's likely a Rate Pack (Same Song, Different Audios/Rates), so keep the Main Title.
-                }
+                // Separation: We no longer strictly overwrite the Title in the UI here
+                // because we handle the 'Export Title' logic inside RunConversion.
+                // This keeps the cards showing their version/difficulty names as intended.
             }
             catch (Exception ex)
             {

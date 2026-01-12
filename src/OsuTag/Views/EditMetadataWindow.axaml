@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:OsuTag.ViewModels"
+        xmlns:converters="using:OsuTag.Converters"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+        x:Class="OsuTag.Views.EditMetadataWindow"
+        Title="Edit Metadata"
+        Width="500" Height="650"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="{StaticResource WindowBackgroundBrush}">
+
+    <Window.Resources>
+        <converters:PathToBitmapConverter x:Key="PathToBitmapConverter"/>
+    </Window.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Title Bar (Draggable via WindowChrome) -->
+        <Border Height="50" Background="Transparent" IsHitTestVisible="False" Margin="0,10,0,0">
+            <TextBlock Text="Edit Metadata" HorizontalAlignment="Center" VerticalAlignment="Center" 
+                       FontWeight="SemiBold" FontSize="16" Foreground="{StaticResource TextPrimaryBrush}"/>
+        </Border>
+
+        <!-- Content -->
+        <Border Grid.Row="1" Padding="40,20,40,40">
+            <StackPanel Spacing="30">
+                
+                <!-- Title Input -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Title" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" FontSize="13"/>
+                    <TextBox Text="{Binding OverrideTitle}" Watermark="{Binding OriginalTitle}" 
+                             Classes="Modern" Height="40" VerticalContentAlignment="Center"
+                             CornerRadius="4" BorderThickness="0" Background="#252525"/>
+                    <TextBlock Text="Leave empty to use original" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" Margin="2,0"/>
+                </StackPanel>
+
+                <!-- Artist Input -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Artist" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" FontSize="13"/>
+                    <TextBox Text="{Binding OverrideArtist}" Watermark="{Binding OriginalArtist}" 
+                             Classes="Modern" Height="40" VerticalContentAlignment="Center"
+                             CornerRadius="4" BorderThickness="0" Background="#252525"/>
+                </StackPanel>
+
+                <!-- Cover Image Section -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Cover Art" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" FontSize="13"/>
+                    <Grid ColumnDefinitions="140,*" Height="140">
+                         <!-- Image Preview with Shadow -->
+                         <Border Grid.Column="0" CornerRadius="8" ClipToBounds="True" Background="#111"
+                                 BoxShadow="0 4 12 0 #40000000">
+                             <Image Source="{Binding ActiveCoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                         </Border>
+                         
+                         <!-- Action Buttons -->
+                         <StackPanel Grid.Column="1" Margin="24,0,0,0" Spacing="12" VerticalAlignment="Center">
+                             <Button Content="Choose File" Classes="Secondary" HorizontalAlignment="Stretch" Click="Browse_Click"
+                                     CornerRadius="6" Height="36"/>
+                             <Button Content="Crop Image" Classes="Secondary" HorizontalAlignment="Stretch" Click="Crop_Click"
+                                     CornerRadius="6" Height="36"/>
+                             <TextBlock Text="Crops are saved as 600x600" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                         </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Spacer to push buttons down if needed, or just layout spacing -->
+                <Control Height="20"/>
+
+                <!-- Bottom Actions -->
+                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+                    <Button Content="Cancel" Click="Cancel_Click" Classes="Secondary" Width="100" Height="40" CornerRadius="20"/>
+                    <Button Content="Save Changes" Click="Save_Click" Classes="Primary" Width="140" Height="40" CornerRadius="20" FontWeight="SemiBold"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

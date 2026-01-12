@@ -16,7 +16,7 @@ namespace OsuTag.Services
             {
                 using var image = Image.Load(inputPath);
 
-                // Crop to square (1:1 ratio)
+                // Default: Center Crop to square (1:1 ratio)
                 int minDim = Math.Min(image.Width, image.Height);
                 int left = (image.Width - minDim) / 2;
                 int top = (image.Height - minDim) / 2;
@@ -32,6 +32,30 @@ namespace OsuTag.Services
             {
                 // Cover processing is optional - silently skip on error
             }
+        }
+
+        public void ProcessCoverWithCrop(string inputPath, string outputPath, int cropX, int cropY, int cropSize, int targetWidth, int targetHeight)
+        {
+             if (!File.Exists(inputPath)) return;
+             try
+             {
+                 using var image = Image.Load(inputPath);
+                 
+                 // Validate bounds
+                 if (cropX < 0) cropX = 0;
+                 if (cropY < 0) cropY = 0;
+                 if (cropSize <= 0) cropSize = 100;
+                 if (cropX + cropSize > image.Width) cropSize = image.Width - cropX;
+                 if (cropY + cropSize > image.Height) cropSize = image.Height - cropY;
+
+                 image.Mutate(x => x
+                     .Crop(new Rectangle(cropX, cropY, cropSize, cropSize))
+                     .Resize(targetWidth, targetHeight)
+                 );
+                 
+                 image.SaveAsJpeg(outputPath);
+             }
+             catch { }
         }
     }
 }
