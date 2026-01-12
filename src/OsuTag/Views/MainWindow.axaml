@@ -435,7 +435,9 @@
                                  <DataTemplate>
                                      <Border Width="180" Height="260" Margin="0,0,20,20" CornerRadius="4"
                                              Background="White"
-                                             BoxShadow="0 2 8 0 #1A000000">
+                                             BoxShadow="0 2 8 0 #1A000000"
+                                             PointerEntered="DifficultyCard_PointerEntered"
+                                             PointerExited="DifficultyCard_PointerExited">
                                          <!-- Reusing Main Card Styles manually for now or duplicated -->
                                          <Border.Styles>
                                               <Style Selector="Border">

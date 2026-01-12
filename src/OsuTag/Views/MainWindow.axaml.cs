@@ -50,5 +50,21 @@ namespace OsuTag.Views
         {
             Services.AudioService.Instance.Stop();
         }
+
+        private void DifficultyCard_PointerEntered(object? sender, PointerEventArgs e)
+        {
+            if (sender is Control control && control.DataContext is DifficultyItem diff)
+            {
+                if (!string.IsNullOrEmpty(diff.Difficulty.Mp3Path))
+                {
+                    Services.AudioService.Instance.PlayPreview(diff.Difficulty.Mp3Path, diff.Difficulty.PreviewTime);
+                }
+            }
+        }
+
+        private void DifficultyCard_PointerExited(object? sender, PointerEventArgs e)
+        {
+            Services.AudioService.Instance.Stop();
+        }
     }
 }
