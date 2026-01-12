@@ -43,26 +43,86 @@ namespace OsuTag.Services
                 if (PlatformService.IsWindows)
                 {
                     string libvlcPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", IntPtr.Size == 8 ? "win-x64" : "win-x86");
-                    System.Diagnostics.Debug.WriteLine($"Initializing LibVLC from: {libvlcPath}");
+                    System.Diagnostics.Debug.WriteLine($"[AudioService] Windows Init: {libvlcPath}");
                     Core.Initialize(libvlcPath);
+                }
+                else if (PlatformService.IsMacOS)
+                {
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    System.Diagnostics.Debug.WriteLine($"[AudioService] macOS Init. Base: {baseDir}");
+                    
+                    try 
+                    {
+                        // Multiple common paths on macOS
+                        string[] possiblePaths = new[]
+                        {
+                            baseDir,
+                            Path.Combine(baseDir, "runtimes", "osx", "native"),
+                            Path.Combine(baseDir, "runtimes", "osx-x64", "native"),
+                            Path.Combine(baseDir, "runtimes", "osx-arm64", "native")
+                        };
+
+                        bool success = false;
+                        foreach (var path in possiblePaths)
+                        {
+                            if (Directory.Exists(path))
+                            {
+                                try
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[AudioService] Testing path: {path}");
+                                    Core.Initialize(path);
+                                    success = true;
+                                    System.Diagnostics.Debug.WriteLine($"[AudioService] Core.Initialize succeeded for: {path}");
+                                    break;
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[AudioService] Core.Initialize failed for {path}: {ex.Message}");
+                                }
+                            }
+                        }
+
+                        if (!success)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[AudioService] All specific paths failed, calling default Core.Initialize()");
+                            Core.Initialize();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AudioService] Critical error in Core.Initialize: {ex.Message}");
+                    }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("Initializing LibVLC for non-Windows platform");
+                    System.Diagnostics.Debug.WriteLine("[AudioService] Linux Init");
                     Core.Initialize();
                 }
+
+                try 
+                {
+                    _libVLC = new LibVLC("--verbose=2", "--no-video", "--no-spu", "--no-lua"); 
+                    _mediaPlayer = new MediaPlayer(_libVLC);
+                    System.Diagnostics.Debug.WriteLine("[AudioService] LibVLC and MediaPlayer created successfully");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AudioService] Failed to create LibVLC instance: {ex.Message}");
+                    if (ex.InnerException != null)
+                        System.Diagnostics.Debug.WriteLine($"[AudioService] Inner Exception: {ex.InnerException.Message}");
+                }
                 
-                _libVLC = new LibVLC("--verbose=2", "--no-video", "--no-spu"); 
-                _mediaPlayer = new MediaPlayer(_libVLC);
-                
-                _mediaPlayer.EncounteredError += (s, e) => System.Diagnostics.Debug.WriteLine("LibVLC Error encountered");
-                _mediaPlayer.EndReached += (s, e) => System.Diagnostics.Debug.WriteLine("LibVLC Playback finished");
+                if (_mediaPlayer != null)
+                {
+                    _mediaPlayer.EncounteredError += (s, e) => System.Diagnostics.Debug.WriteLine("[AudioService] LibVLC Error event");
+                    _mediaPlayer.EndReached += (s, e) => System.Diagnostics.Debug.WriteLine("[AudioService] LibVLC EndReached");
+                }
                 
                 _isInitialized = true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to initialize LibVLC: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AudioService] Fatal Initialization Error: {ex.Message}");
             }
         }
 
@@ -77,10 +137,15 @@ namespace OsuTag.Services
         /// <param name="volume">Optional volume override (0-100).</param>
         public void PlayPreview(string path, int startTimeMs, int? volume = null)
         {
-            if (!_isInitialized || _libVLC == null || _mediaPlayer == null) 
+            if (!_isInitialized) 
             {
                 Initialize();
-                if (!_isInitialized) return;
+            }
+
+            if (_libVLC == null || _mediaPlayer == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[AudioService] PlayPreview aborted: Service not initialized corectly.");
+                return;
             }
 
             try

@@ -45,6 +45,12 @@ namespace OsuTag.ViewModels
         public string? Title { get; set; }
         public string? Artist { get; set; }
         public string? CoverPath { get; set; }
+
+        // Randomization for Shuffle Animation
+        private static readonly Random _rng = new();
+        public double RandomAngle { get; } = (_rng.NextDouble() * 16.0) - 8.0; // -8 to 8 degrees
+        public double RandomOffsetX { get; } = (_rng.NextDouble() * 30.0) - 15.0; // -15 to 15 px
+        public double RandomOffsetY { get; } = (_rng.NextDouble() * 30.0) - 15.0; // -15 to 15 px
     }
 
     public class MapItemGroup : ObservableObject
@@ -91,6 +97,12 @@ namespace OsuTag.ViewModels
         public int PreviewTime { get; set; }
         public ObservableCollection<DifficultyItem> Difficulties { get; } = new();
         public ObservableCollection<AudioFileItem> UniqueAudioFiles { get; } = new();
+
+        // Randomization for Shuffle Animation
+        private static readonly Random _rng = new();
+        public double RandomAngle { get; } = (_rng.NextDouble() * 20.0) - 10.0; // -10 to 10 degrees
+        public double RandomOffsetX { get; } = (_rng.NextDouble() * 40.0) - 20.0; // -20 to 20 px
+        public double RandomOffsetY { get; } = (_rng.NextDouble() * 40.0) - 20.0; // -20 to 20 px
 
         public bool HasMultipleDifferentAudios
         {
@@ -244,6 +256,8 @@ namespace OsuTag.ViewModels
             get => _isBottomBarExpanded;
             set => SetProperty(ref _isBottomBarExpanded, value);
         }
+
+        public string SearchHints => "Search by: Artist, Title, Creator, Difficulty, Tags, or Source";
 
         public bool CanLoadMore
         {

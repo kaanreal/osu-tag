@@ -17,6 +17,7 @@
     <Window.Resources>
         <converters:BoolToDoubleConverter x:Key="BoolToDoubleConverter"/>
         <converters:BoolToTransformConverter x:Key="BoolToTransformConverter"/>
+        <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
     </Window.Resources>
 
     <Grid RowDefinitions="80,*">
@@ -83,21 +84,51 @@
                         </Grid>
                     </Border>
 
-                    <!-- Search Section -->
+                     <!-- Search Section -->
                     <Grid ColumnDefinitions="*,Auto">
-                        <Border CornerRadius="8" BoxShadow="0 4 12 0 #1A000000">
-                            <TextBox Classes="Modern" 
-                                     Text="{Binding SearchQuery, Mode=TwoWay}"
-                                     Watermark="Search maps by title, artist, or creator..."
-                                     Height="50"
-                                     FontSize="16"
-                                     VerticalContentAlignment="Center"
-                                     VerticalAlignment="Center">
-                                <TextBox.InnerLeftContent>
-                                    <TextBlock Text="🔍" VerticalAlignment="Center" Margin="16,0,8,0" FontSize="18" Foreground="{StaticResource TextTertiaryBrush}"/>
-                                </TextBox.InnerLeftContent>
-                            </TextBox>
-                        </Border>
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <Border CornerRadius="8" Name="SearchBorder">
+                                <Border.Styles>
+                                    <Style Selector="Border#SearchBorder">
+                                        <Setter Property="Transitions">
+                                            <Transitions>
+                                                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.3"/>
+                                            </Transitions>
+                                        </Setter>
+                                        <Setter Property="BoxShadow" Value="0 4 12 0 #1A000000"/>
+                                    </Style>
+                                    <Style Selector="Border#SearchBorder:focus-within">
+                                        <Setter Property="BoxShadow" Value="0 0 20 5 #4000FF44"/>
+                                        <Setter Property="BorderBrush" Value="#8000FF44"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                    </Style>
+                                </Border.Styles>
+                                <TextBox Classes="Modern" 
+                                         Name="SearchTextBox"
+                                         Text="{Binding SearchQuery, Mode=TwoWay}"
+                                         Watermark="Search maps by title, artist, or creator..."
+                                         Height="50"
+                                         FontSize="16"
+                                         VerticalContentAlignment="Center"
+                                         VerticalAlignment="Center">
+                                    <TextBox.InnerLeftContent>
+                                        <TextBlock Text="🔍" VerticalAlignment="Center" Margin="16,0,8,0" FontSize="18" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                    </TextBox.InnerLeftContent>
+                                </TextBox>
+                            </Border>
+                            <!-- Search Hints -->
+                            <TextBlock Text="{Binding SearchHints}" 
+                                       FontSize="11" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
+                                       Margin="12,4"
+                                       IsVisible="{Binding SearchQuery, Converter={StaticResource StringToBoolConverter}, ConverterParameter='Inverse'}">
+                                <TextBlock.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                    </Transitions>
+                                </TextBlock.Transitions>
+                            </TextBlock>
+                        </StackPanel>
 
                         <!-- Results Badge -->
                         <Border Grid.Column="1" 
@@ -121,19 +152,34 @@
                 <!-- Map List -->
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,16,24">
                     <StackPanel>
-                        <!-- Loader -->
-                        <StackPanel IsVisible="{Binding IsScanning}" 
-                                    HorizontalAlignment="Center" 
-                                    Margin="0,40">
-                             <ProgressBar IsIndeterminate="True" 
-                                          Width="40" Height="40" 
-                                          Foreground="{StaticResource AccentBrush}"
-                                          Background="Transparent"/>
-                             <TextBlock Text="{Binding ScanStatusMessage}" 
-                                        HorizontalAlignment="Center" 
-                                        Margin="0,16,0,0" 
-                                        Foreground="{StaticResource TextSecondaryBrush}"/>
-                        </StackPanel>
+                        <!-- Sleek Scan Progression -->
+                        <Border IsVisible="{Binding IsScanning}" 
+                                Background="{StaticResource SurfaceElevatedBrush}"
+                                CornerRadius="8"
+                                Margin="0,0,0,16"
+                                Padding="16"
+                                BoxShadow="0 4 15 0 #4D000000">
+                             <StackPanel Spacing="12">
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <TextBlock Text="{Binding ScanStatusMessage}" 
+                                                Foreground="{StaticResource TextPrimaryBrush}"
+                                                FontWeight="SemiBold"/>
+                                     <TextBlock Grid.Column="1" 
+                                                Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}"
+                                                Foreground="{StaticResource AccentBrush}"
+                                                FontWeight="Bold"/>
+                                 </Grid>
+                                 <ProgressBar Value="{Binding ProgressPercentage}" 
+                                              Height="6" 
+                                              CornerRadius="3"
+                                              Foreground="{StaticResource AccentBrush}"
+                                              Background="{StaticResource SurfaceBrush}">
+                                     <ProgressBar.Effect>
+                                         <DropShadowEffect Color="#00FF44" BlurRadius="10" Opacity="0.5"/>
+                                     </ProgressBar.Effect>
+                                 </ProgressBar>
+                             </StackPanel>
+                        </Border>
 
                         <!-- Maps -->
                         <ItemsControl ItemsSource="{Binding MapGroups}">
@@ -144,7 +190,40 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Width="180" Height="260" Margin="0,0,20,20">
+                                    <Border Width="180" Height="260" Margin="0,0,20,20" x:Name="MapCard">
+                                         <Border.Styles>
+                                             <Style Selector="Border#MapCard">
+                                                 <Setter Property="RenderTransform">
+                                                     <TransformGroup>
+                                                         <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                                         <TranslateTransform X="{Binding RandomOffsetX}" Y="{Binding RandomOffsetY}"/>
+                                                         <RotateTransform Angle="{Binding RandomAngle}"/>
+                                                     </TransformGroup>
+                                                 </Setter>
+                                                  <!-- Entrance Animation: Shuffles from random state into perfect alignment -->
+                                                   <Style.Animations>
+                                                     <Animation Duration="0:0:1.0" Easing="CubicEaseOut" FillMode="Forward">
+                                                         <KeyFrame Cue="0%">
+                                                             <Setter Property="Opacity" Value="0"/>
+                                                             <Setter Property="RotateTransform.Angle" Value="{Binding RandomAngle}"/>
+                                                             <Setter Property="TranslateTransform.X" Value="{Binding RandomOffsetX}"/>
+                                                             <Setter Property="TranslateTransform.Y" Value="{Binding RandomOffsetY}"/>
+                                                             <Setter Property="ScaleTransform.ScaleX" Value="0.9"/>
+                                                             <Setter Property="ScaleTransform.ScaleY" Value="0.9"/>
+                                                         </KeyFrame>
+                                                         <KeyFrame Cue="100%">
+                                                             <Setter Property="Opacity" Value="1"/>
+                                                             <Setter Property="RotateTransform.Angle" Value="0"/>
+                                                             <Setter Property="TranslateTransform.X" Value="0"/>
+                                                             <Setter Property="TranslateTransform.Y" Value="0"/>
+                                                             <Setter Property="ScaleTransform.ScaleX" Value="1.0"/>
+                                                             <Setter Property="ScaleTransform.ScaleY" Value="1.0"/>
+                                                         </KeyFrame>
+                                                     </Animation>
+                                                 </Style.Animations>
+                                             </Style>
+                                         </Border.Styles>
+                                        <Grid>
                                         <!-- Stack Effect (Back Cards) - Optimized -->
                                         <!-- Card 3 (Bottom) -->
                                         <Border Width="180" Height="260" CornerRadius="4" Background="#E0E0E0" Opacity="0.5"
@@ -175,29 +254,39 @@
                                                 BoxShadow="0 2 8 0 #1A000000"
                                                 PointerEntered="MapCard_PointerEntered"
                                                 PointerExited="MapCard_PointerExited">
-                                             <!-- Interaction Triggers via Styles -->
                                              <Border.Styles>
+                                                 <!-- Interaction Triggers via Styles (No entrance animation here to avoid conflict) -->
                                                  <Style Selector="Border">
-                                                     <Setter Property="RenderTransform" Value="scale(1)"/>
+                                                     <Setter Property="RenderTransform">
+                                                         <TransformGroup>
+                                                             <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                                             <RotateTransform Angle="0"/>
+                                                         </TransformGroup>
+                                                     </Setter>
                                                      <Setter Property="Transitions">
                                                          <Transitions>
-                                                             <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" Easing="QuadraticEaseOut"/>
-                                                             <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.1"/>
+                                                             <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="QuadraticEaseOut"/>
+                                                             <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
                                                          </Transitions>
                                                      </Setter>
                                                  </Style>
                                                  <Style Selector="Border:pointerover">
-                                                     <Setter Property="RenderTransform" Value="scale(1.02) rotate(1deg)"/>
-                                                     <Setter Property="BoxShadow" Value="0 8 16 0 #2E000000"/>
+                                                     <Setter Property="RenderTransform" Value="scale(1.05) rotate(2deg)"/>
+                                                     <Setter Property="BoxShadow" Value="0 15 35 0 #33000000"/>
                                                      <Setter Property="ZIndex" Value="1"/>
                                                  </Style>
-                                             </Border.Styles>
+                                            </Border.Styles>
+                                            <!-- Main Card Content -->
+                                            <Panel>
  
                                             <Grid RowDefinitions="*,Auto">
-                                                <!-- Cover Image -->
-                                                <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" ClipToBounds="True">
-                                                    <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
-                                                </Border>
+                                                 <!-- Cover Image (Anchored meticulously to polaroid) -->
+                                                 <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" 
+                                                         CornerRadius="2" ClipToBounds="True">
+                                                     <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" 
+                                                            Stretch="UniformToFill"
+                                                            VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                 </Border>
  
                                                 <!-- Info Section -->
                                                 <StackPanel Grid.Row="1" Margin="12,8,12,12">
@@ -304,10 +393,12 @@
                                                     </Button.Styles>
                                                 </Button>
                                             </Grid>
-                                        </Border>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
+                                        </Panel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                        </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
                         <!-- Load More Maps Section -->
@@ -316,7 +407,7 @@
                                     Classes="Secondary"
                                     HorizontalAlignment="Center" 
                                     Command="{Binding LoadMoreCommand}"
-                                    IsVisible="{Binding !IsLoadingMore}"/>
+                                    IsVisible="{Binding CanLoadMore}"/>
                              
                             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"
                                         IsVisible="{Binding IsLoadingMore}">
@@ -532,7 +623,13 @@
                          <ItemsControl ItemsSource="{Binding OverlayMapGroup.Difficulties}">
                              <ItemsControl.ItemsPanel>
                                  <ItemsPanelTemplate>
-                                     <WrapPanel ItemWidth="200" ItemHeight="280"/>
+                                     <WrapPanel ItemWidth="200" ItemHeight="280">
+                                         <WrapPanel.Transitions>
+                                             <Transitions>
+                                                 <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                                             </Transitions>
+                                         </WrapPanel.Transitions>
+                                     </WrapPanel>
                                  </ItemsPanelTemplate>
                              </ItemsControl.ItemsPanel>
                              <ItemsControl.ItemTemplate>
@@ -543,21 +640,50 @@
                                              PointerEntered="DifficultyCard_PointerEntered"
                                              PointerExited="DifficultyCard_PointerExited">
                                          <!-- Reusing Main Card Styles manually for now or duplicated -->
-                                         <Border.Styles>
-                                              <Style Selector="Border">
-                                                 <Setter Property="RenderTransform" Value="scale(1)"/>
-                                                 <Setter Property="Transitions">
-                                                     <Transitions>
-                                                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" Easing="QuadraticEaseOut"/>
-                                                         <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.1"/>
-                                                     </Transitions>
-                                                 </Setter>
-                                             </Style>
-                                              <Style Selector="Border:pointerover">
-                                                 <Setter Property="RenderTransform" Value="scale(1.02) rotate(1deg)"/>
-                                                 <Setter Property="BoxShadow" Value="0 8 16 0 #2E000000"/>
-                                                 <Setter Property="ZIndex" Value="1"/>
-                                             </Style>
+                                           <Border.Styles>
+                                               <Style Selector="Border">
+                                                   <Setter Property="RenderTransform">
+                                                       <TransformGroup>
+                                                           <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                                           <TranslateTransform X="{Binding RandomOffsetX}" Y="{Binding RandomOffsetY}"/>
+                                                           <RotateTransform Angle="{Binding RandomAngle}"/>
+                                                       </TransformGroup>
+                                                   </Setter>
+                                                   <Setter Property="Transitions">
+                                                       <Transitions>
+                                                           <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="QuadraticEaseOut"/>
+                                                           <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
+                                                       </Transitions>
+                                                   </Setter>
+                                               </Style>
+                                               <!-- Shuffled Entrance -->
+                                                <Style Selector="Border">
+                                                   <Style.Animations>
+                                                       <Animation Duration="0:0:0.8" Easing="CubicEaseOut" FillMode="Forward">
+                                                           <KeyFrame Cue="0%">
+                                                               <Setter Property="Opacity" Value="0"/>
+                                                               <Setter Property="RotateTransform.Angle" Value="{Binding RandomAngle}"/>
+                                                               <Setter Property="TranslateTransform.X" Value="{Binding RandomOffsetX}"/>
+                                                               <Setter Property="TranslateTransform.Y" Value="{Binding RandomOffsetY}"/>
+                                                               <Setter Property="ScaleTransform.ScaleX" Value="0.9"/>
+                                                               <Setter Property="ScaleTransform.ScaleY" Value="0.9"/>
+                                                           </KeyFrame>
+                                                           <KeyFrame Cue="100%">
+                                                               <Setter Property="Opacity" Value="1"/>
+                                                               <Setter Property="RotateTransform.Angle" Value="0"/>
+                                                               <Setter Property="TranslateTransform.X" Value="0"/>
+                                                               <Setter Property="TranslateTransform.Y" Value="0"/>
+                                                               <Setter Property="ScaleTransform.ScaleX" Value="1.0"/>
+                                                               <Setter Property="ScaleTransform.ScaleY" Value="1.0"/>
+                                                           </KeyFrame>
+                                                       </Animation>
+                                                   </Style.Animations>
+                                               </Style>
+                                               <Style Selector="Border:pointerover">
+                                                  <Setter Property="RenderTransform" Value="scale(1.04) rotate(-1deg)"/>
+                                                  <Setter Property="BoxShadow" Value="0 10 20 0 #2E000000"/>
+                                                  <Setter Property="ZIndex" Value="1"/>
+                                               </Style>
                                          </Border.Styles>
 
                                           <Grid RowDefinitions="*,Auto">
