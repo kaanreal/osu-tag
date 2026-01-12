@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OsuTag.Views.SettingsWindow"
+        Title="Settings"
+        Width="540" Height="700"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        CanResize="False">
+    
+    <Grid RowDefinitions="*,Auto" Margin="32">
+        <ScrollViewer Padding="0,0,16,0">
+            <StackPanel Spacing="32">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Settings" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Configure how osu!tag processes your beatmaps" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                </StackPanel>
+                
+                <!-- Section: Processing -->
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Processing" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="4,0"/>
+                    <Border Background="{StaticResource SurfaceElevatedBrush}" CornerRadius="16" Padding="24" 
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <StackPanel Spacing="20">
+                            <CheckBox Content="Process cover images (Embed in MP3)" IsChecked="{Binding ProcessCovers}"/>
+                            <CheckBox Content="Create backups of original .osu files" IsChecked="{Binding CreateBackups}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                
+                <!-- Section: Scanning -->
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Scanning" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="4,0"/>
+                    <Border Background="{StaticResource SurfaceElevatedBrush}" CornerRadius="16" Padding="24" 
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <StackPanel Spacing="20">
+                            <CheckBox Content="Remember last songs directory" IsChecked="{Binding RememberSongsPath}"/>
+                            <CheckBox Content="Smart scan (only process new/modified folders)" IsChecked="{Binding SmartScan}"/>
+                            <CheckBox Content="Sort by play count (using Companella DB)" IsChecked="{Binding SortByMostPlayed}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                
+                <!-- Section: Integration & Privacy -->
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Integration &amp; Privacy" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="4,0"/>
+                    <Border Background="{StaticResource SurfaceElevatedBrush}" CornerRadius="16" Padding="24" 
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <StackPanel Spacing="20">
+                            <CheckBox Content="Enable Discord Rich Presence" IsChecked="{Binding DiscordRpcEnabled}"/>
+                            <CheckBox Content="Share anonymous usage statistics" IsChecked="{Binding TelemetryEnabled}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                
+                <!-- Section: Application -->
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Application" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="4,0"/>
+                    <Border Background="{StaticResource SurfaceElevatedBrush}" CornerRadius="16" Padding="24" 
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <StackPanel Spacing="24">
+                            <!-- Preview Volume -->
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="🔊" FontSize="18" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Preview Volume" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PreviewVolume, StringFormat='{}{0:0}%'}" 
+                                               FontSize="12" Foreground="{StaticResource TextTertiaryBrush}" 
+                                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                </StackPanel>
+                                <Slider Minimum="0" Maximum="100" Value="{Binding PreviewVolume}"/>
+                            </StackPanel>
+
+                            <Rectangle Height="1" Fill="{StaticResource BorderBrush}"/>
+
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="4">
+                                    <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckForUpdates}"/>
+                                    <TextBlock Text="Automatically stay up to date with new features" FontSize="11" 
+                                               Foreground="{StaticResource TextTertiaryBrush}" Margin="32,0,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Check Now" Click="CheckForUpdates_Click"
+                                        Classes="Secondary" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- Footer -->
+        <Border Grid.Row="1" Margin="-32,24,-32,-32" Padding="32,24" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Content="Cancel" Click="Cancel_Click"
+                        Classes="Secondary" Width="120" Height="40"/>
+                <Button Content="Save Settings" Click="Save_Click"
+                        Classes="Primary" Width="140" Height="40"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

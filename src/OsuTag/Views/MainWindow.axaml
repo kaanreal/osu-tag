@@ -1,0 +1,520 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:OsuTag.ViewModels"
+        xmlns:converters="using:OsuTag.Converters"
+        x:Class="OsuTag.Views.MainWindow"
+        Title="osu!tag"
+        Width="1400" Height="900"
+        MinWidth="1200" MinHeight="700"
+        Background="#0A0E14"
+        Foreground="#E6E6E8"
+        WindowStartupLocation="CenterScreen">
+    
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="80,*">
+        <!-- Premium Header -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceElevatedBrush}" 
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
+                Classes="AnimatedOpacity">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="20" Opacity="0.1" OffsetY="2"/>
+            </Border.Effect>
+            
+            <Grid Margin="32,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+ 
+                <!-- Left: App Branding -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Horizontal">
+                    <Border Width="40" Height="40" Background="{StaticResource AccentBrush}" CornerRadius="10" Margin="0,0,16,0">
+                        <TextBlock Text="o!" Foreground="White" FontWeight="Bold" FontSize="20" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="osu!tag" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="v2.0" FontSize="11" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                        </StackPanel>
+                        <TextBlock Text="by kaanreal" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+ 
+                <!-- Right: Actions -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                    <Button Content="Select All" Classes="Secondary" Command="{Binding SelectAllCommand}"/>
+                    <Button Content="Deselect All" Classes="Secondary" Command="{Binding DeselectAllCommand}"/>
+                    <Button Content="⚙" FontSize="18" Padding="12,8" Classes="Secondary" Command="{Binding SettingsCommand}" ToolTip.Tip="Settings"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+         <!-- Main Content -->
+        <Grid Grid.Row="1" ColumnDefinitions="*">
+            <Grid Grid.Column="0" Margin="32,24,32,12" RowDefinitions="Auto,*">
+                
+                <!-- Top Section: Path & Search -->
+                <StackPanel Grid.Row="0" Spacing="24" Margin="0,0,0,24">
+                    <!-- osu! Songs Path -->
+                    <Border Background="{StaticResource SurfaceElevatedBrush}" 
+                            CornerRadius="16" Padding="20" 
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                            <TextBlock Text="📂" FontSize="20" Foreground="{StaticResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="osu! Songs Path" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                <TextBlock Text="{Binding SelectedPath}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                <Button Content="Use Default" Classes="Secondary" Command="{Binding UseDefaultPathCommand}"/>
+                                <Button Content="Browse" Classes="Secondary" Command="{Binding BrowseCommand}"/>
+                                <Button Content="Rescan" Classes="Primary" Padding="16,8" Command="{Binding RescanCommand}" ToolTip.Tip="Rescan"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Search Section -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Border CornerRadius="8" BoxShadow="0 4 12 0 #1A000000">
+                            <TextBox Classes="Modern" 
+                                     Text="{Binding SearchQuery, Mode=TwoWay}"
+                                     Watermark="Search maps by title, artist, or creator..."
+                                     Height="50"
+                                     FontSize="16"
+                                     VerticalContentAlignment="Center"
+                                     VerticalAlignment="Center">
+                                <TextBox.InnerLeftContent>
+                                    <TextBlock Text="🔍" VerticalAlignment="Center" Margin="16,0,8,0" FontSize="18" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                </TextBox.InnerLeftContent>
+                            </TextBox>
+                        </Border>
+
+                        <!-- Results Badge -->
+                        <Border Grid.Column="1" 
+                                Background="{StaticResource SurfaceElevatedBrush}" 
+                                CornerRadius="25" 
+                                Padding="20,0" 
+                                Margin="16,0,0,0"
+                                Height="50"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+                                 <TextBlock Text="📊" FontSize="16" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                 <TextBlock Text="{Binding FilteredMaps.Count}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                 <TextBlock Text="results" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+
+
+                <!-- Map List -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,16,24">
+                    <StackPanel>
+                        <!-- Loader -->
+                        <StackPanel IsVisible="{Binding IsScanning}" 
+                                    HorizontalAlignment="Center" 
+                                    Margin="0,40">
+                             <ProgressBar IsIndeterminate="True" 
+                                          Width="40" Height="40" 
+                                          Foreground="{StaticResource AccentBrush}"
+                                          Background="Transparent"/>
+                             <TextBlock Text="{Binding ScanStatusMessage}" 
+                                        HorizontalAlignment="Center" 
+                                        Margin="0,16,0,0" 
+                                        Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- Maps -->
+                        <ItemsControl ItemsSource="{Binding MapGroups}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemWidth="200" ItemHeight="280"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Width="180" Height="260" Margin="0,0,20,20">
+                                        <!-- Stack Effect (Back Cards) - Optimized -->
+                                        <!-- Card 3 (Bottom) -->
+                                        <Border Width="180" Height="260" CornerRadius="4" Background="#E0E0E0" Opacity="0.5"
+                                                IsVisible="{Binding IsStack}">
+                                            <Border.RenderTransform>
+                                                <TransformGroup>
+                                                    <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
+                                                    <TranslateTransform Y="-16"/>
+                                                </TransformGroup>
+                                            </Border.RenderTransform>
+                                        </Border>
+                                        
+                                        <!-- Card 2 (Middle) -->
+                                        <Border Width="180" Height="260" CornerRadius="4" Background="#E8E8E8" Opacity="0.7"
+                                                IsVisible="{Binding IsStack}">
+                                            <Border.RenderTransform>
+                                                <TransformGroup>
+                                                     <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                                     <TranslateTransform Y="-8"/>
+                                                </TransformGroup>
+                                            </Border.RenderTransform>
+                                        </Border>
+
+                                        <!-- Main Card -->
+                                        <Border Width="180" Height="260" CornerRadius="4" Background="White"
+                                                BoxShadow="0 2 8 0 #1A000000"
+                                                PointerEntered="MapCard_PointerEntered"
+                                                PointerExited="MapCard_PointerExited">
+                                             <!-- Interaction Triggers via Styles -->
+                                             <Border.Styles>
+                                                 <Style Selector="Border">
+                                                     <Setter Property="RenderTransform" Value="scale(1)"/>
+                                                     <Setter Property="Transitions">
+                                                         <Transitions>
+                                                             <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" Easing="QuadraticEaseOut"/>
+                                                             <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.1"/>
+                                                         </Transitions>
+                                                     </Setter>
+                                                 </Style>
+                                                 <Style Selector="Border:pointerover">
+                                                     <Setter Property="RenderTransform" Value="scale(1.02) rotate(1deg)"/>
+                                                     <Setter Property="BoxShadow" Value="0 8 16 0 #2E000000"/>
+                                                     <Setter Property="ZIndex" Value="1"/>
+                                                 </Style>
+                                             </Border.Styles>
+ 
+                                            <Grid RowDefinitions="*,Auto">
+                                                <!-- Cover Image -->
+                                                <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" ClipToBounds="True">
+                                                    <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                                                </Border>
+ 
+                                                <!-- Info Section -->
+                                                <StackPanel Grid.Row="1" Margin="12,8,12,12">
+                                                    <TextBlock Text="{Binding Title}" 
+                                                               Foreground="#333" FontWeight="SemiBold" FontSize="12" 
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Artist}" 
+                                                               Foreground="{StaticResource AccentBrush}" FontSize="12" 
+                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" 
+                                                               Foreground="#999" FontSize="10" 
+                                                               TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+                                                </StackPanel>
+ 
+                                                <!-- Selected Overlay -->
+                                                <Border Grid.Row="0" Grid.RowSpan="2" 
+                                                        CornerRadius="4" 
+                                                        Background="{StaticResource AccentBrush}"
+                                                        Opacity="0.9"
+                                                        IsVisible="{Binding IsSelected}">
+                                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                        <TextBlock Text="✓" FontSize="32" Foreground="White" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="SELECTED" FontSize="12" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+
+
+
+                                                <!-- Click Area -->
+                                                <Button Grid.Row="0" Grid.RowSpan="2" 
+                                                        Background="Transparent" 
+                                                        Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                                    <Button.Styles>
+                                                        <Style Selector="Button">
+                                                            <Setter Property="Template">
+                                                                <ControlTemplate>
+                                                                    <Panel Background="Transparent"/>
+                                                                </ControlTemplate>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Button.Styles>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Load More Maps Section -->
+                        <Grid Margin="0,16,0,16">
+                            <Button Content="Load More Maps" 
+                                    Classes="Secondary"
+                                    HorizontalAlignment="Center" 
+                                    Command="{Binding LoadMoreCommand}"
+                                    IsVisible="{Binding !IsLoadingMore}"/>
+                             
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"
+                                        IsVisible="{Binding IsLoadingMore}">
+                                <ProgressBar IsIndeterminate="True" Width="100" />
+                                <TextBlock Text="Loading more..." FontSize="13" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- Floating Bottom Selection Bar -->
+        <Border Grid.Row="1" 
+                VerticalAlignment="Bottom" 
+                Margin="32,0,32,32"
+                Background="{StaticResource SurfaceElevatedBrush}" 
+                CornerRadius="24"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                BoxShadow="0 10 30 0 #4D000000"
+                IsVisible="{Binding SelectedCount, Converter={StaticResource NumericToBoolConverter}}"
+                Height="{Binding IsBottomBarExpanded, Converter={StaticResource BoolToHeightConverter}, ConverterParameter='80,500'}">
+            <Border.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Height" Duration="0:0:0.3" Easing="QuarticEaseOut"/>
+                    <ThicknessTransition Property="Margin" Duration="0:0:0.3" Easing="QuarticEaseOut"/>
+                </Transitions>
+            </Border.Transitions>
+
+            <Grid RowDefinitions="80,*">
+                <!-- Collapsed View / Header of Bar -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="24,0">
+                    <!-- Latest Item Info -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="16"
+                                IsVisible="{Binding !IsBottomBarExpanded}">
+                        <Border Width="48" Height="48" CornerRadius="8" ClipToBounds="True" Background="{StaticResource SurfaceBrush}">
+                            <Image Source="{Binding LastSelectedItem.MapGroup.CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                             <TextBlock Text="{Binding LastSelectedItem.DisplayName}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                             <TextBlock Text="{Binding LastSelectedItem.SubDisplayName}" FontSize="12" Foreground="{StaticResource AccentBrush}"
+                                        IsVisible="{Binding LastSelectedItem.SubDisplayName, Converter={StaticResource NullToBoolConverter}}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Selection Count Breakdown -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12"
+                                IsVisible="{Binding IsBottomBarExpanded}">
+                        <TextBlock Text="📊" FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SelectedCount, StringFormat='{}{0} items selected'}" 
+                                   FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Expand/Collapse Toggle Area (Center) -->
+                    <Button Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
+                            Background="Transparent" BorderThickness="0" Padding="0"
+                            Classes="Secondary"
+                            Command="{Binding $parent[Window].DataContext.ToggleBottomBarCommand}">
+                         <TextBlock Text="{Binding IsBottomBarExpanded, Converter={StaticResource BoolToIconConverter}, ConverterParameter='▼,▲'}" 
+                                    FontSize="14" HorizontalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                    </Button>
+
+                    <!-- Quick Actions -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="16">
+                        <!-- Minimal Path View in Collapsed State -->
+                        <Border IsVisible="{Binding !IsBottomBarExpanded}" 
+                                Background="{StaticResource SurfaceBrush}" 
+                                CornerRadius="12" Padding="12,8" 
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="📁" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding OutputPath}" MaxWidth="200" TextTrimming="CharacterEllipsis" 
+                                           FontSize="12" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Button Content="Convert to MP3" 
+                                Classes="Primary" 
+                                Height="48" Padding="32,0" 
+                                Command="{Binding StartConversionCommand}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Expanded Content -->
+                <Grid Grid.Row="1" Margin="24,0,24,24" RowDefinitions="Auto,*,Auto" IsVisible="{Binding IsBottomBarExpanded}">
+                    <!-- Output Path Configuration -->
+                    <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" 
+                            CornerRadius="16" Padding="20" Margin="0,0,0,20"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                         <Grid ColumnDefinitions="Auto,*,Auto">
+                             <TextBlock Text="📁" FontSize="24" Foreground="{StaticResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                 <TextBlock Text="Conversion Output Path" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                 <TextBox Text="{Binding OutputPath}" Classes="Modern" Margin="0,4,0,0"/>
+                             </StackPanel>
+                             <Button Grid.Column="2" Content="Browse" Classes="Secondary" Margin="16,0,0,0" VerticalAlignment="Bottom"
+                                     Command="{Binding BrowseOutputPathCommand}"/>
+                         </Grid>
+                    </Border>
+
+                    <!-- Selected Items List -->
+                    <ScrollViewer Grid.Row="1" Margin="0,0,0,20">
+                        <ItemsControl ItemsSource="{Binding SelectedItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource SurfaceBrush}" 
+                                            CornerRadius="12" Padding="16,12" Margin="0,0,0,8"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                         <Grid ColumnDefinitions="40,*,Auto">
+                                             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="6" ClipToBounds="True">
+                                                 <Image Source="{Binding MapGroup.CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                                             </Border>
+                                             <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
+                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13"/>
+                                                 <TextBlock Text="{Binding SubDisplayName}" FontSize="11" Foreground="{StaticResource AccentBrush}"
+                                                            IsVisible="{Binding SubDisplayName, Converter={StaticResource NullToBoolConverter}}"/>
+                                             </StackPanel>
+                                             <!-- Remove logic could go here -->
+                                         </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Overall Status & Progress -->
+                    <Border Grid.Row="2" IsVisible="{Binding IsProcessing}">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding ProgressMessage}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold"/>
+                            </Grid>
+                            <ProgressBar Value="{Binding ProgressPercentage}" Maximum="100" Height="4" Foreground="{StaticResource AccentBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Overlay Menu -->
+        <Grid Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding IsOverlayOpen}" ZIndex="100">
+            <!-- Dim Background -->
+            <Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    Background="Black" Opacity="0.7"
+                    Command="{Binding CloseOverlayCommand}">
+               <Button.Styles>
+                   <Style Selector="Button">
+                       <Setter Property="Template">
+                           <ControlTemplate>
+                               <Border Background="{TemplateBinding Background}"/>
+                           </ControlTemplate>
+                       </Setter>
+                       <Setter Property="Transitions">
+                           <Transitions>
+                               <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                           </Transitions>
+                       </Setter>
+                   </Style>
+               </Button.Styles>
+            </Button>
+
+            <!-- Menu Card -->
+            <Border Width="900" Height="700" CornerRadius="24"
+                    Background="{StaticResource SurfaceElevatedBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    BoxShadow="0 20 50 0 #66000000">
+                 <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+                     <StackPanel Spacing="8">
+                         <TextBlock Text="Select Difficulty" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                         <TextBlock Text="{Binding OverlayMapGroup.Artist, StringFormat='{}from {0}'}" FontSize="14" Foreground="{StaticResource AccentBrush}"/>
+                     </StackPanel>
+
+                     <ScrollViewer Grid.Row="1" Margin="0,24">
+                         <ItemsControl ItemsSource="{Binding OverlayMapGroup.Difficulties}">
+                             <ItemsControl.ItemsPanel>
+                                 <ItemsPanelTemplate>
+                                     <WrapPanel ItemWidth="200" ItemHeight="280"/>
+                                 </ItemsPanelTemplate>
+                             </ItemsControl.ItemsPanel>
+                             <ItemsControl.ItemTemplate>
+                                 <DataTemplate>
+                                     <Border Width="180" Height="260" Margin="0,0,20,20" CornerRadius="4"
+                                             Background="White"
+                                             BoxShadow="0 2 8 0 #1A000000">
+                                         <!-- Reusing Main Card Styles manually for now or duplicated -->
+                                         <Border.Styles>
+                                              <Style Selector="Border">
+                                                 <Setter Property="RenderTransform" Value="scale(1)"/>
+                                                 <Setter Property="Transitions">
+                                                     <Transitions>
+                                                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" Easing="QuadraticEaseOut"/>
+                                                         <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.1"/>
+                                                     </Transitions>
+                                                 </Setter>
+                                             </Style>
+                                              <Style Selector="Border:pointerover">
+                                                 <Setter Property="RenderTransform" Value="scale(1.02) rotate(1deg)"/>
+                                                 <Setter Property="BoxShadow" Value="0 8 16 0 #2E000000"/>
+                                                 <Setter Property="ZIndex" Value="1"/>
+                                             </Style>
+                                         </Border.Styles>
+
+                                          <Grid RowDefinitions="*,Auto">
+                                              <!-- Cover Image -->
+                                              <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" ClipToBounds="True">
+                                                  <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                                              </Border>
+
+                                              <!-- Info Section -->
+                                              <StackPanel Grid.Row="1" Margin="12,8,12,12">
+                                                  <!-- Title -->
+                                                  <TextBlock Text="{Binding Title}" 
+                                                             Foreground="#222" FontWeight="SemiBold" FontSize="12" 
+                                                             TextTrimming="CharacterEllipsis"/>
+                                                  <!-- Artist -->
+                                                  <TextBlock Text="{Binding Artist}" 
+                                                             Foreground="{StaticResource AccentBrush}" FontSize="11" 
+                                                             TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                  
+                                                  <!-- Audio Indicator Only -->
+                                                  <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="4">
+                                                      <TextBlock Text="🎵 Preview" FontSize="10" VerticalAlignment="Center" Foreground="#999" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/>
+                                                  </StackPanel>
+                                              </StackPanel>
+
+                                             <!-- Selected Overlay -->
+                                             <Border Grid.Row="0" Grid.RowSpan="2" 
+                                                     CornerRadius="4" 
+                                                     Background="{StaticResource AccentBrush}"
+                                                     Opacity="0.9"
+                                                     IsVisible="{Binding IsSelected}">
+                                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                     <TextBlock Text="✓" FontSize="32" Foreground="White" HorizontalAlignment="Center"/>
+                                                     <TextBlock Text="SELECTED" FontSize="12" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                                 </StackPanel>
+                                             </Border>
+
+                                             <!-- Click Area -->
+                                             <Button Grid.Row="0" Grid.RowSpan="2" 
+                                                     Background="Transparent" 
+                                                     Command="{Binding DataContext.SelectDifficultyCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                     CommandParameter="{Binding}"
+                                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                                 <Button.Styles>
+                                                     <Style Selector="Button">
+                                                         <Setter Property="Template">
+                                                             <ControlTemplate>
+                                                                 <Panel Background="Transparent"/>
+                                                             </ControlTemplate>
+                                                         </Setter>
+                                                     </Style>
+                                                 </Button.Styles>
+                                             </Button>
+                                         </Grid>
+                                     </Border>
+                                 </DataTemplate>
+                             </ItemsControl.ItemTemplate>
+                         </ItemsControl>
+                     </ScrollViewer>
+
+                     <Button Grid.Row="2" Content="Done" Command="{Binding CloseOverlayCommand}" Classes="Primary" HorizontalAlignment="Right" Width="120"/>
+                 </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
