@@ -907,6 +907,10 @@ namespace OsuTag.ViewModels
             public string Mp3Path { get; set; } = "";
             public string OsuFilePath { get; set; } = "";
             public string? Rate { get; set; }
+            public string? Artist { get; set; }
+            public string? Title { get; set; }
+            public string? CoverPath { get; set; }
+            public int PreviewTime { get; set; } = -1;
         }
 
         private void SaveMapCache()
@@ -928,7 +932,11 @@ namespace OsuTag.ViewModels
                         DifficultyName = d.DifficultyName,
                         Mp3Path = d.Difficulty.Mp3Path,
                         OsuFilePath = d.Difficulty.OsuFilePath,
-                        Rate = d.Difficulty.Rate
+                        Rate = d.Difficulty.Rate,
+                        Artist = d.Difficulty.Artist,
+                        Title = d.Difficulty.Title,
+                        CoverPath = d.Difficulty.CoverPath,
+                        PreviewTime = d.Difficulty.PreviewTime
                     }).ToList()
                 }).ToList();
 
@@ -986,12 +994,16 @@ namespace OsuTag.ViewModels
                                 DifficultyName = diff.DifficultyName,
                                 Mp3Path = diff.Mp3Path,
                                 OsuFilePath = diff.OsuFilePath,
-                                Rate = diff.Rate
+                                Rate = diff.Rate,
+                                Artist = diff.Artist,
+                                Title = diff.Title,
+                                CoverPath = diff.CoverPath,
+                                PreviewTime = diff.PreviewTime
                             },
                             // IsSelected = false by default to prevent "select all" behavior for stacks
-                            Title = cached.Title, 
-                            Artist = cached.Artist, 
-                            CoverPath = cached.CoverPath
+                            Title = diff.Title ?? cached.Title, 
+                            Artist = diff.Artist ?? cached.Artist, 
+                            CoverPath = diff.CoverPath ?? cached.CoverPath
                         });
                     }
 
@@ -1610,12 +1622,21 @@ namespace OsuTag.ViewModels
                 var (group, diff, diffName) = itemsToConvert[i];
 
                 ProgressPercentage = (int)((i + 1.0) / itemsToConvert.Count * 100);
-                ProgressMessage = $"{i + 1}/{itemsToConvert.Count}: {group.Artist} - {group.Title}";
+                
+                // Determine effective metadata (prefer specific difficulty data for stacks/mappacks)
+                string effArtist = !string.IsNullOrEmpty(diff.Artist) ? diff.Artist : group.Artist;
+                string effTitle = !string.IsNullOrEmpty(diff.Title) ? diff.Title : group.Title;
+                string? effCoverPath = !string.IsNullOrEmpty(diff.CoverPath) && File.Exists(diff.CoverPath) 
+                    ? diff.CoverPath 
+                    : group.CoverPath;
+                int effPreviewTime = diff.PreviewTime > 0 ? diff.PreviewTime : group.PreviewTime;
+
+                ProgressMessage = $"{i + 1}/{itemsToConvert.Count}: {effArtist} - {effTitle}";
 
                 try
                 {
                     string safeTitle = string.Concat(
-                        $"{group.Artist} - {group.Title}"
+                        $"{effArtist} - {effTitle}"
                             .Where(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '_')
                     ).Trim();
 
@@ -1623,10 +1644,10 @@ namespace OsuTag.ViewModels
                     Directory.CreateDirectory(mapOutputDir);
 
                     string? coverOutput = null;
-                    if (ProcessCovers && !string.IsNullOrEmpty(group.CoverPath) && File.Exists(group.CoverPath))
+                    if (ProcessCovers && !string.IsNullOrEmpty(effCoverPath) && File.Exists(effCoverPath))
                     {
                         coverOutput = Path.Combine(mapOutputDir, "cover.jpg");
-                        imageProcessor.ProcessCover(group.CoverPath, coverOutput, 3000, 3000);
+                        imageProcessor.ProcessCover(effCoverPath, coverOutput, 3000, 3000);
                     }
 
                     string mp3Output = Path.Combine(mapOutputDir, $"{safeTitle}.mp3");
@@ -1634,12 +1655,12 @@ namespace OsuTag.ViewModels
 
                     var osuMap = new OsuMap
                     {
-                        Artist = group.Artist,
-                        Title = group.Title,
+                        Artist = effArtist,
+                        Title = effTitle,
                         Creator = group.Creator,
-                        CoverPath = group.CoverPath,
+                        CoverPath = effCoverPath,
                         Difficulties = new List<OsuMapDifficulty> { diff },
-                        PreviewTime = group.PreviewTime
+                        PreviewTime = effPreviewTime
                     };
 
                     mp3Tagger.TagMp3(mp3Output, osuMap, coverOutput);
@@ -1699,8 +1720,16 @@ namespace OsuTag.ViewModels
                     bool hasDifferentTitles = group.Difficulties.Select(d => d.Difficulty.Title).Distinct().Count() > 1; // Use raw diff title
                     bool hasDifferentCovers = group.Difficulties.Select(d => d.CoverPath).Distinct().Count() > 1;
 
-                    // If it looks like a Compilation Pack (varied songs), use the Version/DifficultyName as the Title
-                    if (hasDifferentArtists || hasDifferentTitles || hasDifferentCovers)
+                    // Additional Heuristic: If metadata is identical but it's a specific "Practice Pack",
+                    // check if the DifficultyName (Version) looks like a song name rather than a rate (e.g. "1.2x").
+                    // If it DOES NOT look like a rate, treat it as a Song Title.
+                    bool looksLikeRatePack = group.Difficulties.All(d => 
+                        System.Text.RegularExpressions.Regex.IsMatch(d.DifficultyName, @"^\d+(\.\d+)?[xX]$"));
+
+                    bool forceVersionAsTitle = !looksLikeRatePack;
+
+                    // If it looks like a Compilation Pack (varied songs OR explicitly not a rate pack), use the Version/DifficultyName as the Title
+                    if (hasDifferentArtists || hasDifferentTitles || hasDifferentCovers || forceVersionAsTitle)
                     {
                          foreach (var diff in group.Difficulties)
                         {
@@ -1708,6 +1737,7 @@ namespace OsuTag.ViewModels
                             if (!string.IsNullOrEmpty(diff.DifficultyName))
                             {
                                 diff.Title = diff.DifficultyName;
+                                diff.Difficulty.Title = diff.DifficultyName; // ALSO update the underlying model used for conversion
                             }
                         }
                     }
