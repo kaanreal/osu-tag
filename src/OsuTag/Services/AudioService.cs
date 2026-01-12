@@ -40,10 +40,17 @@ namespace OsuTag.Services
             {
                 if (_isInitialized) return;
 
-                string libvlcPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", IntPtr.Size == 8 ? "win-x64" : "win-x86");
-                System.Diagnostics.Debug.WriteLine($"Initializing LibVLC from: {libvlcPath}");
-
-                Core.Initialize(libvlcPath);
+                if (PlatformService.IsWindows)
+                {
+                    string libvlcPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", IntPtr.Size == 8 ? "win-x64" : "win-x86");
+                    System.Diagnostics.Debug.WriteLine($"Initializing LibVLC from: {libvlcPath}");
+                    Core.Initialize(libvlcPath);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("Initializing LibVLC for non-Windows platform");
+                    Core.Initialize();
+                }
                 
                 _libVLC = new LibVLC("--verbose=2", "--no-video", "--no-spu"); 
                 _mediaPlayer = new MediaPlayer(_libVLC);
@@ -89,6 +96,12 @@ namespace OsuTag.Services
 
                 Stop();
 
+                if (_mediaPlayer == null || _libVLC == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("AudioService: MediaPlayer or LibVLC is null even after initialization attempt.");
+                    return;
+                }
+
                 // Create media from path
                 _currentMedia = new Media(_libVLC, path, FromType.FromPath);
                 
@@ -101,16 +114,19 @@ namespace OsuTag.Services
                     _currentMedia.AddOption($":start-time={startTimeMs / 1000.0}");
                 }
 
-                _mediaPlayer.Media = _currentMedia;
-                _mediaPlayer.Volume = finalVolume;
-                
-                // Play
-                _mediaPlayer.Play();
+                if (_mediaPlayer != null)
+                {
+                    _mediaPlayer.Media = _currentMedia;
+                    _mediaPlayer.Volume = finalVolume;
+                    
+                    // Play
+                    _mediaPlayer.Play();
 
-                // On some systems, volume needs to be set AFTER Play starts
-                _mediaPlayer.Volume = finalVolume;
+                    // On some systems, volume needs to be set AFTER Play starts
+                    _mediaPlayer.Volume = finalVolume;
 
-                System.Diagnostics.Debug.WriteLine($"Playback started: {_mediaPlayer.IsPlaying}, Volume: {_mediaPlayer.Volume}");
+                    System.Diagnostics.Debug.WriteLine($"Playback started: {_mediaPlayer.IsPlaying}, Volume: {_mediaPlayer.Volume}");
+                }
             }
             catch (Exception ex)
             {

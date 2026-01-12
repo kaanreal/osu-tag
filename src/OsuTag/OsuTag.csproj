@@ -31,6 +31,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="LibVLCSharp" Version="3.9.1" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
+    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.2" />
   </ItemGroup>
 
 </Project>

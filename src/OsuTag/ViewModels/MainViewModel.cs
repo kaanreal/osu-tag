@@ -207,7 +207,6 @@ namespace OsuTag.ViewModels
         private bool _isSearching = false;
         private Dictionary<string, int> _playCountCache = new();
         private ObservableCollection<object> _selectedItems = new();
-        private bool _isSelectionPanelExpanded = false;
         private bool _isLoadingMore = false;
         private bool _isOverlayOpen = false;
         private MapItemGroup? _overlayMapGroup;
@@ -231,12 +230,6 @@ namespace OsuTag.ViewModels
         }
 
         public int SelectedCount => _selectedItems.Count;
-
-        public bool IsSelectionPanelExpanded
-        {
-            get => _isSelectionPanelExpanded;
-            set => SetProperty(ref _isSelectionPanelExpanded, value);
-        }
 
         private SelectedItemInfo? _lastSelectedItem;
         public SelectedItemInfo? LastSelectedItem
@@ -1528,7 +1521,7 @@ namespace OsuTag.ViewModels
                 }
             }
             RefreshSelectedItems();
-            IsSelectionPanelExpanded = false;
+            IsBottomBarExpanded = false;
         }
 
         /// <summary>
@@ -1569,6 +1562,12 @@ namespace OsuTag.ViewModels
             }
 
             SelectedItems = new ObservableCollection<object>(newSelection);
+            
+            if (SelectedCount == 0)
+            {
+                IsBottomBarExpanded = false;
+            }
+
             OnPropertyChanged(nameof(SelectedCount));
             ((RelayCommand)StartConversionCommand).RaiseCanExecuteChanged();
         }
