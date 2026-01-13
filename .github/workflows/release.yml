@@ -38,22 +38,7 @@ jobs:
                     git push origin "$BRANCH_NAME"
                   fi
 
-            - name: Upload Release Assets
-              uses: softprops/action-gh-release@v2
-              with:
-                  # Use the tag that triggered the workflow
-                  tag_name: ${{ github.event.release.tag_name }}
-                  # Always true, but the 'release.yml' config will handle the cleaning
-                  generate_release_notes: true
-                  # This ensures that even if 3 builds run, they all contribute to the same release
-                  append_body: true
-                  files: |
-                      osu-tag-v*-win-setup.exe
-                      osu-tag-v*-win-portable.exe
-                      osu-tag-v*-macos.zip
-                      osu-tag-v*-linux.zip
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
     build:
         name: Build ${{ matrix.os }}
@@ -87,13 +72,16 @@ jobs:
               run: |
                   dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 
-            - name: Zip Raw Package
-              if: matrix.os != 'windows-latest'
+            - name: Create macOS App Bundle
+              if: matrix.os == 'macos-latest'
               run: |
-                  cd publish
-                  zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-${{ matrix.name }}.zip .
+                  mkdir -p "osu!tag.app/Contents/MacOS"
+                  mkdir -p "osu!tag.app/Contents/Resources"
+                  cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
+                  cp src/OsuTag/Info.plist "osu!tag.app/Contents/Info.plist"
+                  chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
+                  zip -r osu-tag-v${{ needs.versioning.outputs.VERSION }}-macos.zip "osu!tag.app"
 
-            # Windows: Create specific Installer and Portable EXE
             - name: Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
@@ -103,3 +91,22 @@ jobs:
 
                   # Rename SingleFile exe for direct download
                   Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ needs.versioning.outputs.VERSION }}-win-portable.exe"
+
+            - name: Zip Linux
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                  cd publish
+                  zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-linux.zip .
+
+            - name: Upload Release Assets
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ github.event.release.tag_name }}
+                  append_body: true
+                  files: |
+                      osu-tag-v*-win-setup.exe
+                      osu-tag-v*-win-portable.exe
+                      osu-tag-v*-macos.zip
+                      osu-tag-v*-linux.zip
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
