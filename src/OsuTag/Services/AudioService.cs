@@ -43,15 +43,26 @@ namespace OsuTag.Services
                 Stop();
                 
                 string shortPath = GetShortPathName(path);
-                // Open with shareable flag and check if successful
-                mciSendString($"open \"{shortPath}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
                 
-                // MCI volume is 0 to 1000. Settings are 0 to 100.
-                int vol = (int)Math.Clamp(volume * 10, 0, 1000);
-                
-                // Sequence matters for some drivers: open -> play -> volume
-                mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
-                mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
+                // Attempt to open the file. 'wait' ensures the drive is ready before we continue.
+                long openResult = mciSendString($"open \"{shortPath}\" type mpegvideo alias preview wait", null, 0, IntPtr.Zero);
+                if (openResult != 0)
+                {
+                    // Try fallback without type if first one fails
+                    openResult = mciSendString($"open \"{shortPath}\" alias preview wait", null, 0, IntPtr.Zero);
+                }
+
+                if (openResult == 0)
+                {
+                    // Sequence matters: volume then play.
+                    int vol = (int)Math.Clamp(volume * 10, 0, 1000);
+                    mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
+                    mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
+                }
+                else
+                {
+                    Console.WriteLine($"[AudioService] Windows MCI Open Error: {openResult}");
+                }
             }
 
             public static void Stop()
