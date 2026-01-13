@@ -4,13 +4,15 @@
         Title="Settings"
         Width="600" Height="750"
         WindowStartupLocation="CenterOwner"
-        Background="#E6121620"
+        Background="Transparent"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         CanResize="False">
     
     <Panel>
+        <!-- Transparent background for Acrylic/Mica -->
+        <Border Background="Transparent" CornerRadius="0"/>
         
         <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
             <!-- Title Bar / Header -->

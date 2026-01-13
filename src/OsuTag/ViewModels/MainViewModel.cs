@@ -622,8 +622,15 @@ namespace OsuTag.ViewModels
         /// </summary>
         public async Task RefreshCompanellaSorting()
         {
-            await LoadCompanellaPlayCounts();
-            FilterMaps();
+            try
+            {
+                await LoadCompanellaPlayCounts();
+                FilterMaps();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainViewModel] RefreshCompanellaSorting failed: {ex.Message}");
+            }
         }
 
         private void FilterMaps()

@@ -210,9 +210,17 @@ namespace OsuTag.Views
 
         private void Save_Click(object? sender, RoutedEventArgs e)
         {
-            SaveSettings();
-            App.ApplyTheme(SelectedTheme);
-            Close(true);
+            try
+            {
+                SaveSettings();
+                App.ApplyTheme(SelectedTheme);
+                Close(true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SettingsWindow] Save failed: {ex.Message}");
+                Close(false);
+            }
         }
 
         private void Cancel_Click(object? sender, RoutedEventArgs e)
