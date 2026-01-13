@@ -1,100 +1,105 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+    release:
+        types: [published]
 
 jobs:
-  versioning:
-    name: Prepare Versioning
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      VERSION: ${{ steps.get_version.outputs.VERSION }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    versioning:
+        name: Prepare Versioning
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        outputs:
+            VERSION: ${{ steps.get_version.outputs.VERSION }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-      - name: Get Version
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            - name: Get Version
+              id: get_version
+              shell: bash
+              run: |
+                  VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
+                  echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create Version Branch
-        shell: bash
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH_NAME="release/v${{ steps.get_version.outputs.VERSION }}"
-          if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-            echo "Branch $BRANCH_NAME already exists."
-          else
-            git checkout -b "$BRANCH_NAME"
-            git push origin "$BRANCH_NAME"
-          fi
+            - name: Create Version Branch
+              shell: bash
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+                  BRANCH_NAME="release/v${{ steps.get_version.outputs.VERSION }}"
+                  if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+                    echo "Branch $BRANCH_NAME already exists."
+                  else
+                    git checkout -b "$BRANCH_NAME"
+                    git push origin "$BRANCH_NAME"
+                  fi
 
-  build:
-    name: Build ${{ matrix.os }}
-    needs: versioning
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            rid: win-x64
-            name: windows
-          - os: macos-latest
-            rid: osx-arm64
-            name: macos
-          - os: ubuntu-latest
-            rid: linux-x64
-            name: linux
+    build:
+        name: Build ${{ matrix.os }}
+        needs: versioning
+        runs-on: ${{ matrix.os }}
+        permissions:
+            contents: write
+        strategy:
+            matrix:
+                include:
+                    - os: windows-latest
+                      rid: win-x64
+                      name: windows
+                    - os: macos-latest
+                      rid: osx-arm64
+                      name: macos
+                    - os: ubuntu-latest
+                      rid: linux-x64
+                      name: linux
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: "8.0.x"
 
-      - name: Publish (Self-Contained)
-        run: |
-          dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+            - name: Publish (Self-Contained)
+              run: |
+                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 
-      - name: Zip Raw Package
-        if: matrix.os != 'windows-latest'
-        run: |
-          cd publish
-          zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-${{ matrix.name }}.zip .
+            - name: Zip Raw Package
+              if: matrix.os != 'windows-latest'
+              run: |
+                  cd publish
+                  zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-${{ matrix.name }}.zip .
 
-      # Windows: Create specific Installer and Portable EXE
-      - name: Package Windows
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          # Use Inno Setup to create a real installer
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.versioning.outputs.VERSION }} installer.iss
-          
-          # Rename SingleFile exe for direct download
-          Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ needs.versioning.outputs.VERSION }}-win-portable.exe"
+            # Windows: Create specific Installer and Portable EXE
+            - name: Package Windows
+              if: matrix.os == 'windows-latest'
+              shell: pwsh
+              run: |
+                  # Use Inno Setup to create a real installer
+                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.versioning.outputs.VERSION }} installer.iss
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: ${{ matrix.os == 'ubuntu-latest' }}
-          files: |
-            osu-tag-v*-win-setup.exe
-            osu-tag-v*-win-portable.exe
-            osu-tag-v*-macos.zip
-            osu-tag-v*-linux.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # Rename SingleFile exe for direct download
+                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ needs.versioning.outputs.VERSION }}-win-portable.exe"
+
+            - name: Upload Release Assets
+              uses: softprops/action-gh-release@v2
+              with:
+                  # Use the tag that triggered the workflow
+                  tag_name: ${{ github.event.release.tag_name }}
+                  # Always true, but the 'release.yml' config will handle the cleaning
+                  generate_release_notes: true
+                  # This ensures that even if 3 builds run, they all contribute to the same release
+                  append_body: true
+                  files: |
+                      osu-tag-v*-win-setup.exe
+                      osu-tag-v*-win-portable.exe
+                      osu-tag-v*-macos.zip
+                      osu-tag-v*-linux.zip
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
