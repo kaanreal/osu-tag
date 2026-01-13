@@ -16,6 +16,21 @@ namespace OsuTag.Views
             DataContext = _viewModel = new MainViewModel();
         }
 
+        public void Minimize_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        public void Maximize_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        }
+
+        public void Close_Click(object? sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
         protected override void OnLoaded(RoutedEventArgs e)
         {
             base.OnLoaded(e);

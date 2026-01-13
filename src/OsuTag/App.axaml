@@ -23,6 +23,8 @@
         <Color x:Key="BorderColor">#242936</Color>
         <Color x:Key="AccentColor">#5B9FED</Color>
         <Color x:Key="AccentHoverColor">#78B2F2</Color>
+        <BoxShadows x:Key="AccentShadow">0 0 16 0 #405B9FED</BoxShadows>
+        <BoxShadows x:Key="AccentHoverShadow">0 0 16 0 #805B9FED</BoxShadows>
         <Color x:Key="AccentSubtleColor">#2D4A6B</Color>
         <Color x:Key="SuccessColor">#52C565</Color>
         <Color x:Key="TextPrimaryColor">#E6E6E8</Color>
@@ -34,9 +36,9 @@
         <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{StaticResource SurfaceElevatedColor}"/>
         <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
         <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
-        <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource AccentSubtleColor}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#5B9FED"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#78B2F2"/>
+        <SolidColorBrush x:Key="AccentSubtleBrush" Color="#2D4A6B"/>
         <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
@@ -50,7 +52,7 @@
         
         <!-- Primary Button -->
         <Style Selector="Button.Primary">
-            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="#ffffff"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="Medium"/>
@@ -63,15 +65,15 @@
                             Background="{TemplateBinding Background}" 
                             CornerRadius="8" 
                             Padding="{TemplateBinding Padding}"
-                            BoxShadow="0 0 12 0 #4D5B9FED">
+                            BoxShadow="{DynamicResource AccentShadow}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Content="{TemplateBinding Content}"/>
                     </Border>
                 </ControlTemplate>
             </Setter>
         </Style>
         <Style Selector="Button.Primary:pointerover /template/ Border#Border">
-            <Setter Property="Background" Value="#78B2F2"/>
-            <Setter Property="BoxShadow" Value="0 0 16 0 #805B9FED"/>
+            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+            <Setter Property="BoxShadow" Value="{DynamicResource AccentHoverShadow}"/>
         </Style>
         <Style Selector="Button.Primary:pressed">
              <Setter Property="RenderTransform" Value="scale(0.96)"/>
@@ -103,12 +105,48 @@
             </Setter>
         </Style>
         <Style Selector="Button.Secondary:pointerover /template/ Border#Border">
-            <Setter Property="Background" Value="#1E2432"/>
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
         </Style>
         <Style Selector="Button.Secondary:pressed">
              <Setter Property="RenderTransform" Value="scale(0.96)"/>
         </Style>
         <Style Selector="Button.Secondary:disabled /template/ Border#Border">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+
+        <!-- Header Button (Transparent unless hovered) -->
+        <Style Selector="Button.HeaderButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="Border" 
+                            Background="{TemplateBinding Background}" 
+                            CornerRadius="8" 
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Content="{TemplateBinding Content}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.HeaderButton:pointerover /template/ Border#Border">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+        </Style>
+        <Style Selector="Button.HeaderButton:pressed">
+             <Setter Property="RenderTransform" Value="scale(0.96)"/>
+        </Style>
+        <Style Selector="Button.HeaderButton:disabled /template/ Border#Border">
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
 
@@ -120,7 +158,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="14,10"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border x:Name="Border" 
@@ -128,21 +166,32 @@
                             CornerRadius="8"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}">
-                        <ScrollViewer Margin="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" VerticalAlignment="Center">
-                            <TextPresenter Name="PART_TextPresenter"
-                                          VerticalAlignment="Center"
-                                          Text="{TemplateBinding Text}"
-                                          CaretIndex="{TemplateBinding CaretIndex}"
-                                          SelectionStart="{TemplateBinding SelectionStart}"
-                                          SelectionEnd="{TemplateBinding SelectionEnd}"
-                                          TextAlignment="{TemplateBinding TextAlignment}"
-                                          TextWrapping="{TemplateBinding TextWrapping}"
-                                          PasswordChar="{TemplateBinding PasswordChar}"
-                                          RevealPassword="{TemplateBinding RevealPassword}"
-                                          SelectionBrush="{TemplateBinding SelectionBrush}"
-                                          SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
-                                          CaretBrush="{TemplateBinding CaretBrush}"/>
-                        </ScrollViewer>
+                        <Grid>
+                            <TextBlock Name="PART_Watermark"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"
+                                       FontSize="{TemplateBinding FontSize}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                       IsVisible="{TemplateBinding Text, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                                       Opacity="0.5"
+                                       Margin="16,0"
+                                       Text="{TemplateBinding Watermark}"/>
+                            <ScrollViewer Margin="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" VerticalAlignment="Center">
+                                <TextPresenter Name="PART_TextPresenter"
+                                              VerticalAlignment="Center"
+                                              Text="{TemplateBinding Text}"
+                                              CaretIndex="{TemplateBinding CaretIndex}"
+                                              SelectionStart="{TemplateBinding SelectionStart}"
+                                              SelectionEnd="{TemplateBinding SelectionEnd}"
+                                              TextAlignment="{TemplateBinding TextAlignment}"
+                                              TextWrapping="{TemplateBinding TextWrapping}"
+                                              PasswordChar="{TemplateBinding PasswordChar}"
+                                              RevealPassword="{TemplateBinding RevealPassword}"
+                                              SelectionBrush="{TemplateBinding SelectionBrush}"
+                                              SelectionForegroundBrush="{TemplateBinding SelectionForegroundBrush}"
+                                              CaretBrush="{TemplateBinding CaretBrush}"/>
+                            </ScrollViewer>
+                        </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter>
@@ -152,12 +201,27 @@
         </Style>
         <Style Selector="TextBox.Modern:focus /template/ Border#Border">
             <Setter Property="Background" Value="#1A1F2B"/>
-            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BoxShadow" Value="0 0 16 0 #405B9FED"/>
+            <Setter Property="BoxShadow" Value="{DynamicResource AccentShadow}"/>
         </Style>
 
         <!-- Animations and Transitions -->
+        <Style Selector="Grid.WindowEntrance">
+            <Style.Animations>
+                <Animation Duration="0:0:0.8" Easing="QuadraticEaseOut" FillMode="Forward"> 
+                    <KeyFrame KeyTime="0:0:0">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="20"/>
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:0.8">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
         <Style Selector="Border.AnimatedOpacity">
             <Style.Animations>
                 <Animation Duration="0:0:0.5" Easing="QuadraticEaseOut" FillMode="Forward"> 
@@ -271,8 +335,8 @@
             </Setter>
         </Style>
         <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
-            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style Selector="CheckBox:checked /template/ Path#CheckMark">
             <Setter Property="Opacity" Value="1"/>
@@ -304,6 +368,26 @@
                     </Grid>
                 </ControlTemplate>
             </Setter>
+        </Style>
+        <!-- Title Bar Buttons (Windows) -->
+        <Style Selector="Button.TitleBarButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Background="{TemplateBinding Background}" Content="{TemplateBinding Content}"/>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.TitleBarButton:pointerover">
+            <Setter Property="Background" Value="#33ffffff"/>
+        </Style>
+        <Style Selector="Button.TitleBarButton.Close:pointerover">
+            <Setter Property="Background" Value="#E81123"/>
         </Style>
     </Application.Styles>
 </Application>

@@ -193,6 +193,7 @@ namespace OsuTag.ViewModels
     public class MainViewModel : ObservableObject
     {
         private string _selectedPath = "";
+        private bool _isFolderSelectionVisible = false;
         private string _outputPath = "";
         private string _pathStatusMessage = "";
         private string _errorMessage = "";
@@ -267,6 +268,37 @@ namespace OsuTag.ViewModels
                 if (SetProperty(ref _canLoadMore, value))
                 {
                     ((RelayCommand)LoadMoreCommand).RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public bool IsFolderSelectionVisible
+        {
+            get => _isFolderSelectionVisible;
+            set => SetProperty(ref _isFolderSelectionVisible, value);
+        }
+
+        public bool IsWindows => PlatformService.IsWindows;
+        public bool IsCompanellaSupported => PlatformService.IsWindows;
+        
+        private string _companellaStatus = "Scanning...";
+        public string CompanellaStatus
+        {
+            get => _companellaStatus;
+            set => SetProperty(ref _companellaStatus, value);
+        }
+
+        private string _selectedTheme = SettingsService.Settings.ThemeColor;
+        public string SelectedTheme
+        {
+            get => _selectedTheme;
+            set
+            {
+                if (SetProperty(ref _selectedTheme, value))
+                {
+                    SettingsService.Settings.ThemeColor = value;
+                    SettingsService.Save();
+                    // Theme application logic will go in App.axaml.cs or via dynamic resource
                 }
             }
         }
@@ -704,6 +736,7 @@ namespace OsuTag.ViewModels
         public ICommand SelectDifficultyCommand { get; }
         public ICommand RemoveItemCommand { get; }
         public ICommand EditItemCommand { get; }
+        public ICommand ClearCacheCommand { get; }
 
         public MainViewModel()
         {
@@ -729,6 +762,13 @@ namespace OsuTag.ViewModels
             SelectDifficultyCommand = new RelayCommand(param => SelectDifficulty(param as DifficultyItem));
             RemoveItemCommand = new RelayCommand(param => RemoveItem(param as SelectedItemInfo));
             EditItemCommand = new RelayCommand(param => EditItem(param as SelectedItemInfo));
+            ClearCacheCommand = new RelayCommand(_ => ClearCache());
+
+            // Auto-scan for Companella on Windows
+            if (IsCompanellaSupported)
+            {
+                _ = AutoDiscoverCompanellaAsync();
+            }
 
 
             // Auto-load saved path if enabled - load from cache then smart scan for new
@@ -737,6 +777,10 @@ namespace OsuTag.ViewModels
                 Directory.Exists(SettingsService.Settings.LastSongsPath))
             {
                 _ = LoadFromCacheAndSmartScan(SettingsService.Settings.LastSongsPath);
+            }
+            else
+            {
+                IsFolderSelectionVisible = true;
             }
         }
 
@@ -1151,6 +1195,7 @@ namespace OsuTag.ViewModels
         private async Task SetPathAsync(string path, bool useSmartScan = false)
         {
             SelectedPath = path;
+            IsFolderSelectionVisible = false;
             ErrorMessage = "";
 
             // Save path if remember is enabled
@@ -1860,5 +1905,29 @@ namespace OsuTag.ViewModels
         }
 
 
+        private async Task AutoDiscoverCompanellaAsync()
+        {
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string companellaPath = Path.Combine(localAppData, "Companella");
+                
+                if (Directory.Exists(companellaPath))
+                {
+                    CompanellaStatus = $"Found Companella data at {companellaPath}";
+                    SettingsService.Settings.CompanellaPath = companellaPath;
+                    SettingsService.Save();
+                    await LoadCompanellaPlayCounts();
+                }
+                else
+                {
+                    CompanellaStatus = "Companella data not found. Please select path manually.";
+                }
+            }
+            catch (Exception ex)
+            {
+                CompanellaStatus = $"Error scanning for Companella: {ex.Message}";
+            }
+        }
     }
 }

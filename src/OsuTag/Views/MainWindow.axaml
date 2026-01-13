@@ -6,8 +6,10 @@
         Title="osu!tag"
         Width="1400" Height="900"
         MinWidth="1200" MinHeight="700"
-        Background="#0A0E14"
-        Foreground="#E6E6E8"
+        Background="#E6121620"
+        TransparencyLevelHint="AcrylicBlur"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
         WindowStartupLocation="CenterScreen">
     
     <Design.DataContext>
@@ -20,7 +22,26 @@
         <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
     </Window.Resources>
 
-    <Grid RowDefinitions="80,*">
+    <Grid RowDefinitions="Auto,*">
+        <!-- Custom Title Bar (Always reserves space, buttons visible only on Windows) -->
+        <Panel Grid.Row="0" IsHitTestVisible="True" Height="32" Background="Transparent">
+             <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsWindows}">
+                <!-- Spacing for title bar buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                    <Button Width="46" Height="32" Classes="TitleBarButton" Click="Minimize_Click" ToolTip.Tip="Minimize">
+                        <Path Data="M 0 0 L 10 0" Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Width="46" Height="32" Classes="TitleBarButton" Click="Maximize_Click" ToolTip.Tip="Maximize/Restore">
+                        <Path Data="M 0 0 L 10 0 L 10 10 L 0 10 Z" Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Width="46" Height="32" Classes="TitleBarButton Close" Click="Close_Click" ToolTip.Tip="Close">
+                        <Path Data="M 0 0 L 10 10 M 10 0 L 0 10" Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+             </Grid>
+        </Panel>
+
+        <Grid Grid.Row="1" RowDefinitions="80,*">
         <!-- Premium Header -->
         <Border Grid.Row="0" Background="{StaticResource SurfaceElevatedBrush}" 
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
@@ -38,14 +59,17 @@
  
                 <!-- Left: App Branding -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Horizontal">
-                    <Border Width="40" Height="40" Background="{StaticResource AccentBrush}" CornerRadius="10" Margin="0,0,16,0">
-                        <TextBlock Text="o!" Foreground="White" FontWeight="Bold" FontSize="20" 
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border Width="40" Height="40" Background="{DynamicResource AccentBrush}" CornerRadius="10" Margin="0,0,16,0">
+                        <Image Source="/Assets/app.ico" Width="28" Height="28" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="osu!tag" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="v2.0" FontSize="11" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                            <!-- osu!tag Text Removed -->
+                            <TextBlock Text="v2.0" FontSize="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="8" Opacity="0.6" OffsetX="0" OffsetY="0"/>
+                                </TextBlock.Effect>
+                            </TextBlock>
                         </StackPanel>
                         <TextBlock Text="by kaanreal" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                     </StackPanel>
@@ -53,16 +77,16 @@
  
                 <!-- Right: Actions -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
-                    <Button Content="Select All" Classes="Secondary" Command="{Binding SelectAllCommand}"/>
-                    <Button Content="Deselect All" Classes="Secondary" Command="{Binding DeselectAllCommand}"/>
-                    <Button Content="⚙" FontSize="18" Padding="12,8" Classes="Secondary" Command="{Binding SettingsCommand}" ToolTip.Tip="Settings"/>
+                    <Button Content="Select All" Classes="HeaderButton" Command="{Binding SelectAllCommand}"/>
+                    <Button Content="Deselect All" Classes="HeaderButton" Command="{Binding DeselectAllCommand}"/>
+                    <Button Content="⚙" FontSize="18" Padding="12,8" Classes="HeaderButton" Command="{Binding SettingsCommand}" ToolTip.Tip="Settings"/>
                 </StackPanel>
             </Grid>
         </Border>
 
          <!-- Main Content -->
-        <Grid Grid.Row="1" ColumnDefinitions="*">
-            <Grid Grid.Column="0" Margin="32,24,32,12" RowDefinitions="Auto,*">
+        <Grid Grid.Row="1" ColumnDefinitions="*" ClipToBounds="False" Classes="WindowEntrance">
+            <Grid Grid.Column="0" Margin="32,24,32,12" RowDefinitions="Auto,*" ClipToBounds="False">
                 
                 <!-- Top Section: Path & Search -->
                 <StackPanel Grid.Row="0" Spacing="24" Margin="0,0,0,24">
@@ -71,7 +95,8 @@
                             CornerRadius="16" Padding="20" 
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                         <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                            <TextBlock Text="📂" FontSize="20" Foreground="{StaticResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                            <PathIcon Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" 
+                                      Foreground="{StaticResource AccentBrush}" Width="20" Height="20" Margin="0,0,16,0" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="osu! Songs Path" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
                                 <TextBlock Text="{Binding SelectedPath}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
@@ -98,36 +123,29 @@
                                         <Setter Property="BoxShadow" Value="0 4 12 0 #1A000000"/>
                                     </Style>
                                     <Style Selector="Border#SearchBorder:focus-within">
-                                        <Setter Property="BoxShadow" Value="0 0 20 5 #4000FF44"/>
-                                        <Setter Property="BorderBrush" Value="#8000FF44"/>
+                                        <Setter Property="BoxShadow" Value="{DynamicResource AccentShadow}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                         <Setter Property="BorderThickness" Value="1"/>
                                     </Style>
                                 </Border.Styles>
                                 <TextBox Classes="Modern" 
                                          Name="SearchTextBox"
                                          Text="{Binding SearchQuery, Mode=TwoWay}"
-                                         Watermark="Search maps by title, artist, or creator..."
+                                         Watermark="Search by: Artist, Title, Creator, Difficulty, Tags, or Source..."
                                          Height="50"
                                          FontSize="16"
+                                         HorizontalContentAlignment="Center"
                                          VerticalContentAlignment="Center"
-                                         VerticalAlignment="Center">
+                                         VerticalAlignment="Center"
+                                         Foreground="{StaticResource TextPrimaryBrush}">
                                     <TextBox.InnerLeftContent>
-                                        <TextBlock Text="🔍" VerticalAlignment="Center" Margin="16,0,8,0" FontSize="18" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                        <PathIcon Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                                                  Width="18" Height="18" VerticalAlignment="Center" Margin="16,0,8,0" Foreground="{StaticResource TextTertiaryBrush}"/>
                                     </TextBox.InnerLeftContent>
                                 </TextBox>
                             </Border>
                             <!-- Search Hints -->
-                            <TextBlock Text="{Binding SearchHints}" 
-                                       FontSize="11" 
-                                       Foreground="{StaticResource TextTertiaryBrush}" 
-                                       Margin="12,4"
-                                       IsVisible="{Binding SearchQuery, Converter={StaticResource StringToBoolConverter}, ConverterParameter='Inverse'}">
-                                <TextBlock.Transitions>
-                                    <Transitions>
-                                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                                    </Transitions>
-                                </TextBlock.Transitions>
-                            </TextBlock>
+                            <!-- Search Hints Removed (Moved to Watermark) -->
                         </StackPanel>
 
                         <!-- Results Badge -->
@@ -139,9 +157,10 @@
                                 Height="50"
                                 BorderBrush="{StaticResource BorderBrush}"
                                 BorderThickness="1">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
-                                 <TextBlock Text="📊" FontSize="16" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
-                                 <TextBlock Text="{Binding FilteredMaps.Count}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+                                     <PathIcon Data="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2v-3h2v3zm4 0h-2v-5h2v5z"
+                                               Foreground="{StaticResource AccentBrush}" Width="16" Height="16" VerticalAlignment="Center"/>
+                                     <TextBlock Text="{Binding FilteredMaps.Count}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                  <TextBlock Text="results" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
@@ -150,8 +169,8 @@
 
 
                 <!-- Map List -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,16,24">
-                    <StackPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,20,16,24" ClipToBounds="False">
+                    <StackPanel ClipToBounds="False">
                         <!-- Sleek Scan Progression -->
                         <Border IsVisible="{Binding IsScanning}" 
                                 Background="{StaticResource SurfaceElevatedBrush}"
@@ -182,15 +201,15 @@
                         </Border>
 
                         <!-- Maps -->
-                        <ItemsControl ItemsSource="{Binding MapGroups}">
+                        <ItemsControl ItemsSource="{Binding MapGroups}" ClipToBounds="False">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <WrapPanel ItemWidth="200" ItemHeight="280"/>
+                                    <WrapPanel ItemWidth="200" ItemHeight="280" ClipToBounds="False"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Width="180" Height="260" Margin="0,0,20,20" x:Name="MapCard">
+                                    <Border Width="180" Height="260" Margin="0,0,20,20" x:Name="MapCard" ClipToBounds="False">
                                          <Border.Styles>
                                              <Style Selector="Border#MapCard">
                                                  <Setter Property="RenderTransform">
@@ -295,7 +314,11 @@
                                                                TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Artist}" 
                                                                Foreground="{StaticResource AccentBrush}" FontSize="12" 
-                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
+                                                        <TextBlock.Effect>
+                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" Opacity="0.4" OffsetX="0" OffsetY="0"/>
+                                                        </TextBlock.Effect>
+                                                    </TextBlock>
                                                     <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" 
                                                                Foreground="#999" FontSize="10" 
                                                                TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
@@ -807,5 +830,88 @@
                  </Grid>
             </Border>
         </Grid>
+        </Grid>
+
+        <!-- Welcome / Onboarding - Full Window Experience -->
+        <Panel Grid.RowSpan="2" IsVisible="{Binding IsFolderSelectionVisible}" ZIndex="500">
+            <!-- Background with blur -->
+            <Panel Background="#0D1117" Opacity="0.85"/>
+            
+            <Grid>
+                <!-- Animated Background Elements -->
+                <Canvas IsHitTestVisible="False">
+                    <Ellipse Width="600" Height="600" Fill="#20FF66AA" Margin="-100,-100,0,0">
+                        <Ellipse.Effect>
+                            <BlurEffect Radius="100"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                    <Ellipse Width="500" Height="500" Fill="#155B9FED" Margin="800,400,0,0">
+                        <Ellipse.Effect>
+                            <BlurEffect Radius="100"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                </Canvas>
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="40" Width="600">
+                     <!-- Branding -->
+                     <StackPanel Spacing="16" HorizontalAlignment="Center">
+                        <Border Width="100" Height="100" Background="{StaticResource AccentBrush}" CornerRadius="24">
+                            <TextBlock Text="o!" Foreground="White" FontWeight="Bold" FontSize="56" 
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Welcome to osu!tag" 
+                                   FontSize="48" 
+                                   FontWeight="ExtraBold" 
+                                   HorizontalAlignment="Center">
+                            <TextBlock.Foreground>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                    <GradientStop Offset="0" Color="#5B9FED"/>
+                                    <GradientStop Offset="1" Color="#FF66AA"/>
+                                </LinearGradientBrush>
+                            </TextBlock.Foreground>
+                        </TextBlock>
+                        <TextBlock Text="The ultimate tool to organize and supercharge your music library." 
+                                   Foreground="#AAA" 
+                                   FontSize="18" 
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"/>
+                     </StackPanel>
+
+                     <!-- Main Action -->
+                     <Border Background="#1C212B" 
+                             CornerRadius="24" 
+                             Padding="32" 
+                             BorderBrush="#30363D" 
+                             BorderThickness="1"
+                             BoxShadow="0 10 40 0 #80000000">
+                         <StackPanel Spacing="24">
+                             <TextBlock Text="Get Started" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                             
+                             <Button Command="{Binding BrowseCommand}" 
+                                     Classes="Primary"
+                                     Height="60"
+                                     HorizontalAlignment="Stretch">
+                                 <StackPanel Orientation="Horizontal" Spacing="12">
+                                     <TextBlock Text="📂" FontSize="20"/>
+                                     <TextBlock Text="Select osu! Songs Folder" FontWeight="Bold" FontSize="16"/>
+                                 </StackPanel>
+                             </Button>
+
+                             <Button Command="{Binding UseDefaultPathCommand}" 
+                                     Classes="Secondary"
+                                     Height="50"
+                                     HorizontalAlignment="Stretch">
+                                 <TextBlock Text="Use Default Path" FontWeight="Medium"/>
+                             </Button>
+                         </StackPanel>
+                     </Border>
+
+                     <TextBlock Text="OsuTag scans your beatmaps and tags your audio files for you." 
+                                Foreground="#666" 
+                                FontSize="13" 
+                                TextAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Panel>
     </Grid>
 </Window>

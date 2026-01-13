@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -70,6 +72,22 @@ namespace OsuTag.Views
             set => SetValue(PreviewVolumeProperty, value);
         }
 
+        public static readonly StyledProperty<string> CompanellaStatusProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(CompanellaStatus), "Scanning...");
+        public string CompanellaStatus
+        {
+            get => GetValue(CompanellaStatusProperty);
+            set => SetValue(CompanellaStatusProperty, value);
+        }
+
+        public bool IsCompanellaSupported => PlatformService.IsWindows;
+
+        public static readonly StyledProperty<string> SelectedThemeProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(SelectedTheme), "#5B9FED");
+        public string SelectedTheme
+        {
+            get => GetValue(SelectedThemeProperty);
+            set => SetValue(SelectedThemeProperty, value);
+        }
+
         static SettingsWindow()
         {
             PreviewVolumeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnPreviewVolumeChanged(e));
@@ -90,6 +108,71 @@ namespace OsuTag.Views
             InitializeComponent();
             DataContext = this;
             LoadSettings();
+            
+            if (IsCompanellaSupported)
+            {
+                AutoDiscoverCompanella();
+            }
+            
+            // Set initial theme selection
+            SetThemeComboBoxSelection(SettingsService.Settings.ThemeColor);
+        }
+
+        private void SetThemeComboBoxSelection(string hexColor)
+        {
+            for (int i = 0; i < ThemeComboBox.Items.Count; i++)
+            {
+                if (ThemeComboBox.Items[i] is ComboBoxItem item && item.Tag?.ToString() == hexColor)
+                {
+                    ThemeComboBox.SelectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        private void ThemeComboBox_SelectionChanged(object? sender, Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (ThemeComboBox.SelectedItem is ComboBoxItem item && item.Tag is string hexColor)
+            {
+                SelectedTheme = hexColor;
+            }
+        }
+
+        private void AutoDiscoverCompanella()
+        {
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string companellaPath = Path.Combine(localAppData, "Companella");
+                
+                if (Directory.Exists(companellaPath))
+                {
+                    CompanellaStatus = $"Found Companella data under settings.";
+                }
+                else
+                {
+                    CompanellaStatus = "Companella not found.";
+                }
+            }
+            catch
+            {
+                CompanellaStatus = "Error scanning for Companella.";
+            }
+        }
+
+        public void ClearCache_Click(object? sender, RoutedEventArgs e)
+        {
+            // Logic to clear cache... we can call MainViewModel or do it directly
+            try
+            {
+                var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var cacheFile = Path.Combine(appData, "osu!tag", "mapcache.json");
+                if (File.Exists(cacheFile)) File.Delete(cacheFile);
+                
+                SettingsService.Settings.ScannedFolders = "";
+                SettingsService.Save();
+            }
+            catch { }
         }
 
         private void LoadSettings()
@@ -103,6 +186,7 @@ namespace OsuTag.Views
             DiscordRpcEnabled = SettingsService.Settings.DiscordRpcEnabled;
             CheckForUpdates = SettingsService.Settings.CheckForUpdates;
             PreviewVolume = SettingsService.Settings.PreviewVolume;
+            SelectedTheme = SettingsService.Settings.ThemeColor;
         }
 
         private void SaveSettings()
@@ -116,6 +200,7 @@ namespace OsuTag.Views
             SettingsService.Settings.DiscordRpcEnabled = DiscordRpcEnabled;
             SettingsService.Settings.CheckForUpdates = CheckForUpdates;
             SettingsService.Settings.PreviewVolume = PreviewVolume;
+            SettingsService.Settings.ThemeColor = SelectedTheme;
             SettingsService.Save();
             
             // Handle Discord RPC changes
@@ -125,6 +210,7 @@ namespace OsuTag.Views
         private void Save_Click(object? sender, RoutedEventArgs e)
         {
             SaveSettings();
+            App.ApplyTheme(SelectedTheme);
             Close(true);
         }
 
