@@ -45,10 +45,14 @@ namespace OsuTag.Services
                 Task.Run(() => {
                     StopInternal();
                     
+                    // MCI is legacy and fails with Unicode or long paths with spaces.
+                    // Converting to 8.3 short paths is the definitive fix for this API.
+                    string effectivePath = GetShortPathName(path);
+                    
                     // Direct approach: try mpegvideo first, then try letting MCI decide.
-                    long res = mciSendString($"open \"{path}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
+                    long res = mciSendString($"open \"{effectivePath}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
                     if (res != 0) 
-                        res = mciSendString($"open \"{path}\" alias preview", null, 0, IntPtr.Zero);
+                        res = mciSendString($"open \"{effectivePath}\" alias preview", null, 0, IntPtr.Zero);
 
                     if (res == 0)
                     {
@@ -60,7 +64,7 @@ namespace OsuTag.Services
                     {
                         var errorMsg = new StringBuilder(255);
                         mciGetErrorString(res, errorMsg, errorMsg.Capacity);
-                        Console.WriteLine($"[AudioService] Windows MCI Error ({res}): {errorMsg}");
+                        Console.WriteLine($"[AudioService] Windows MCI Error ({res}) for '{effectivePath}': {errorMsg}");
                     }
                 });
             }
@@ -72,6 +76,16 @@ namespace OsuTag.Services
                 mciSendString("stop preview", null, 0, IntPtr.Zero);
                 mciSendString("close preview", null, 0, IntPtr.Zero);
             }
+
+            private static string GetShortPathName(string path)
+            {
+                StringBuilder shortPath = new StringBuilder(255);
+                GetShortPathName(path, shortPath, shortPath.Capacity);
+                return shortPath.ToString();
+            }
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+            private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
 
             [DllImport("winmm.dll")]
             private static extern long mciGetErrorString(long errorCode, StringBuilder errorText, int errorTextSize);

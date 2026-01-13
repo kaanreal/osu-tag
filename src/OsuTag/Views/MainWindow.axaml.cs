@@ -14,6 +14,14 @@ namespace OsuTag.Views
         {
             InitializeComponent();
             DataContext = _viewModel = new MainViewModel();
+
+            // PERFORMANCE FIX: Disable AcrylicBlur on Windows to ensure 120Hz+ smoothness.
+            // Acrylic is notoriously heavy in Avalonia 11 on Windows with high-refresh screens.
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+            {
+                TransparencyLevelHint = new[] { Avalonia.Controls.WindowTransparencyLevel.None };
+                Background = Avalonia.Media.Brush.Parse("#F2121620"); // Slightly more opaque for readability without blur
+            }
         }
 
         public void Minimize_Click(object? sender, RoutedEventArgs e)

@@ -19,7 +19,7 @@ class Program
             .WithInterFont()
             .With(new Win32PlatformOptions
             {
-                CompositionMode = new[] { Win32CompositionMode.WinUIComposition }
+                CompositionMode = new[] { Win32CompositionMode.DirectComposition, Win32CompositionMode.WinUIComposition }
             })
             .With(new SkiaOptions
             {
