@@ -31,6 +31,47 @@ namespace OsuTag.Services
             }
         }
 
+#if WINDOWS
+        // Windows Native Player using mciSendString (winmm.dll)
+        internal static class WindowsNativePlayer
+        {
+            [DllImport("winmm.dll")]
+            private static extern long mciSendString(string command, StringBuilder? returnValue, int returnLength, IntPtr winHandle);
+
+            public static void Play(string path, int startTimeMs, float volume)
+            {
+                Stop();
+                
+                string shortPath = GetShortPathName(path);
+                mciSendString($"open \"{shortPath}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
+                
+                // Set volume (0-1000)
+                int vol = (int)(volume * 10);
+                mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
+                
+                // Seek and play
+                mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
+            }
+
+            public static void Stop()
+            {
+                mciSendString("stop preview", null, 0, IntPtr.Zero);
+                mciSendString("close preview", null, 0, IntPtr.Zero);
+            }
+
+            private static string GetShortPathName(string path)
+            {
+                // MCI can be picky with long paths/spaces. Short paths are safer.
+                StringBuilder shortPath = new StringBuilder(255);
+                GetShortPathName(path, shortPath, shortPath.Capacity);
+                return shortPath.ToString();
+            }
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+            private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
+        }
+#endif
+
 #if !WINDOWS
     // macOS Native Player using P/Invoke to NSSound
     internal static class MacNativePlayer
@@ -106,30 +147,10 @@ namespace OsuTag.Services
                     {
                         objc_msgSend_void_double(_currentSound, _setCurrentTimeSel, targetTime);
                     }
-                    else
-                    {
-                        Console.WriteLine($"[AudioService] Warning: Start time {targetTime}s exceeds duration {duration}s");
-                    }
                     
                     // Play
                     objc_msgSend_IntPtr(_currentSound, _playSel);
-                    
-                    bool isPlaying = objc_msgSend_byte(_currentSound, _isPlayingSel) != 0;
-                    double actualTime = objc_msgSend_double(_currentSound, _currentTimeSel);
-                    float actualVol = objc_msgSend_float(_currentSound, _volumeSel);
-
-                    Console.WriteLine($"[AudioService] NSSound Info -> File: {Path.GetFileName(path)}");
-                    Console.WriteLine($"[AudioService]   - Duration: {duration:F2}s");
-                    Console.WriteLine($"[AudioService]   - Requested Time: {targetTime}s, Actual: {actualTime:F2}s");
-                    Console.WriteLine($"[AudioService]   - Requested Vol: {volToSet:F2}, Actual: {actualVol:F2}");
-                    Console.WriteLine($"[AudioService]   - IsPlaying: {isPlaying}");
                 }
-                else
-                {
-                    Console.WriteLine($"[AudioService] NSSound failed to load file: {path}");
-                }
-                // DO NOT Marshal.FreeHGlobal(nsPath) here. nsPath is an Objective-C object, not a C-string.
-                // The C-string was already freed inside CreateNSString.
             }
             catch (Exception ex)
             {
@@ -169,7 +190,9 @@ namespace OsuTag.Services
             Initialize();
         }
 
-        public void Initialize() // Changed from private to public as per diff
+        private bool _useWindowsNative = false;
+
+        public void Initialize()
         {
             if (_isInitialized) return;
 
@@ -177,72 +200,36 @@ namespace OsuTag.Services
             {
                 if (PlatformService.IsWindows)
                 {
-                    string libvlcPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", IntPtr.Size == 8 ? "win-x64" : "win-x86");
-                    System.Diagnostics.Debug.WriteLine($"[AudioService] Windows Init: {libvlcPath}");
-                    Core.Initialize(libvlcPath);
+                    Console.WriteLine("[AudioService] Windows detected. Using winmm.dll native player.");
+                    _useWindowsNative = true;
+                    _isInitialized = true;
+                    return;
                 }
                 else if (PlatformService.IsMacOS)
                 {
-                    // Prioritize native fallback on ARM64 to avoid native crashes from mismatched LibVLC dylibs
-                    bool isArm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
-                    if (isArm64)
-                    {
-                        Console.WriteLine("[AudioService] detected macOS ARM64. Using NSSound native fallback directly.");
-                        _useMacNativeFallback = true;
-                        _isInitialized = true;
-                        return;
-                    }
-
-                    Console.WriteLine("[AudioService] Detected macOS x64. Attempting LibVLC init...");
-                    try
-                    {
-                        Core.Initialize();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[AudioService] LibVLC Core.Initialize failed: {ex.Message}. Falling back to NSSound.");
-                        _useMacNativeFallback = true;
-                        _isInitialized = true;
-                        return; // Exit initialization, use native player
-                    }
+                    Console.WriteLine("[AudioService] macOS detected. Using NSSound native fallback.");
+                    _useMacNativeFallback = true;
+                    _isInitialized = true;
+                    return;
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("[AudioService] Linux Init");
-                    Core.Initialize();
-                }
-
-                try 
-                {
-                    _libVLC = new LibVLC("--verbose=2", "--no-video", "--no-spu", "--no-lua"); 
-                    _mediaPlayer = new MediaPlayer(_libVLC);
-                    System.Diagnostics.Debug.WriteLine("[AudioService] LibVLC and MediaPlayer created successfully");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[AudioService] LibVLC creation failed: {ex.Message}");
-                    if (ex.InnerException != null)
-                        System.Diagnostics.Debug.WriteLine($"[AudioService] Inner Exception: {ex.InnerException.Message}");
-
-                    if (PlatformService.IsMacOS)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[AudioService] Switching to NSSound fallback.");
-                        _useMacNativeFallback = true;
+                    Console.WriteLine("[AudioService] Linux detected. Attempting LibVLC init...");
+                    try {
+                        Core.Initialize();
+                        _libVLC = new LibVLC("--verbose=1", "--no-video", "--no-spu", "--no-lua"); 
+                        _mediaPlayer = new MediaPlayer(_libVLC);
                     }
-                }
-                
-                if (_mediaPlayer != null)
-                {
-                    _mediaPlayer.EncounteredError += (s, e) => System.Diagnostics.Debug.WriteLine("[AudioService] LibVLC Error event");
-                    _mediaPlayer.EndReached += (s, e) => System.Diagnostics.Debug.WriteLine("[AudioService] LibVLC EndReached");
+                    catch (Exception ex) {
+                        Console.WriteLine($"[AudioService] Linux LibVLC init failed: {ex.Message}. Audio will be disabled.");
+                    }
                 }
                 
                 _isInitialized = true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AudioService] Fatal Initialization Error: {ex.Message}");
-                if (PlatformService.IsMacOS) _useMacNativeFallback = true;
+                Console.WriteLine($"[AudioService] Fallback Init Error: {ex.Message}");
                 _isInitialized = true;
             }
         }
@@ -263,10 +250,20 @@ namespace OsuTag.Services
                 Initialize();
             }
 
+            int finalVolume = volume ?? (int)SettingsService.Settings.PreviewVolume;
+
+            if (_useWindowsNative)
+            {
+#if WINDOWS
+                WindowsNativePlayer.Play(path, startTimeMs, finalVolume);
+#endif
+                return;
+            }
+
             if (_useMacNativeFallback)
             {
 #if !WINDOWS
-                MacNativePlayer.Play(path, startTimeMs, volume ?? (int)SettingsService.Settings.PreviewVolume); // Use SettingsService volume if not provided
+                MacNativePlayer.Play(path, startTimeMs, finalVolume); // Use SettingsService volume if not provided
 #endif
                 return;
             }
@@ -303,7 +300,7 @@ namespace OsuTag.Services
                 if (_mediaPlayer != null)
                 {
                     _mediaPlayer.Media = _currentMedia;
-                    _mediaPlayer.Volume = volume ?? (int)SettingsService.Settings.PreviewVolume; // Use SettingsService volume if not provided
+                    _mediaPlayer.Volume = finalVolume; // Use SettingsService volume if not provided
                     
                     // Play
                     _mediaPlayer.Play();
@@ -326,6 +323,14 @@ namespace OsuTag.Services
         /// </summary>
         public void Stop()
         {
+            if (_useWindowsNative)
+            {
+#if WINDOWS
+                WindowsNativePlayer.Stop();
+#endif
+                return;
+            }
+
             if (_useMacNativeFallback)
             {
 #if !WINDOWS
