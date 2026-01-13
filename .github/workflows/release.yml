@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            name: windows
+          - os: macos-latest
+            rid: osx-x64
+            name: macos
+          - os: ubuntu-latest
+            rid: linux-x64
+            name: linux
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Publish (Self-Contained)
+        run: |
+          dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+
+      - name: Zip Raw Package
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd publish
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+             zip -r ../osu-tag-${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip OsuTag.app
+          else
+             zip -r ../osu-tag-${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip .
+          fi
+
+      # Windows: Create specific Installer and Zip
+      - name: Package Windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Rename SingleFile exe to Installer
+          Copy-Item publish/OsuTag.exe -Destination "osu-tag-${{ steps.get_version.outputs.VERSION }}-win-installer.exe"
+          
+          # Zip the whole publish folder as Raw Package
+          Compress-Archive -Path publish/* -DestinationPath "osu-tag-${{ steps.get_version.outputs.VERSION }}-win.zip"
+
+      - name: Upload Release Assets (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            osu-tag-*-win-installer.exe
+            osu-tag-*-win.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets (Mac/Linux)
+        if: matrix.os != 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            osu-tag-*-${{ matrix.name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

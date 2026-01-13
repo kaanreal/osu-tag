@@ -64,8 +64,8 @@
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <!-- osu!tag Text Removed -->
-                            <TextBlock Text="v2.0" FontSize="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3">
+                            <TextBlock Text="osu!tag" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3">
                                 <TextBlock.Effect>
                                     <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="8" Opacity="0.6" OffsetX="0" OffsetY="0"/>
                                 </TextBlock.Effect>

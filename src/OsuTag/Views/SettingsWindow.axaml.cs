@@ -88,6 +88,8 @@ namespace OsuTag.Views
             set => SetValue(SelectedThemeProperty, value);
         }
 
+        public string AppVersion => "v" + OsuTag.Services.AppVersion.Current;
+
         static SettingsWindow()
         {
             PreviewVolumeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnPreviewVolumeChanged(e));

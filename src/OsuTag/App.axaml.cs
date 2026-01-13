@@ -71,24 +71,27 @@ public partial class App : Application
                 Color = shadowColor 
             });
             
-            Application.Current.Resources["AccentShadow"] = shadow;
-            
-            // Update AccentSubtleBrush (0x4D alpha = ~30% opacity)
-            if (Application.Current?.Resources.TryGetValue("AccentSubtleBrush", out var subtleObj) == true && 
-                subtleObj is Avalonia.Media.SolidColorBrush subtleBrush)
+            if (Application.Current != null)
             {
-               var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
-               subtleBrush.Color = subtleColor;
-            }
+                Application.Current.Resources["AccentShadow"] = shadow;
+                
+                // Update AccentSubtleBrush (0x4D alpha = ~30% opacity)
+                if (Application.Current.Resources.TryGetValue("AccentSubtleBrush", out var subtleObj) == true && 
+                    subtleObj is Avalonia.Media.SolidColorBrush subtleBrush)
+                {
+                   var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
+                   subtleBrush.Color = subtleColor;
+                }
 
-            // Update AccentHoverShadow (0x80 alpha = ~50% opacity)
-            var hoverShadowColor = Avalonia.Media.Color.FromUInt32((0x80000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
-             var hoverShadow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow 
-            { 
-                Blur = 16, 
-                Color = hoverShadowColor 
-            });
-            Application.Current.Resources["AccentHoverShadow"] = hoverShadow;
+                // Update AccentHoverShadow (0x80 alpha = ~50% opacity)
+                var hoverShadowColor = Avalonia.Media.Color.FromUInt32((0x80000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
+                var hoverShadow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow 
+                { 
+                    Blur = 16, 
+                    Color = hoverShadowColor 
+                });
+                Application.Current.Resources["AccentHoverShadow"] = hoverShadow;
+            }
         }
         catch { }
     }

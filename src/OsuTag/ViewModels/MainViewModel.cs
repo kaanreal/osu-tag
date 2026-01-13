@@ -89,6 +89,7 @@ namespace OsuTag.ViewModels
 
         public required string Artist { get; set; }
         public required string Title { get; set; }
+
         public string? CoverPath { get; set; }
         public required string Creator { get; set; }
         public string? Source { get; set; }
@@ -284,6 +285,7 @@ namespace OsuTag.ViewModels
         }
 
         public bool IsWindows => PlatformService.IsWindows;
+        public string AppVersion => "v" + OsuTag.Services.AppVersion.Current;
         public bool IsCompanellaSupported => PlatformService.IsWindows;
         
         private string _companellaStatus = "Scanning...";

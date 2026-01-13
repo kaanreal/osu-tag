@@ -141,7 +141,7 @@
             <!-- Footer -->
             <Border Grid.Row="2" Padding="32,20" Background="#161B22" BorderBrush="#30363D" BorderThickness="0,1,0,0">
                 <Grid ColumnDefinitions="*,Auto,Auto">
-                     <TextBlock Text="v2.0 Stable" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                     <TextBlock Text="{Binding AppVersion, StringFormat='{}{0} Stable'}" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
                      <Button Grid.Column="1" Content="Cancel" Click="Cancel_Click" Classes="Secondary" Width="100" Height="40" Margin="0,0,12,0"/>
                      <Button Grid.Column="2" Content="Save Changes" Click="Save_Click" Classes="Primary" Width="140" Height="40"/>
                 </Grid>
