@@ -33,7 +33,10 @@ jobs:
       - name: Get Version
         id: get_version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          # Extract version from OsuTag.csproj
+          VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Publish (Self-Contained)
         run: |
@@ -44,9 +47,9 @@ jobs:
         run: |
           cd publish
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
-             zip -r ../osu-tag-${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip OsuTag.app
+             zip -r ../osu-tag-v${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip OsuTag.app
           else
-             zip -r ../osu-tag-${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip .
+             zip -r ../osu-tag-v${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip .
           fi
 
       # Windows: Create specific Installer and Zip
@@ -55,10 +58,10 @@ jobs:
         shell: pwsh
         run: |
           # Rename SingleFile exe to Installer
-          Copy-Item publish/OsuTag.exe -Destination "osu-tag-${{ steps.get_version.outputs.VERSION }}-win-installer.exe"
+          Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win-installer.exe"
           
           # Zip the whole publish folder as Raw Package
-          Compress-Archive -Path publish/* -DestinationPath "osu-tag-${{ steps.get_version.outputs.VERSION }}-win.zip"
+          Compress-Archive -Path publish/* -DestinationPath "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win.zip"
 
       - name: Upload Release Assets (Windows)
         if: matrix.os == 'windows-latest'
