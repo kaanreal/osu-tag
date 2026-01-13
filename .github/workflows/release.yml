@@ -77,16 +77,16 @@ jobs:
               run: |
                   # Generate macOS icns
                   mkdir app.iconset
-                  sips -z 16 16   src/OsuTag/Assets/app.png --out app.iconset/icon_16x16.png -s format png
-                  sips -z 32 32   src/OsuTag/Assets/app.png --out app.iconset/icon_16x16@2x.png -s format png
-                  sips -z 32 32   src/OsuTag/Assets/app.png --out app.iconset/icon_32x32.png -s format png
-                  sips -z 64 64   src/OsuTag/Assets/app.png --out app.iconset/icon_32x32@2x.png -s format png
-                  sips -z 128 128 src/OsuTag/Assets/app.png --out app.iconset/icon_128x128.png -s format png
-                  sips -z 256 256 src/OsuTag/Assets/app.png --out app.iconset/icon_128x128@2x.png -s format png
-                  sips -z 256 256 src/OsuTag/Assets/app.png --out app.iconset/icon_256x256.png -s format png
-                  sips -z 512 512 src/OsuTag/Assets/app.png --out app.iconset/icon_256x256@2x.png -s format png
-                  sips -z 512 512 src/OsuTag/Assets/app.png --out app.iconset/icon_512x512.png -s format png
-                  sips -z 1024 1024 src/OsuTag/Assets/app.png --out app.iconset/icon_512x512@2x.png -s format png
+                  sips -z 16 16   src/OsuTag/Assets/app.ico --out app.iconset/icon_16x16.png -s format png
+                  sips -z 32 32   src/OsuTag/Assets/app.ico --out app.iconset/icon_16x16@2x.png -s format png
+                  sips -z 32 32   src/OsuTag/Assets/app.ico --out app.iconset/icon_32x32.png -s format png
+                  sips -z 64 64   src/OsuTag/Assets/app.ico --out app.iconset/icon_32x32@2x.png -s format png
+                  sips -z 128 128 src/OsuTag/Assets/app.ico --out app.iconset/icon_128x128.png -s format png
+                  sips -z 256 256 src/OsuTag/Assets/app.ico --out app.iconset/icon_128x128@2x.png -s format png
+                  sips -z 256 256 src/OsuTag/Assets/app.ico --out app.iconset/icon_256x256.png -s format png
+                  sips -z 512 512 src/OsuTag/Assets/app.ico --out app.iconset/icon_256x256@2x.png -s format png
+                  sips -z 512 512 src/OsuTag/Assets/app.ico --out app.iconset/icon_512x512.png -s format png
+                  sips -z 1024 1024 src/OsuTag/Assets/app.ico --out app.iconset/icon_512x512@2x.png -s format png
                   iconutil -c icns app.iconset
 
                   mkdir -p "osu!tag.app/Contents/MacOS"
