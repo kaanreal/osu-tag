@@ -43,14 +43,15 @@ namespace OsuTag.Services
                 Stop();
                 
                 string shortPath = GetShortPathName(path);
+                // Open with shareable flag and check if successful
                 mciSendString($"open \"{shortPath}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
                 
-                // Set volume (0-1000)
-                int vol = (int)(volume * 10);
-                mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
+                // MCI volume is 0 to 1000. Settings are 0 to 100.
+                int vol = (int)Math.Clamp(volume * 10, 0, 1000);
                 
-                // Seek and play
+                // Sequence matters for some drivers: open -> play -> volume
                 mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
+                mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
             }
 
             public static void Stop()

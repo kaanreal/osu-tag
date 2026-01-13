@@ -1032,7 +1032,7 @@ namespace OsuTag.ViewModels
             return Path.Combine(cacheDir, "mapcache.json");
         }
 
-        private class CachedMapData
+        internal class CachedMapData
         {
             public string Artist { get; set; } = "";
             public string Title { get; set; } = "";
@@ -1047,7 +1047,7 @@ namespace OsuTag.ViewModels
             public List<CachedDifficulty> Difficulties { get; set; } = new();
         }
 
-        private class CachedDifficulty
+        internal class CachedDifficulty
         {
             public string DifficultyName { get; set; } = "";
             public string Mp3Path { get; set; } = "";
@@ -1088,7 +1088,7 @@ namespace OsuTag.ViewModels
                     }).ToList()
                 }).ToList();
 
-                var json = JsonSerializer.Serialize(cacheData);
+                var json = JsonSerializer.Serialize(cacheData, AppJsonContext.Default.ListCachedMapData);
                 File.WriteAllText(GetCacheFilePath(), json);
             }
             catch { /* Ignore cache save errors */ }
@@ -1106,7 +1106,7 @@ namespace OsuTag.ViewModels
                 using var fs = new FileStream(cachePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan);
                 using var reader = new StreamReader(fs, System.Text.Encoding.UTF8);
                 var json = reader.ReadToEnd();
-                var cacheData = JsonSerializer.Deserialize<List<CachedMapData>>(json);
+                var cacheData = JsonSerializer.Deserialize(json, AppJsonContext.Default.ListCachedMapData);
 
                 if (cacheData == null)
                     return groups;

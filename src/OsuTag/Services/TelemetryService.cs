@@ -198,16 +198,16 @@ namespace OsuTag.Services
                     ["Country"] = country
                 };
 
-                var payload = new Dictionary<string, object>
+                var payload = new AptabasePayload
                 {
-                    ["EventName"] = eventName,
-                    ["SessionId"] = _sessionId,
-                    ["Timestamp"] = DateTime.UtcNow.ToString("o"),
-                    ["SystemProps"] = systemProps,
-                    ["Props"] = props != null ? new Dictionary<string, object>(props) : new Dictionary<string, object>()
+                    EventName = eventName,
+                    SessionId = _sessionId,
+                    Timestamp = DateTime.UtcNow.ToString("o"),
+                    SystemProps = systemProps,
+                    Props = props != null ? new Dictionary<string, object>(props) : new Dictionary<string, object>()
                 };
 
-                var json = JsonSerializer.Serialize(payload);
+                var json = JsonSerializer.Serialize(payload, AppJsonContext.Default.AptabasePayload);
 
 #if DEBUG
                 try
