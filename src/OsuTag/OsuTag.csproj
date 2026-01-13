@@ -13,6 +13,13 @@
     <Version>2.0.0</Version>
     <Product>osu!tag</Product>
     <Authors>kaancat</Authors>
+    
+    <!-- Optimization: Reduce file size -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>link</TrimMode>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebuggerSupport>false</DebuggerSupport>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>

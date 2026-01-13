@@ -302,6 +302,8 @@ namespace OsuTag.Services
                             System.Diagnostics.Debug.WriteLine($"Aptabase post exception: {ex.Message}");
                         }
                         catch { }
+#else
+                        _ = ex; // Avoid warning in Release
 #endif
                     }
                 }
@@ -316,7 +318,9 @@ namespace OsuTag.Services
                 }
                 System.Diagnostics.Debug.WriteLine($"Aptabase telemetry error: {errorMsg}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-            #endif
+                #else
+                _ = ex; // Avoid warning in Release
+                #endif
                 // Silently fail - telemetry should never break the app
             }
         }
