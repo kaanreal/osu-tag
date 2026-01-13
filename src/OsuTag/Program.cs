@@ -19,7 +19,11 @@ class Program
             .WithInterFont()
             .With(new Win32PlatformOptions
             {
-                CompositionMode = new[] { Win32CompositionMode.WinUIComposition, Win32CompositionMode.DirectComposition }
+                CompositionMode = new[] { Win32CompositionMode.WinUIComposition }
+            })
+            .With(new SkiaOptions
+            {
+                MaxGpuResourceSizeBytes = 256000000 // 256MB GPU cache for ultra-smooth animations
             })
             .LogToTrace();
 }

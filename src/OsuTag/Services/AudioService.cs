@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 
 namespace OsuTag.Services
@@ -40,47 +42,39 @@ namespace OsuTag.Services
 
             public static void Play(string path, int startTimeMs, float volume)
             {
-                Stop();
-                
-                string shortPath = GetShortPathName(path);
-                
-                // Attempt to open the file. 'wait' ensures the drive is ready before we continue.
-                long openResult = mciSendString($"open \"{shortPath}\" type mpegvideo alias preview wait", null, 0, IntPtr.Zero);
-                if (openResult != 0)
-                {
-                    // Try fallback without type if first one fails
-                    openResult = mciSendString($"open \"{shortPath}\" alias preview wait", null, 0, IntPtr.Zero);
-                }
+                Task.Run(() => {
+                    StopInternal();
+                    
+                    // Direct approach: try mpegvideo first, then try letting MCI decide.
+                    long res = mciSendString($"open \"{path}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
+                    if (res != 0) 
+                        res = mciSendString($"open \"{path}\" alias preview", null, 0, IntPtr.Zero);
 
-                if (openResult == 0)
-                {
-                    // Sequence matters: volume then play.
-                    int vol = (int)Math.Clamp(volume * 10, 0, 1000);
-                    mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
-                    mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
-                }
-                else
-                {
-                    Console.WriteLine($"[AudioService] Windows MCI Open Error: {openResult}");
-                }
+                    if (res == 0)
+                    {
+                        int vol = (int)Math.Clamp(volume * 10, 0, 1000);
+                        mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
+                        mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
+                    }
+                    else
+                    {
+                        var errorMsg = new StringBuilder(255);
+                        mciGetErrorString(res, errorMsg, errorMsg.Capacity);
+                        Console.WriteLine($"[AudioService] Windows MCI Error ({res}): {errorMsg}");
+                    }
+                });
             }
 
-            public static void Stop()
+            public static void Stop() => Task.Run(() => StopInternal());
+
+            private static void StopInternal()
             {
                 mciSendString("stop preview", null, 0, IntPtr.Zero);
                 mciSendString("close preview", null, 0, IntPtr.Zero);
             }
 
-            private static string GetShortPathName(string path)
-            {
-                // MCI can be picky with long paths/spaces. Short paths are safer.
-                StringBuilder shortPath = new StringBuilder(255);
-                GetShortPathName(path, shortPath, shortPath.Capacity);
-                return shortPath.ToString();
-            }
-
-            [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-            private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
+            [DllImport("winmm.dll")]
+            private static extern long mciGetErrorString(long errorCode, StringBuilder errorText, int errorTextSize);
         }
 #endif
 
