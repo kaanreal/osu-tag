@@ -164,6 +164,13 @@ namespace OsuTag.Services
                 previewTime = parsedTime;
             }
 
+            int beatmapSetId = -1;
+            if (primaryMetadata.TryGetValue("BeatmapSetID", out var setIdStr) &&
+                int.TryParse(setIdStr, out int parsedSetId))
+            {
+                beatmapSetId = parsedSetId;
+            }
+
             string? coverPath = null;
 
             // Try to get the background image from the .osu file
@@ -245,6 +252,7 @@ namespace OsuTag.Services
                 Source = primaryMetadata.GetValueOrDefault("Source"),
                 Tags = primaryMetadata.GetValueOrDefault("Tags"),
                 CoverPath = coverPath,
+                BeatmapSetId = beatmapSetId,
                 Difficulties = difficulties,
                 PreviewTime = previewTime
             };

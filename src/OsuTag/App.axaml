@@ -389,5 +389,6 @@
         <Style Selector="Button.TitleBarButton.Close:pointerover">
             <Setter Property="Background" Value="#E81123"/>
         </Style>
+
     </Application.Styles>
 </Application>

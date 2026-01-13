@@ -14,7 +14,7 @@
         <!-- Background Overlay for consistency across platforms -->
         <Border Background="#0D1117" Opacity="0.8" CornerRadius="0"/>
         
-        <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
             <!-- Title Bar / Header -->
             <Border Grid.Row="0" Padding="32,24,32,16" Background="Transparent">
                 <StackPanel Spacing="4">

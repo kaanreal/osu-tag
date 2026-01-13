@@ -95,6 +95,11 @@ namespace OsuTag.ViewModels
         public string? Tags { get; set; }
         public string? PreviewMp3Path { get; set; }
         public int PreviewTime { get; set; }
+        public int BeatmapSetId { get; set; } = -1;
+        public string? DirectoryPath { get; set; }
+        public ICommand? OpenBeatmapUrlCommand { get; set; }
+        public ICommand? OpenDirectoryCommand { get; set; }
+        public ICommand? ExportBackgroundCommand { get; set; }
         public ObservableCollection<DifficultyItem> Difficulties { get; } = new();
         public ObservableCollection<AudioFileItem> UniqueAudioFiles { get; } = new();
 
@@ -736,7 +741,11 @@ namespace OsuTag.ViewModels
         public ICommand SelectDifficultyCommand { get; }
         public ICommand RemoveItemCommand { get; }
         public ICommand EditItemCommand { get; }
+        // Duplicates removed
         public ICommand ClearCacheCommand { get; }
+        public ICommand OpenBeatmapUrlCommand { get; }
+        public ICommand OpenDirectoryCommand { get; }
+        public ICommand ExportBackgroundCommand { get; }
 
         public MainViewModel()
         {
@@ -762,7 +771,12 @@ namespace OsuTag.ViewModels
             SelectDifficultyCommand = new RelayCommand(param => SelectDifficulty(param as DifficultyItem));
             RemoveItemCommand = new RelayCommand(param => RemoveItem(param as SelectedItemInfo));
             EditItemCommand = new RelayCommand(param => EditItem(param as SelectedItemInfo));
+            RemoveItemCommand = new RelayCommand(param => RemoveItem(param as SelectedItemInfo));
+            EditItemCommand = new RelayCommand(param => EditItem(param as SelectedItemInfo));
             ClearCacheCommand = new RelayCommand(_ => ClearCache());
+            OpenBeatmapUrlCommand = new RelayCommand(param => OpenBeatmapUrl(param as MapItemGroup));
+            OpenDirectoryCommand = new RelayCommand(param => OpenDirectory(param as MapItemGroup));
+            ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
 
             // Auto-scan for Companella on Windows
             if (IsCompanellaSupported)
@@ -1026,6 +1040,8 @@ namespace OsuTag.ViewModels
             public string? CoverPath { get; set; }
             public string? PreviewMp3Path { get; set; }
             public int PreviewTime { get; set; }
+            public int BeatmapSetId { get; set; } = -1;
+            public string? DirectoryPath { get; set; }
             public List<CachedDifficulty> Difficulties { get; set; } = new();
         }
 
@@ -1055,6 +1071,8 @@ namespace OsuTag.ViewModels
                     CoverPath = g.CoverPath,
                     PreviewMp3Path = g.PreviewMp3Path,
                     PreviewTime = g.PreviewTime,
+                    BeatmapSetId = g.BeatmapSetId,
+                    DirectoryPath = g.DirectoryPath,
                     Difficulties = g.Difficulties.Select(d => new CachedDifficulty
                     {
                         DifficultyName = d.DifficultyName,
@@ -1106,7 +1124,12 @@ namespace OsuTag.ViewModels
                         Tags = cached.Tags,
                         CoverPath = cached.CoverPath,
                         PreviewMp3Path = cached.PreviewMp3Path,
-                        PreviewTime = cached.PreviewTime
+                        PreviewTime = cached.PreviewTime,
+                        BeatmapSetId = cached.BeatmapSetId,
+                        DirectoryPath = cached.DirectoryPath,
+                        OpenBeatmapUrlCommand = OpenBeatmapUrlCommand,
+                        OpenDirectoryCommand = OpenDirectoryCommand,
+                        ExportBackgroundCommand = ExportBackgroundCommand
                     };
 
                     foreach (var diff in cached.Difficulties)
@@ -1441,7 +1464,12 @@ namespace OsuTag.ViewModels
                             Tags = firstMap.Tags,
                             CoverPath = firstMap.CoverPath,
                             PreviewMp3Path = firstMap.Difficulties.FirstOrDefault()?.Mp3Path,
-                            PreviewTime = firstMap.PreviewTime
+                            PreviewTime = firstMap.PreviewTime,
+                            BeatmapSetId = firstMap.BeatmapSetId,
+                            DirectoryPath = Path.GetDirectoryName(firstMap.Difficulties.FirstOrDefault()?.OsuFilePath),
+                            OpenBeatmapUrlCommand = OpenBeatmapUrlCommand,
+                            OpenDirectoryCommand = OpenDirectoryCommand,
+                            ExportBackgroundCommand = ExportBackgroundCommand
                         };
 
                         // Add all difficulties for this map
@@ -1927,6 +1955,88 @@ namespace OsuTag.ViewModels
             catch (Exception ex)
             {
                 CompanellaStatus = $"Error scanning for Companella: {ex.Message}";
+            }
+        }
+        private void OpenBeatmapUrl(MapItemGroup? group)
+        {
+            if (group == null) return;
+            
+            string url;
+            if (group.BeatmapSetId > 0)
+            {
+                url = $"https://osu.ppy.sh/s/{group.BeatmapSetId}";
+            }
+            else
+            {
+                // Fallback: Search by Artist and Title
+                var query = System.Uri.EscapeDataString($"{group.Artist} {group.Title}");
+                url = $"https://osu.ppy.sh/beatmapsets?q={query}";
+            }
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+            }
+            catch { /* Ignore open errors */ }
+        }
+
+        private void OpenDirectory(MapItemGroup? group)
+        {
+            if (group == null) return;
+            
+            // Try explicit path, fallback to finding via difficulties
+            var path = group.DirectoryPath;
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+            {
+                 var diff = group.Difficulties.FirstOrDefault();
+                 if (diff != null && !string.IsNullOrEmpty(diff.Difficulty.OsuFilePath))
+                 {
+                     path = Path.GetDirectoryName(diff.Difficulty.OsuFilePath);
+                 }
+            }
+
+            if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+            {
+                try
+                {
+                    if (IsWindows)
+                    {
+                        System.Diagnostics.Process.Start("explorer.exe", path);
+                    }
+                    else
+                    {
+                        // Mac/Linux
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true });
+                    }
+                }
+                catch { /* Ignore */ }
+            }
+        }
+
+        private async void ExportBackground(MapItemGroup? group)
+        {
+            if (group == null || string.IsNullOrEmpty(group.CoverPath) || !File.Exists(group.CoverPath)) return;
+
+            var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+            if (topLevel == null) return;
+
+            var fileName = Path.GetFileName(group.CoverPath);
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+            {
+                Title = "Save Background",
+                SuggestedFileName = fileName,
+                DefaultExtension = Path.GetExtension(fileName).TrimStart('.'),
+                FileTypeChoices = new[] { new Avalonia.Platform.Storage.FilePickerFileType("Images") { Patterns = new[] { "*.jpg", "*.png", "*.jpeg" } } }
+            });
+
+            if (file != null)
+            {
+                try
+                {
+                    var localPath = file.Path.LocalPath;
+                    File.Copy(group.CoverPath, localPath, true);
+                }
+                catch { /* Ignore save errors */ }
             }
         }
     }

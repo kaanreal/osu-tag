@@ -25,6 +25,7 @@ namespace OsuTag.Models
         public string? Source { get; set; }
         public string? Tags { get; set; }
         public string? CoverPath { get; set; }
+        public int BeatmapSetId { get; set; } = -1;
         public required List<OsuMapDifficulty> Difficulties { get; set; } = new();
         public int PreviewTime { get; set; } = -1;
     }
