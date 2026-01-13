@@ -12,11 +12,11 @@
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
     <Version>2.0.0</Version>
     <Product>osu!tag</Product>
-    <!-- Optimization: Aggressive Size Reduction -->
+    <!-- Optimization: Production Stability -->
     <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>link</TrimMode>
-    <PublishReadyToRun>false</PublishReadyToRun>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <TrimMode>partial</TrimMode>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <InvariantGlobalization>false</InvariantGlobalization>
     <DebuggerSupport>false</DebuggerSupport>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     
@@ -45,7 +45,13 @@
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
-    <PackageReference Include="LibVLCSharp" Version="3.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Prevent trimming of the main assembly and key libraries to ensure reflection-based features work -->
+    <TrimmerRootAssembly Include="OsuTag" />
+    <TrimmerRootAssembly Include="TagLibSharp" />
+    <TrimmerRootAssembly Include="DiscordRPC" />
   </ItemGroup>
 
 </Project>
