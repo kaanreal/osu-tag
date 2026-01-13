@@ -36,7 +36,7 @@ namespace OsuTag.Services
                     if (File.Exists(SettingsFilePath))
                     {
                         var json = File.ReadAllText(SettingsFilePath);
-                        _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                        _settings = JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings) ?? new AppSettings();
                     }
                 }
                 catch
@@ -52,7 +52,7 @@ namespace OsuTag.Services
             {
                 try
                 {
-                    var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+                    var json = JsonSerializer.Serialize(_settings, AppJsonContext.Default.AppSettings);
                     File.WriteAllText(SettingsFilePath, json);
                 }
                 catch

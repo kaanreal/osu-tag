@@ -101,7 +101,6 @@ namespace OsuTag.Views
             {
                 AudioService.Instance.Volume = (int)volume;
                 SettingsService.Settings.PreviewVolume = volume;
-                SettingsService.Save();
             }
         }
 
