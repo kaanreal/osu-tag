@@ -496,7 +496,8 @@
                 BoxShadow="0 10 30 0 #4D000000"
                 IsVisible="{Binding SelectedCount, Converter={StaticResource NumericToBoolConverter}}"
                 Height="{Binding IsBottomBarExpanded, Converter={StaticResource BoolToHeightConverter}, ConverterParameter='80,500'}"
-                Opacity="{Binding SelectedCount, Converter={StaticResource BoolToDoubleConverter}, ConverterParameter='0,1'}">
+                Opacity="{Binding SelectedCount, Converter={StaticResource BoolToDoubleConverter}, ConverterParameter='0,1'}"
+                ClipToBounds="False">
 
             <Border.RenderTransform>
                 <!-- Majestic Entrance: If SelectedCount > 0, translate to 0. Else, hide at 300. -->
@@ -504,9 +505,9 @@
             </Border.RenderTransform>
             <Border.Transitions>
                 <Transitions>
-                    <DoubleTransition Property="Height" Duration="0:0:0.5" Easing="QuarticEaseOut"/>
-                    <ThicknessTransition Property="Margin" Duration="0:0:0.5" Easing="QuarticEaseOut"/>
+                    <DoubleTransition Property="Height" Duration="0:0:0.4" Easing="QuadraticEaseOut"/>
                     <DoubleTransition Property="Opacity" Duration="0:0:0.4"/>
+                    <ThicknessTransition Property="Margin" Duration="0:0:0.5" Easing="QuarticEaseOut"/>
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.6" Easing="CubicEaseOut"/>
                 </Transitions>
             </Border.Transitions>

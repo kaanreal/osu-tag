@@ -911,19 +911,26 @@ namespace OsuTag.ViewModels
 
         private async void OpenSettings()
         {
-            var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
-            if (topLevel != null)
+            try
             {
-                 var dialog = new Views.SettingsWindow();
-                 await dialog.ShowDialog(topLevel);
+                var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+                if (topLevel != null)
+                {
+                    var dialog = new Views.SettingsWindow();
+                    await dialog.ShowDialog(topLevel);
 
-                 // Reload settings
-                 _processCovers = SettingsService.Settings.ProcessCovers;
-                 _createBackups = SettingsService.Settings.CreateBackups;
-                 OnPropertyChanged(nameof(ProcessCovers));
-                 OnPropertyChanged(nameof(CreateBackups));
-                 
-                 await RefreshCompanellaSorting();
+                    // Reload settings
+                    _processCovers = SettingsService.Settings.ProcessCovers;
+                    _createBackups = SettingsService.Settings.CreateBackups;
+                    OnPropertyChanged(nameof(ProcessCovers));
+                    OnPropertyChanged(nameof(CreateBackups));
+                    
+                    await RefreshCompanellaSorting();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainViewModel] Failed to open settings: {ex.Message}");
             }
         }
 
