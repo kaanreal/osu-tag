@@ -5,8 +5,42 @@ on:
     types: [published]
 
 jobs:
+  versioning:
+    name: Prepare Versioning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      VERSION: ${{ steps.get_version.outputs.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get Version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Version Branch
+        shell: bash
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="release/v${{ steps.get_version.outputs.VERSION }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME already exists."
+          else
+            git checkout -b "$BRANCH_NAME"
+            git push origin "$BRANCH_NAME"
+          fi
+
   build:
     name: Build ${{ matrix.os }}
+    needs: versioning
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -26,37 +60,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Needed for branching
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
-
-      - name: Get Version
-        id: get_version
-        shell: bash
-        run: |
-          # Extract version from OsuTag.csproj
-          VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Create Version Branch
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH_NAME="release/v${{ steps.get_version.outputs.VERSION }}"
-          
-          # Check if branch exists
-          if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-            echo "Branch $BRANCH_NAME already exists, skipping creation."
-          else
-            git checkout -b "$BRANCH_NAME"
-            git push origin "$BRANCH_NAME"
-          fi
 
       - name: Publish (Self-Contained)
         run: |
@@ -67,9 +75,9 @@ jobs:
         run: |
           cd publish
           if [ "${{ matrix.os }}" == "macos-latest" ]; then
-             zip -r ../osu-tag-v${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip OsuTag.app
+             zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-${{ matrix.name }}.zip OsuTag.app
           else
-             zip -r ../osu-tag-v${{ steps.get_version.outputs.VERSION }}-${{ matrix.name }}.zip .
+             zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-${{ matrix.name }}.zip .
           fi
 
       # Windows: Create specific Installer and Zip
@@ -77,11 +85,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          # Rename SingleFile exe to Installer
-          Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win-installer.exe"
-          
-          # Zip the whole publish folder as Raw Package
-          Compress-Archive -Path publish/* -DestinationPath "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win.zip"
+          Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ needs.versioning.outputs.VERSION }}-win-installer.exe"
+          Compress-Archive -Path publish/* -DestinationPath "osu-tag-v${{ needs.versioning.outputs.VERSION }}-win.zip"
 
       - name: Upload Release Assets (Windows)
         if: matrix.os == 'windows-latest'
@@ -101,3 +106,4 @@ jobs:
             osu-tag-*-${{ matrix.name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
