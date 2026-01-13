@@ -76,24 +76,24 @@ jobs:
               if: matrix.os == 'macos-latest'
               run: |
                   # Generate macOS icns
-                  mkdir icon.iconset
-                  sips -z 16 16   src/OsuTag/Assets/app.png --out icon.iconset/icon_16x16.png
-                  sips -z 32 32   src/OsuTag/Assets/app.png --out icon.iconset/icon_16x16@2x.png
-                  sips -z 32 32   src/OsuTag/Assets/app.png --out icon.iconset/icon_32x32.png
-                  sips -z 64 64   src/OsuTag/Assets/app.png --out icon.iconset/icon_32x32@2x.png
-                  sips -z 128 128 src/OsuTag/Assets/app.png --out icon.iconset/icon_128x128.png
-                  sips -z 256 256 src/OsuTag/Assets/app.png --out icon.iconset/icon_128x128@2x.png
-                  sips -z 256 256 src/OsuTag/Assets/app.png --out icon.iconset/icon_256x256.png
-                  sips -z 512 512 src/OsuTag/Assets/app.png --out icon.iconset/icon_256x256@2x.png
-                  sips -z 512 512 src/OsuTag/Assets/app.png --out icon.iconset/icon_512x512.png
-                  sips -z 1024 1024 src/OsuTag/Assets/app.png --out icon.iconset/icon_512x512@2x.png
-                  iconutil -c icns icon.iconset
+                  mkdir app.iconset
+                  sips -z 16 16   src/OsuTag/Assets/app.png --out app.iconset/icon_16x16.png -s format png
+                  sips -z 32 32   src/OsuTag/Assets/app.png --out app.iconset/icon_16x16@2x.png -s format png
+                  sips -z 32 32   src/OsuTag/Assets/app.png --out app.iconset/icon_32x32.png -s format png
+                  sips -z 64 64   src/OsuTag/Assets/app.png --out app.iconset/icon_32x32@2x.png -s format png
+                  sips -z 128 128 src/OsuTag/Assets/app.png --out app.iconset/icon_128x128.png -s format png
+                  sips -z 256 256 src/OsuTag/Assets/app.png --out app.iconset/icon_128x128@2x.png -s format png
+                  sips -z 256 256 src/OsuTag/Assets/app.png --out app.iconset/icon_256x256.png -s format png
+                  sips -z 512 512 src/OsuTag/Assets/app.png --out app.iconset/icon_256x256@2x.png -s format png
+                  sips -z 512 512 src/OsuTag/Assets/app.png --out app.iconset/icon_512x512.png -s format png
+                  sips -z 1024 1024 src/OsuTag/Assets/app.png --out app.iconset/icon_512x512@2x.png -s format png
+                  iconutil -c icns app.iconset
 
                   mkdir -p "osu!tag.app/Contents/MacOS"
                   mkdir -p "osu!tag.app/Contents/Resources"
                   cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
                   cp src/OsuTag/Info.plist "osu!tag.app/Contents/Info.plist"
-                  cp icon.icns "osu!tag.app/Contents/Resources/app.icns"
+                  cp app.icns "osu!tag.app/Contents/Resources/app.icns"
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
                   zip -r osu-tag-v${{ needs.versioning.outputs.VERSION }}-macos.zip "osu!tag.app"
 

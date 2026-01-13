@@ -47,4 +47,11 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Prevent trimming of the main assembly and key libraries to ensure reflection-based features work -->
+    <TrimmerRootAssembly Include="OsuTag" />
+    <TrimmerRootAssembly Include="TagLibSharp" />
+    <TrimmerRootAssembly Include="DiscordRPC" />
+  </ItemGroup>
+
 </Project>
