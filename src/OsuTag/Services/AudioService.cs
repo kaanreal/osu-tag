@@ -37,50 +37,59 @@ namespace OsuTag.Services
         // Windows Native Player using mciSendString (winmm.dll)
         internal static class WindowsNativePlayer
         {
-            [DllImport("winmm.dll", EntryPoint = "mciSendStringA")]
+            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
             private static extern long mciSendString(string command, StringBuilder? returnValue, int returnLength, IntPtr winHandle);
 
             public static void Play(string path, int startTimeMs, float volume)
             {
                 Task.Run(() => {
-                    StopInternal();
-                    
-                    // MCI is legacy and the Unicode version ('W') is notoriously problematic with MP3s.
-                    // Converting to short paths (8.3) and using the ANSI API is the most compatible way.
-                    string shortPath = GetShortPathName(path);
-                    
-                    string[] scanCommands = {
-                        $"open \"{shortPath}\" type mpegvideo alias preview",
-                        $"open \"{shortPath}\" alias preview",
-                        $"open \"{path}\" type mpegvideo alias preview",
-                        $"open \"{path}\" alias preview"
-                    };
+                    try
+                    {
+                        StopInternal();
+                        
+                        // Use 1024 buffer for paths to be safe. 
+                        string shortPath = GetShortPathName(path);
+                        
+                        // We use a set of variations from most specific to least specific.
+                        // Modern Windows often works best with quotes and CharSet.Auto (Unicode).
+                        string[] variations = {
+                            $"open \"{shortPath}\" type mpegvideo alias preview",
+                            $"open \"{shortPath}\" alias preview",
+                            $"open \"{path}\" type mpegvideo alias preview",
+                            $"open \"{path}\" alias preview"
+                        };
 
-                    long res = -1;
-                    foreach (var cmd in scanCommands)
-                    {
-                        res = mciSendString(cmd, null, 0, IntPtr.Zero);
-                        if (res == 0) break;
-                    }
+                        long res = -1;
+                        foreach (var cmd in variations)
+                        {
+                            try {
+                                res = mciSendString(cmd, null, 0, IntPtr.Zero);
+                                if (res == 0) break;
+                            } catch { }
+                        }
 
-                    if (res == 0)
-                    {
-                        mciSendString("set preview time format milliseconds", null, 0, IntPtr.Zero);
-                        int vol = (int)Math.Clamp(volume * 10, 0, 1000);
-                        mciSendString("setaudio preview volume to " + vol, null, 0, IntPtr.Zero);
-                        mciSendString("play preview from " + startTimeMs, null, 0, IntPtr.Zero);
+                        if (res == 0)
+                        {
+                            mciSendString("set preview time format ms", null, 0, IntPtr.Zero);
+                            int vol = (int)Math.Clamp(volume * 10, 0, 1000);
+                            mciSendString("setaudio preview volume to " + vol, null, 0, IntPtr.Zero);
+                            mciSendString("play preview from " + startTimeMs, null, 0, IntPtr.Zero);
+                        }
+                        else
+                        {
+                            var errorMsg = new StringBuilder(255);
+                            mciGetErrorString(res, errorMsg, errorMsg.Capacity);
+                            Console.WriteLine($"[AudioService] MCI Open Error ({res}): {errorMsg}");
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        var errorMsg = new StringBuilder(255);
-                        mciGetErrorString(res, errorMsg, errorMsg.Capacity);
-                        Console.WriteLine($"[AudioService] Windows MCI failed all methods ({res}): {errorMsg}");
-                        Console.WriteLine($"[AudioService] Short Path: {shortPath}");
+                        Console.WriteLine($"[AudioService] Windows Play Exception: {ex.Message}");
                     }
                 });
             }
 
-            public static void Stop() => Task.Run(() => StopInternal());
+            public static void Stop() => Task.Run(() => { try { StopInternal(); } catch { } });
 
             private static void StopInternal()
             {
@@ -90,15 +99,19 @@ namespace OsuTag.Services
 
             private static string GetShortPathName(string path)
             {
-                StringBuilder shortPath = new StringBuilder(255);
-                GetShortPathName(path, shortPath, shortPath.Capacity);
-                return shortPath.ToString();
+                try
+                {
+                    StringBuilder shortPath = new StringBuilder(1024);
+                    int res = GetShortPathName(path, shortPath, shortPath.Capacity);
+                    return res > 0 ? shortPath.ToString() : path;
+                }
+                catch { return path; }
             }
 
             [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
             private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
 
-            [DllImport("winmm.dll", EntryPoint = "mciGetErrorStringA")]
+            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
             private static extern long mciGetErrorString(long errorCode, StringBuilder errorText, int errorTextSize);
         }
 #endif
