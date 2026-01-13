@@ -17,14 +17,5 @@ class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .With(new Win32PlatformOptions
-            {
-                RenderingMode = new[] { Win32RenderingMode.CompositionBackbuffer, Win32RenderingMode.Wgl },
-                CompositionMode = new[] { Win32CompositionMode.LowLatencyComposition, Win32CompositionMode.RedirectionQueues }
-            })
-            .With(new MacOSPlatformOptions
-            {
-                RenderingMode = new[] { MacOSRenderingMode.Metal, MacOSRenderingMode.Layered }
-            })
             .LogToTrace();
 }
