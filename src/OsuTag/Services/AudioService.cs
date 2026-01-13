@@ -37,7 +37,7 @@ namespace OsuTag.Services
         // Windows Native Player using mciSendString (winmm.dll)
         internal static class WindowsNativePlayer
         {
-            [DllImport("winmm.dll")]
+            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
             private static extern long mciSendString(string command, StringBuilder? returnValue, int returnLength, IntPtr winHandle);
 
             public static void Play(string path, int startTimeMs, float volume)
@@ -45,26 +45,34 @@ namespace OsuTag.Services
                 Task.Run(() => {
                     StopInternal();
                     
-                    // MCI is legacy and fails with Unicode or long paths with spaces.
-                    // Converting to 8.3 short paths is the definitive fix for this API.
-                    string effectivePath = GetShortPathName(path);
-                    
-                    // Direct approach: try mpegvideo first, then try letting MCI decide.
-                    long res = mciSendString($"open \"{effectivePath}\" type mpegvideo alias preview", null, 0, IntPtr.Zero);
-                    if (res != 0) 
-                        res = mciSendString($"open \"{effectivePath}\" alias preview", null, 0, IntPtr.Zero);
+                    // MCI is incredibly picky. We will try a multi-stage approach.
+                    string[] variations = {
+                        $"open \"{path}\" type mpegvideo alias preview", // Stage 1: Standard Quoted
+                        $"open \"{path}\" alias preview",                // Stage 2: Quoted, No Type (Auto-detect)
+                        $"open {path} alias preview",                    // Stage 3: Unquoted, No Type (Legacy)
+                        $"open \"{GetShortPathName(path)}\" type mpegvideo alias preview", // Stage 4: Short Path (Unicode)
+                        $"open \"{GetShortPathName(path)}\" alias preview" // Stage 5: Short Path, No Type
+                    };
+
+                    long res = -1;
+                    foreach (var cmd in variations)
+                    {
+                        res = mciSendString(cmd, null, 0, IntPtr.Zero);
+                        if (res == 0) break;
+                    }
 
                     if (res == 0)
                     {
                         int vol = (int)Math.Clamp(volume * 10, 0, 1000);
-                        mciSendString($"setaudio preview volume to {vol}", null, 0, IntPtr.Zero);
-                        mciSendString($"play preview from {startTimeMs}", null, 0, IntPtr.Zero);
+                        mciSendString("setaudio preview volume to " + vol, null, 0, IntPtr.Zero);
+                        mciSendString("play preview from " + startTimeMs, null, 0, IntPtr.Zero);
                     }
                     else
                     {
                         var errorMsg = new StringBuilder(255);
                         mciGetErrorString(res, errorMsg, errorMsg.Capacity);
-                        Console.WriteLine($"[AudioService] Windows MCI Error ({res}) for '{effectivePath}': {errorMsg}");
+                        Console.WriteLine($"[AudioService] Windows MCI failed all methods. Last error ({res}): {errorMsg}");
+                        Console.WriteLine($"[AudioService] Attempted Path: {path}");
                     }
                 });
             }
@@ -87,7 +95,7 @@ namespace OsuTag.Services
             [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
             private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
 
-            [DllImport("winmm.dll")]
+            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
             private static extern long mciGetErrorString(long errorCode, StringBuilder errorText, int errorTextSize);
         }
 #endif

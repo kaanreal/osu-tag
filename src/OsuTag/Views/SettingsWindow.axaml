@@ -4,15 +4,13 @@
         Title="Settings"
         Width="600" Height="750"
         WindowStartupLocation="CenterOwner"
-        Background="Transparent"
+        Background="#E6121620"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         CanResize="False">
     
     <Panel>
-        <!-- Background Overlay for consistency across platforms -->
-        <Border Background="#0D1117" Opacity="0.8" CornerRadius="0"/>
         
         <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
             <!-- Title Bar / Header -->
@@ -30,7 +28,7 @@
                     <StackPanel Spacing="16">
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
                             <TextBlock Text="🎨" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="Appearance" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TexturePrimaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Appearance" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
                         
                         <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
@@ -67,7 +65,7 @@
                     <StackPanel Spacing="16">
                          <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
                             <TextBlock Text="⚙" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="General" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TexturePrimaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="General" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
@@ -84,7 +82,7 @@
                     <StackPanel Spacing="16">
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
                             <TextBlock Text="🔗" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="Integrations" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TexturePrimaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Integrations" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
@@ -109,7 +107,7 @@
                     <StackPanel Spacing="16">
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
                             <TextBlock Text="🛠" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="Advanced" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TexturePrimaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Advanced" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
