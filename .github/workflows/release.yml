@@ -8,6 +8,8 @@ jobs:
   build:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -24,6 +26,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Needed for branching
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -37,6 +41,22 @@ jobs:
           # Extract version from OsuTag.csproj
           VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Version Branch
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="release/v${{ steps.get_version.outputs.VERSION }}"
+          
+          # Check if branch exists
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME already exists, skipping creation."
+          else
+            git checkout -b "$BRANCH_NAME"
+            git push origin "$BRANCH_NAME"
+          fi
 
       - name: Publish (Self-Contained)
         run: |
