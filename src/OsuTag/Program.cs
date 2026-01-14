@@ -30,13 +30,5 @@ class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .With(new Win32PlatformOptions
-            {
-                CompositionMode = new[] { Win32CompositionMode.DirectComposition, Win32CompositionMode.WinUIComposition }
-            })
-            .With(new SkiaOptions
-            {
-                MaxGpuResourceSizeBytes = 256000000 // 256MB GPU cache for ultra-smooth animations
-            })
             .LogToTrace();
 }

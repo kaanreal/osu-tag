@@ -106,17 +106,42 @@ namespace OsuTag.Views
 
         public SettingsWindow()
         {
-            InitializeComponent();
-            DataContext = this;
-            LoadSettings();
-            
-            if (IsCompanellaSupported)
+            try
             {
-                AutoDiscoverCompanella();
+                Console.WriteLine("[SettingsWindow] Constructor called");
+                InitializeComponent();
+                Console.WriteLine("[SettingsWindow] InitializeComponent completed");
+                
+                DataContext = this;
+                Console.WriteLine("[SettingsWindow] DataContext set");
+                
+                LoadSettings();
+                Console.WriteLine("[SettingsWindow] LoadSettings completed");
+                
+                if (IsCompanellaSupported)
+                {
+                    AutoDiscoverCompanella();
+                    Console.WriteLine("[SettingsWindow] AutoDiscoverCompanella completed");
+                }
+                
+                // Set initial theme selection
+                try
+                {
+                    SetThemeComboBoxSelection(SettingsService.Settings.ThemeColor);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SettingsWindow] SetThemeComboBoxSelection failed: {ex.Message}");
+                }
+                
+                Console.WriteLine("[SettingsWindow] Constructor completed successfully");
             }
-            
-            // Set initial theme selection
-            SetThemeComboBoxSelection(SettingsService.Settings.ThemeColor);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SettingsWindow] Constructor failed: {ex.Message}");
+                Console.WriteLine($"[SettingsWindow] Stack trace: {ex.StackTrace}");
+                throw;
+            }
         }
 
         private void SetThemeComboBoxSelection(string hexColor)
@@ -192,40 +217,68 @@ namespace OsuTag.Views
 
         private void SaveSettings()
         {
-            SettingsService.Settings.ProcessCovers = ProcessCovers;
-            SettingsService.Settings.CreateBackups = CreateBackups;
-            SettingsService.Settings.RememberSongsPath = RememberSongsPath;
-            SettingsService.Settings.SmartScan = SmartScan;
-            SettingsService.Settings.SortByMostPlayed = SortByMostPlayed;
-            SettingsService.Settings.TelemetryEnabled = TelemetryEnabled;
-            SettingsService.Settings.DiscordRpcEnabled = DiscordRpcEnabled;
-            SettingsService.Settings.CheckForUpdates = CheckForUpdates;
-            SettingsService.Settings.PreviewVolume = PreviewVolume;
-            SettingsService.Settings.ThemeColor = SelectedTheme;
-            SettingsService.Save();
-            
-            // Handle Discord RPC changes
-            DiscordRpcService.HandleSettingsChanged();
+            try
+            {
+                Console.WriteLine("[SettingsWindow] SaveSettings called");
+                SettingsService.Settings.ProcessCovers = ProcessCovers;
+                SettingsService.Settings.CreateBackups = CreateBackups;
+                SettingsService.Settings.RememberSongsPath = RememberSongsPath;
+                SettingsService.Settings.SmartScan = SmartScan;
+                SettingsService.Settings.SortByMostPlayed = SortByMostPlayed;
+                SettingsService.Settings.TelemetryEnabled = TelemetryEnabled;
+                SettingsService.Settings.DiscordRpcEnabled = DiscordRpcEnabled;
+                SettingsService.Settings.CheckForUpdates = CheckForUpdates;
+                SettingsService.Settings.PreviewVolume = PreviewVolume;
+                SettingsService.Settings.ThemeColor = SelectedTheme;
+                Console.WriteLine("[SettingsWindow] All settings assigned");
+                
+                SettingsService.Save();
+                Console.WriteLine("[SettingsWindow] Settings saved to file");
+                
+                // Handle Discord RPC changes - Temporarily disabled for debugging
+                /*
+                try
+                {
+                    DiscordRpcService.HandleSettingsChanged();
+                    Console.WriteLine("[SettingsWindow] Discord RPC settings updated");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SettingsWindow] Discord RPC update failed: {ex.Message}");
+                }
+                */
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SettingsWindow] SaveSettings failed: {ex.Message}");
+                Console.WriteLine($"[SettingsWindow] Stack trace: {ex.StackTrace}");
+                throw;
+            }
         }
 
         private void Save_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
+                Console.WriteLine("[SettingsWindow] Save button clicked");
                 SaveSettings();
-                App.ApplyTheme(SelectedTheme);
-                Close(true);
+                Console.WriteLine("[SettingsWindow] Settings saved successfully");
+                
+                Console.WriteLine("[SettingsWindow] About to close window");
+                Close();
+                Console.WriteLine("[SettingsWindow] Window closed successfully");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SettingsWindow] Save failed: {ex.Message}");
-                Close(false);
+                Console.WriteLine($"[SettingsWindow] Save_Click failed: {ex.Message}");
+                Console.WriteLine($"[SettingsWindow] Stack trace: {ex.StackTrace}");
             }
         }
 
         private void Cancel_Click(object? sender, RoutedEventArgs e)
         {
-            Close(false);
+            Console.WriteLine("[SettingsWindow] Cancel button clicked");
+            Close();
         }
 
         private async void CheckForUpdates_Click(object? sender, RoutedEventArgs e)

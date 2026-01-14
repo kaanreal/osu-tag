@@ -36,103 +36,88 @@ namespace OsuTag.Services
         }
 
 #if WINDOWS
-        // Windows Native Player using Windows Media Player COM
+        // Windows Native Player using winmm.dll (mciSendString)
+        // This is lightweight and avoids COM threading issues associated with WMP/OCX
         internal static class WindowsNativePlayer
         {
-            private static dynamic? _player;
-            private static readonly object _playerLock = new object();
+            [DllImport("winmm.dll")]
+            private static extern long mciSendString(string strCommand, StringBuilder? strReturn, int iReturnLength, IntPtr hwndCallback);
+
+            [DllImport("winmm.dll")]
+            private static extern int mciGetErrorString(int errCode, StringBuilder strReturn, int iReturnLength);
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+            private static extern uint GetShortPathName([MarshalAs(UnmanagedType.LPTStr)] string lpszLongPath, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszShortPath, uint cchBuffer);
 
             public static void Play(string path, int startTimeMs, float volume)
             {
-                Task.Run(() => {
-                    try
+                // Stop any previous playback first to be safe
+                Stop();
+
+                try
+                {
+                    // Convert to short path to avoid quote/space issues in MCI commands
+                    StringBuilder shortPath = new StringBuilder(255);
+                    GetShortPathName(path, shortPath, (uint)shortPath.Capacity);
+                    string playPath = shortPath.ToString();
+
+                    if (string.IsNullOrEmpty(playPath))
                     {
-                        // Validate file exists
-                        if (!File.Exists(path))
-                        {
-                            Console.WriteLine($"[AudioService] Audio file not found: {path}");
-                            return;
-                        }
-
-                        lock (_playerLock)
-                        {
-                            try
-                            {
-                                // Create Windows Media Player COM object
-                                if (_player == null)
-                                {
-                                    Type? playerType = Type.GetTypeFromProgID("WMPlayer.OCX");
-                                    if (playerType != null)
-                                    {
-                                        _player = Activator.CreateInstance(playerType);
-                                        Console.WriteLine("[AudioService] Created Windows Media Player COM object");
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine("[AudioService] ERROR: Could not create Windows Media Player COM object");
-                                        return;
-                                    }
-                                }
-
-                                // Stop any current playback
-                                try { _player.controls.stop(); } catch { }
-
-                                // Set the URL
-                                _player.URL = path;
-                                
-                                // Set volume (0-100 range)
-                                _player.settings.volume = (int)Math.Clamp(volume, 0, 100);
-                                
-                                // Wait a bit for the file to load
-                                System.Threading.Thread.Sleep(100);
-                                
-                                // Seek to preview time (in seconds)
-                                if (startTimeMs > 0)
-                                {
-                                    double startTimeSec = startTimeMs / 1000.0;
-                                    _player.controls.currentPosition = startTimeSec;
-                                }
-                                
-                                // Play
-                                _player.controls.play();
-                                
-                                Console.WriteLine($"[AudioService] Playing preview: {Path.GetFileName(path)} at {startTimeMs}ms, volume: {volume}");
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"[AudioService] Exception in Windows Media Player: {ex.Message}");
-                                // Try to recreate player on next attempt
-                                _player = null;
-                            }
-                        }
+                        // Fallback to manual quoting if short path fails
+                        playPath = $"\"{path}\"";
                     }
-                    catch (Exception ex)
+
+                    // Open the file
+                    string alias = "osutag_preview";
+                    
+                    // Close just in case
+                    mciSendString($"close {alias}", null, 0, IntPtr.Zero);
+
+                    string openCommand = $"open {playPath} type mpegvideo alias {alias}";
+                    int result = (int)mciSendString(openCommand, null, 0, IntPtr.Zero);
+
+                    if (result != 0)
                     {
-                        Console.WriteLine($"[AudioService] Exception in Play: {ex.Message}");
+                        StringBuilder sb = new StringBuilder(128);
+                        mciGetErrorString(result, sb, 128);
+                        Console.WriteLine($"[AudioService] MCI Open Error: {sb}");
+                        return;
                     }
-                });
+
+                    // Set volume (0-1000)
+                    int mciVolume = (int)(volume * 10);
+                    mciSendString($"setaudio {alias} volume to {mciVolume}", null, 0, IntPtr.Zero);
+
+                    // Seek if needed
+                    if (startTimeMs > 0)
+                    {
+                        mciSendString($"seek {alias} to {startTimeMs}", null, 0, IntPtr.Zero);
+                    }
+
+                    // Play
+                    mciSendString($"play {alias}", null, 0, IntPtr.Zero);
+                    Console.WriteLine($"[AudioService] Playing {Path.GetFileName(path)} via MCI");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AudioService] Windows Play Exception: {ex.Message}");
+                }
             }
 
             public static void Stop()
             {
-                Task.Run(() => {
-                    try
-                    {
-                        lock (_playerLock)
-                        {
-                            if (_player != null)
-                            {
-                                try
-                                {
-                                    _player.controls.stop();
-                                    _player.close();
-                                }
-                                catch { }
-                            }
-                        }
-                    }
-                    catch { }
-                });
+                try
+                {
+                    string alias = "osutag_preview";
+                    mciSendString($"stop {alias}", null, 0, IntPtr.Zero);
+                    mciSendString($"close {alias}", null, 0, IntPtr.Zero);
+                }
+                catch { }
+            }
+
+            public static void Dispose()
+            {
+                Stop();
             }
         }
 #endif
@@ -245,8 +230,8 @@ namespace OsuTag.Services
 
             if (PlatformService.IsWindows)
             {
-                _useWindowsNative = true;
-                Console.WriteLine("[AudioService] Using Windows native audio (mciSendString)");
+                _useWindowsNative = true; 
+                Console.WriteLine("[AudioService] Windows audio initialized (MCI)");
             }
             else if (PlatformService.IsMacOS)
             {
@@ -356,7 +341,21 @@ namespace OsuTag.Services
 
         public void Dispose()
         {
+            Console.WriteLine("[AudioService] Disposing audio service");
             Stop();
+            
+            if (_useWindowsNative)
+            {
+#if WINDOWS
+                WindowsNativePlayer.Dispose();
+#endif
+            }
+            else if (_useMacNative)
+            {
+#if !WINDOWS
+                MacNativePlayer.Dispose();
+#endif
+            }
         }
     }
 }

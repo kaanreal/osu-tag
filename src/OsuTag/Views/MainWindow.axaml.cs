@@ -75,7 +75,7 @@ namespace OsuTag.Views
                 {
                     // Small delay to prevent accidental triggers (200ms)
                     Console.WriteLine("[MainWindow] Waiting 200ms before playing...");
-                    await Task.Delay(200, currentToken.Token);
+                    await Task.Delay(100, currentToken.Token);
 
                     // Check if hover was cancelled
                     if (currentToken.Token.IsCancellationRequested)
