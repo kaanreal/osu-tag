@@ -98,7 +98,7 @@
                             Padding="12,8" BorderBrush="#FF57A0" BorderThickness="2">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="❤️" FontSize="14" VerticalAlignment="Center"/>
-                            <TextBlock Text="buy me osu! supporter goog" FontSize="13" VerticalAlignment="Center"/>
+                            <TextBlock Text="buy me osu! supporter" FontSize="13" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Content="Select All" Classes="HeaderButton" Command="{Binding SelectAllCommand}"/>

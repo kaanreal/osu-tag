@@ -1,7 +1,7 @@
 # osu!tag
 
 <p align="center">
-  <img src="src/OsuTag/Assets/app.ico" alt="osu!tag Logo" width="128">
+  <img src="src/OsuTag/Assets/logo.png" alt="osu!tag Logo" width="128">
 </p>
 
 <p align="center">
@@ -20,34 +20,34 @@
 
 ## Features
 
-* **Batch Export** - Process and tag multiple beatmaps simultaneously.
-* **Metadata Tagging** - Automatically applies ID3 tags including Artist, Title, and Album info.
-* **Cover Art Extraction** - Extracts beatmap backgrounds and embeds them as album art.
-* **Modern Interface** - Clean glassmorphism design built with Avalonia.
-* **Context Actions** - Right-click support to view maps online, open local folders, or export backgrounds.
-* **Incremental Scanning** - Only scans for new beatmap folders on subsequent launches.
-* **Audio Previews** - Preview map audio by hovering over cards.
-* **Path Persistence** - Automatically remembers and loads your Songs folder.
-* **Companella! Integration** - Detects Companella! for play count statistics.
-* **Update Checker** - Notifies you of new releases on startup.
-* **Anonymous Telemetry** - Optional usage statistics to assist with development.
+-   **Batch Export** - Process and tag multiple beatmaps simultaneously.
+-   **Metadata Tagging** - Automatically applies ID3 tags including Artist, Title, and Album info.
+-   **Cover Art Extraction** - Extracts beatmap backgrounds and embeds them as album art.
+-   **Modern Interface** - Clean glassmorphism design built with Avalonia.
+-   **Context Actions** - Right-click support to view maps online, open local folders, or export backgrounds.
+-   **Incremental Scanning** - Only scans for new beatmap folders on subsequent launches.
+-   **Audio Previews** - Preview map audio by hovering over cards.
+-   **Path Persistence** - Automatically remembers and loads your Songs folder.
+-   **Companella! Integration** - Detects ([Companella!](https://github.com/Leinadix/companella)) for play count statistics.
+-   **Update Checker** - Notifies you of new releases on startup.
+-   **Anonymous Telemetry** - Optional usage statistics to assist with development.
 
 ## Installation
 
 ### Requirements
 
-* **Windows**: Windows 10/11
-* **macOS**: macOS 10.15 or newer
-* **Linux**: Distributions supporting GLibc (Ubuntu, Fedora, etc.)
-* **.NET 8.0 Runtime** (Optional if using the self-contained installer)
+-   **Windows**: Windows 10/11
+-   **macOS**: macOS 10.15 or newer
+-   **Linux**: Distributions supporting GLibc (Ubuntu, Fedora, etc.)
+-   **.NET 8.0 Runtime** (Optional if using the self-contained installer)
 
 ### Download
 
 1. Go to the Releases page.
 2. Download the version for your OS:
-   - Windows: osu-tag-win-installer.exe or .zip
-   - macOS: osu-tag-mac.zip
-   - Linux: osu-tag-linux.zip
+    - Windows: osu-tag-win-installer.exe or .zip
+    - macOS: osu-tag-mac.zip (Needs ([Sentinel](https://github.com/alienator88/Sentinel)))
+    - Linux: osu-tag-linux.zip
 3. Launch the application.
 
 ## Usage
@@ -59,10 +59,10 @@
 
 ## Tech Stack
 
-* **Framework**: Avalonia UI (.NET 8.0)
-* **Image Processing**: SixLabors.ImageSharp
-* **Audio Tagging**: TagLibSharp
-* **Audio Playback**: LibVLCSharp / NSSound
+-   **Framework**: Avalonia UI (.NET 8.0)
+-   **Image Processing**: SixLabors.ImageSharp
+-   **Audio Tagging**: TagLibSharp
+-   **Audio Playback**: LibVLCSharp / NSSound
 
 ## License
 
