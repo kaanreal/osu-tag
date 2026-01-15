@@ -245,10 +245,18 @@ namespace OsuTag.ViewModels
         public ObservableCollection<object> SelectedItems
         {
             get => _selectedItems;
-            set => SetProperty(ref _selectedItems, value);
+            set 
+            {
+                if (SetProperty(ref _selectedItems, value))
+                {
+                    OnPropertyChanged(nameof(SelectedCount));
+                    OnPropertyChanged(nameof(HasSelectedMaps));
+                }
+            }
         }
 
         public int SelectedCount => _selectedItems.Count;
+        public bool HasSelectedMaps => SelectedCount > 0;
 
         private SelectedItemInfo? _lastSelectedItem;
         public SelectedItemInfo? LastSelectedItem
@@ -644,9 +652,9 @@ namespace OsuTag.ViewModels
                 await LoadCompanellaPlayCounts();
                 FilterMaps();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[MainViewModel] RefreshCompanellaSorting failed: {ex.Message}");
+                // Silent failure
             }
         }
 
@@ -772,6 +780,7 @@ namespace OsuTag.ViewModels
         public ICommand OpenBeatmapUrlCommand { get; }
         public ICommand OpenDirectoryCommand { get; }
         public ICommand ExportBackgroundCommand { get; }
+        public ICommand OpenSupporterUrlCommand { get; }
 
         public MainViewModel()
         {
@@ -800,6 +809,7 @@ namespace OsuTag.ViewModels
             RemoveItemCommand = new RelayCommand(param => RemoveItem(param as SelectedItemInfo));
             EditItemCommand = new RelayCommand(param => EditItem(param as SelectedItemInfo));
             ClearCacheCommand = new RelayCommand(_ => ClearCache());
+            OpenSupporterUrlCommand = new RelayCommand(_ => OpenSupporterUrl());
             OpenBeatmapUrlCommand = new RelayCommand(param => OpenBeatmapUrl(param as MapItemGroup));
             OpenDirectoryCommand = new RelayCommand(param => OpenDirectory(param as MapItemGroup));
             ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
@@ -891,6 +901,7 @@ namespace OsuTag.ViewModels
                     DisplayName = $"{OverlayMapGroup.Artist} - {OverlayMapGroup.Title}",
                     SubDisplayName = diff.DifficultyName 
                 };
+                IsBottomBarExpanded = false;
             }
             
             RefreshSelectedItems();
@@ -933,6 +944,7 @@ namespace OsuTag.ViewModels
                 MapGroup = group, 
                 DisplayName = $"{group.Artist} - {group.Title}" 
             };
+            IsBottomBarExpanded = false;
             RefreshSelectedItems();
         }
 
@@ -955,9 +967,8 @@ namespace OsuTag.ViewModels
                     await RefreshCompanellaSorting();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[MainViewModel] Failed to open settings: {ex.Message}");
             }
         }
 
@@ -1416,6 +1427,7 @@ namespace OsuTag.ViewModels
                     {
                         lastUpdate = now;
                         int progress = (int)((currentProcessed / (double)totalFolders) * 100);
+                        ProgressPercentage = progress;
 
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
@@ -1658,22 +1670,20 @@ namespace OsuTag.ViewModels
             {
                 if (group.IsStack)
                 {
-                    // For multi-audio maps/stacks, add selected difficulties
-                    // Previously we used UniqueAudioFiles, but now we allow selecting individual difficulties from the overlay
                     foreach (var diff in group.Difficulties.Where(d => d.IsSelected))
                     {
-                        newSelection.Add(new SelectedItemInfo
+                        var info = new SelectedItemInfo
                         {
                             MapGroup = group,
-                            AudioFile = null, // Or create a dummy one if needed, but we used DiffName mainly
+                            AudioFile = null,
                             DisplayName = $"{group.Artist} - {group.Title}",
-                            SubDisplayName = diff.DifficultyName // This is now the Version string (e.g. "Song Name")
-                        });
+                            SubDisplayName = diff.DifficultyName
+                        };
+                        newSelection.Add(info);
                     }
                 }
                 else if (group.IsSelected)
                 {
-                    // For simple maps, add the group
                     newSelection.Add(new SelectedItemInfo
                     {
                         MapGroup = group,
@@ -1686,12 +1696,21 @@ namespace OsuTag.ViewModels
 
             SelectedItems = new ObservableCollection<object>(newSelection);
             
+            // Manage LastSelectedItem to prevent stale/incorrect collapsed state details
             if (SelectedCount == 0)
             {
+                LastSelectedItem = null;
                 IsBottomBarExpanded = false;
+            }
+            else if (LastSelectedItem == null || !newSelection.Any(x => x is SelectedItemInfo info && info.MapGroup == LastSelectedItem.MapGroup && info.SubDisplayName == LastSelectedItem.SubDisplayName))
+            {
+                // If current LastSelectedItem is gone or null, pick the actual last one from current selection
+                var last = newSelection.LastOrDefault() as SelectedItemInfo;
+                if (last != null) LastSelectedItem = last;
             }
 
             OnPropertyChanged(nameof(SelectedCount));
+            OnPropertyChanged(nameof(HasSelectedMaps));
             ((RelayCommand)StartConversionCommand).RaiseCanExecuteChanged();
         }
 
@@ -2017,6 +2036,16 @@ namespace OsuTag.ViewModels
                 CompanellaStatus = $"Error scanning for Companella: {ex.Message}";
             }
         }
+        private void OpenSupporterUrl()
+        {
+            var url = "https://osu.ppy.sh/store/products/supporter-tag?target=Kxxn";
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+            }
+            catch { /* Ignore */ }
+        }
+
         private void OpenBeatmapUrl(MapItemGroup? group)
         {
             if (group == null) return;
@@ -2121,9 +2150,8 @@ namespace OsuTag.ViewModels
                     }
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Startup update check failed: {ex.Message}");
             }
         }
 

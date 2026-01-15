@@ -47,20 +47,15 @@ public partial class App : Application
     {
         try
         {
-            Console.WriteLine($"[App] ApplyTheme called with color: {hexColor}");
-            
             if (string.IsNullOrEmpty(hexColor))
             {
-                Console.WriteLine("[App] hexColor is null or empty, skipping");
                 return;
             }
             
             var color = Avalonia.Media.Color.Parse(hexColor);
-            Console.WriteLine($"[App] Parsed color: {color}");
             
             if (Application.Current == null)
             {
-                Console.WriteLine("[App] Application.Current is null!");
                 return;
             }
             
@@ -72,13 +67,9 @@ public partial class App : Application
                 {
                     // Create a new brush instead of modifying the existing one
                     Application.Current.Resources["AccentBrush"] = new Avalonia.Media.SolidColorBrush(color);
-                    Console.WriteLine("[App] Updated AccentBrush");
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[App] Error updating AccentBrush: {ex.Message}");
-            }
+            catch { }
             
             // Update AccentHoverBrush
             try
@@ -87,13 +78,9 @@ public partial class App : Application
                     hoverObj is Avalonia.Media.SolidColorBrush hoverBrush)
                 {
                     Application.Current.Resources["AccentHoverBrush"] = new Avalonia.Media.SolidColorBrush(color);
-                    Console.WriteLine("[App] Updated AccentHoverBrush");
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[App] Error updating AccentHoverBrush: {ex.Message}");
-            }
+            catch { }
 
             // Update AccentShadow
             try
@@ -106,12 +93,8 @@ public partial class App : Application
                 });
                 
                 Application.Current.Resources["AccentShadow"] = shadow;
-                Console.WriteLine("[App] Updated AccentShadow");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[App] Error updating AccentShadow: {ex.Message}");
-            }
+            catch { }
             
             // Update AccentSubtleBrush
             try
@@ -121,13 +104,9 @@ public partial class App : Application
                 {
                     var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
                     Application.Current.Resources["AccentSubtleBrush"] = new Avalonia.Media.SolidColorBrush(subtleColor);
-                    Console.WriteLine("[App] Updated AccentSubtleBrush");
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[App] Error updating AccentSubtleBrush: {ex.Message}");
-            }
+            catch { }
 
             // Update AccentHoverShadow
             try
@@ -139,19 +118,9 @@ public partial class App : Application
                     Color = hoverShadowColor 
                 });
                 Application.Current.Resources["AccentHoverShadow"] = hoverShadow;
-                Console.WriteLine("[App] Updated AccentHoverShadow");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[App] Error updating AccentHoverShadow: {ex.Message}");
-            }
-            
-            Console.WriteLine("[App] ApplyTheme completed successfully");
+            catch { }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[App] ApplyTheme failed: {ex.Message}");
-            Console.WriteLine($"[App] Stack trace: {ex.StackTrace}");
-        }
+        catch { }
     }
 }

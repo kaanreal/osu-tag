@@ -77,7 +77,10 @@ namespace OsuTag.Views
                     if (progressText != null) progressText.Text = $"{(int)p}%";
                 });
 
-                await UpdateService.Instance.DownloadUpdateAsync(_updateInfo.DownloadUrl, progress);
+                if (_updateInfo?.DownloadUrl != null)
+                {
+                    await UpdateService.Instance.DownloadUpdateAsync(_updateInfo.DownloadUrl, progress);
+                }
 
                 // Download complete
                 if (progressText != null) progressText.Text = "Installing...";
@@ -85,7 +88,7 @@ namespace OsuTag.Views
 
                 UpdateService.Instance.ApplyUpdate();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Show error state (simplified)
                 if (progressText != null) 

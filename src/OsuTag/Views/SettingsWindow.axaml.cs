@@ -109,20 +109,13 @@ namespace OsuTag.Views
         {
             try
             {
-                Console.WriteLine("[SettingsWindow] Constructor called");
                 InitializeComponent();
-                Console.WriteLine("[SettingsWindow] InitializeComponent completed");
-                
                 DataContext = this;
-                Console.WriteLine("[SettingsWindow] DataContext set");
-                
                 LoadSettings();
-                Console.WriteLine("[SettingsWindow] LoadSettings completed");
                 
                 if (IsCompanellaSupported)
                 {
                     AutoDiscoverCompanella();
-                    Console.WriteLine("[SettingsWindow] AutoDiscoverCompanella completed");
                 }
                 
                 // Set initial theme selection
@@ -130,17 +123,12 @@ namespace OsuTag.Views
                 {
                     SetThemeComboBoxSelection(SettingsService.Settings.ThemeColor);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"[SettingsWindow] SetThemeComboBoxSelection failed: {ex.Message}");
                 }
-                
-                Console.WriteLine("[SettingsWindow] Constructor completed successfully");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[SettingsWindow] Constructor failed: {ex.Message}");
-                Console.WriteLine($"[SettingsWindow] Stack trace: {ex.StackTrace}");
                 throw;
             }
         }
@@ -231,28 +219,21 @@ namespace OsuTag.Views
                 SettingsService.Settings.CheckForUpdates = CheckForUpdates;
                 SettingsService.Settings.PreviewVolume = PreviewVolume;
                 SettingsService.Settings.ThemeColor = SelectedTheme;
-                Console.WriteLine("[SettingsWindow] All settings assigned");
-                
                 SettingsService.Save();
-                Console.WriteLine("[SettingsWindow] Settings saved to file");
                 
                 // Handle Discord RPC changes - Temporarily disabled for debugging
                 /*
                 try
                 {
                     DiscordRpcService.HandleSettingsChanged();
-                    Console.WriteLine("[SettingsWindow] Discord RPC settings updated");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"[SettingsWindow] Discord RPC update failed: {ex.Message}");
                 }
                 */
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[SettingsWindow] SaveSettings failed: {ex.Message}");
-                Console.WriteLine($"[SettingsWindow] Stack trace: {ex.StackTrace}");
                 throw;
             }
         }
@@ -261,24 +242,16 @@ namespace OsuTag.Views
         {
             try
             {
-                Console.WriteLine("[SettingsWindow] Save button clicked");
                 SaveSettings();
-                Console.WriteLine("[SettingsWindow] Settings saved successfully");
-                
-                Console.WriteLine("[SettingsWindow] About to close window");
                 Close();
-                Console.WriteLine("[SettingsWindow] Window closed successfully");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[SettingsWindow] Save_Click failed: {ex.Message}");
-                Console.WriteLine($"[SettingsWindow] Stack trace: {ex.StackTrace}");
             }
         }
 
         private void Cancel_Click(object? sender, RoutedEventArgs e)
         {
-            Console.WriteLine("[SettingsWindow] Cancel button clicked");
             Close();
         }
 

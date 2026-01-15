@@ -80,7 +80,6 @@ namespace OsuTag.Services
                     {
                         StringBuilder sb = new StringBuilder(128);
                         mciGetErrorString(result, sb, 128);
-                        Console.WriteLine($"[AudioService] MCI Open Error: {sb}");
                         return;
                     }
 
@@ -96,11 +95,9 @@ namespace OsuTag.Services
 
                     // Play
                     mciSendString($"play {alias}", null, 0, IntPtr.Zero);
-                    Console.WriteLine($"[AudioService] Playing {Path.GetFileName(path)} via MCI");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"[AudioService] Windows Play Exception: {ex.Message}");
                 }
             }
 
@@ -226,32 +223,21 @@ namespace OsuTag.Services
         {
             if (_isInitialized) return;
 
-            Console.WriteLine("[AudioService] Initializing audio service...");
-
             if (PlatformService.IsWindows)
             {
                 _useWindowsNative = true; 
-                Console.WriteLine("[AudioService] Windows audio initialized (MCI)");
             }
             else if (PlatformService.IsMacOS)
             {
                 _useMacNative = true;
-                Console.WriteLine("[AudioService] Using macOS native audio (NSSound)");
-            }
-            else
-            {
-                Console.WriteLine("[AudioService] WARNING: No native audio support for this platform");
             }
             
-            Console.WriteLine($"[AudioService] Initial volume: {_volume}");
             _isInitialized = true;
         }
 
         public void PlayPreview(string path, int startTimeMs, int? volume = null)
         {
             if (!_isInitialized) Initialize();
-
-            Console.WriteLine($"[AudioService] PlayPreview called: {Path.GetFileName(path)}");
 
             // Debouncing: Cancel any pending playback
             lock (_playbackLock)
@@ -267,7 +253,6 @@ namespace OsuTag.Services
                 // Check if this playback was cancelled
                 if (currentToken.Token.IsCancellationRequested)
                 {
-                    Console.WriteLine("[AudioService] Playback was cancelled before starting");
                     return;
                 }
 
@@ -276,14 +261,12 @@ namespace OsuTag.Services
                 {
                     if (_currentPlayingPath == path)
                     {
-                        Console.WriteLine("[AudioService] Already playing this file, skipping");
                         return;
                     }
                     _currentPlayingPath = path;
                 }
 
                 int finalVolume = volume ?? _volume;
-                Console.WriteLine($"[AudioService] Volume: {finalVolume}, UseWindowsNative: {_useWindowsNative}");
 
                 if (_useWindowsNative)
                 {
@@ -300,24 +283,13 @@ namespace OsuTag.Services
 #endif
                     return;
                 }
-
-                Console.WriteLine("[AudioService] WARNING: No audio backend available!");
             }
-            catch (TaskCanceledException)
-            {
-                Console.WriteLine("[AudioService] Playback was cancelled (TaskCanceledException)");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AudioService] Error in PlayPreview: {ex.Message}");
-                Console.WriteLine($"[AudioService] Stack trace: {ex.StackTrace}");
-            }
+            catch (TaskCanceledException) { }
+            catch (Exception) { }
         }
 
         public void Stop()
         {
-            Console.WriteLine("[AudioService] Stop called");
-
             // Cancel any pending playback
             lock (_playbackLock)
             {
@@ -341,7 +313,6 @@ namespace OsuTag.Services
 
         public void Dispose()
         {
-            Console.WriteLine("[AudioService] Disposing audio service");
             Stop();
             
             if (_useWindowsNative)

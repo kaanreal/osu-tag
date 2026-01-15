@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:OsuTag.ViewModels"
         xmlns:converters="using:OsuTag.Converters"
+        xmlns:controls="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls"
         x:Class="OsuTag.Views.MainWindow"
         Title="osu!tag"
         Width="1400" Height="900"
@@ -45,10 +46,8 @@
         <!-- Premium Header -->
         <Border Grid.Row="0" Background="{StaticResource SurfaceElevatedBrush}" 
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
-                Classes="AnimatedOpacity">
-            <Border.Effect>
-                <DropShadowEffect Color="Black" BlurRadius="20" Opacity="0.1" OffsetY="2"/>
-            </Border.Effect>
+                Classes="AnimatedOpacity"
+                BoxShadow="0 4 20 0 #1A000000">
             
             <Grid Margin="32,0">
                 <Grid.ColumnDefinitions>
@@ -59,7 +58,9 @@
  
                 <!-- Left: App Branding -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Horizontal">
-                    <Border Width="40" Height="40" Background="{DynamicResource AccentBrush}" CornerRadius="10" Margin="0,0,16,0">
+                    <Border Width="40" Height="40" Background="{DynamicResource AccentBrush}" 
+                            CornerRadius="10" Margin="0,0,16,0"
+                            BorderBrush="#FF57A0" BorderThickness="1.5">
                         <Image Source="/Assets/app.ico" Width="28" Height="28" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
@@ -93,6 +94,13 @@
  
                 <!-- Right: Actions -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                    <Button Classes="HeaderButton" Command="{Binding OpenSupporterUrlCommand}" 
+                            Padding="12,8" BorderBrush="#FF57A0" BorderThickness="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="❤️" FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="buy me osu! supporter" FontSize="13" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Content="Select All" Classes="HeaderButton" Command="{Binding SelectAllCommand}"/>
                     <Button Content="Deselect All" Classes="HeaderButton" Command="{Binding DeselectAllCommand}"/>
                     <Button Content="⚙" FontSize="18" Padding="12,8" Classes="HeaderButton" Command="{Binding SettingsCommand}" ToolTip.Tip="Settings"/>
@@ -160,8 +168,6 @@
                                     </TextBox.InnerLeftContent>
                                 </TextBox>
                             </Border>
-                            <!-- Search Hints -->
-                            <!-- Search Hints Removed (Moved to Watermark) -->
                         </StackPanel>
 
                         <!-- Results Badge -->
@@ -184,46 +190,17 @@
                 </StackPanel>
 
 
-                <!-- Map List -->
+                <!-- Map List (Virtualized for 240Hz Performance) -->
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,20,16,24" ClipToBounds="False">
-                    <StackPanel ClipToBounds="False">
-                        <!-- Sleek Scan Progression -->
-                        <Border IsVisible="{Binding IsScanning}" 
-                                Background="{StaticResource SurfaceElevatedBrush}"
-                                CornerRadius="8"
-                                Margin="0,0,0,16"
-                                Padding="16"
-                                BoxShadow="0 4 15 0 #4D000000">
-                             <StackPanel Spacing="12">
-                                 <Grid ColumnDefinitions="*,Auto">
-                                     <TextBlock Text="{Binding ScanStatusMessage}" 
-                                                Foreground="{StaticResource TextPrimaryBrush}"
-                                                FontWeight="SemiBold"/>
-                                     <TextBlock Grid.Column="1" 
-                                                Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}"
-                                                Foreground="{StaticResource AccentBrush}"
-                                                FontWeight="Bold"/>
-                                 </Grid>
-                                 <ProgressBar Value="{Binding ProgressPercentage}" 
-                                              Height="6" 
-                                              CornerRadius="3"
-                                              Foreground="{StaticResource AccentBrush}"
-                                              Background="{StaticResource SurfaceBrush}">
-                                     <ProgressBar.Effect>
-                                         <DropShadowEffect Color="#00FF44" BlurRadius="10" Opacity="0.5"/>
-                                     </ProgressBar.Effect>
-                                 </ProgressBar>
-                             </StackPanel>
-                        </Border>
-
-                        <!-- Maps -->
-                        <ItemsControl ItemsSource="{Binding MapGroups}" ClipToBounds="False">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel ItemWidth="200" ItemHeight="280" ClipToBounds="False"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
+                    <Grid RowDefinitions="*,Auto">
+                        <ItemsRepeater ItemsSource="{Binding MapGroups}">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout ItemsStretch="None" 
+                                                 MinItemWidth="200" 
+                                                 MinItemHeight="280" 
+                                                 Orientation="Horizontal"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
                                 <DataTemplate>
                                     <Border Width="180" Height="260" Margin="0,0,20,20" x:Name="MapCard" ClipToBounds="False">
                                          <Border.Styles>
@@ -235,8 +212,7 @@
                                                          <RotateTransform Angle="{Binding RandomAngle}"/>
                                                      </TransformGroup>
                                                  </Setter>
-                                                  <!-- Entrance Animation: Shuffles from random state into perfect alignment -->
-                                                   <Style.Animations>
+                                                  <Style.Animations>
                                                      <Animation Duration="0:0:1.0" Easing="CubicEaseOut" FillMode="Forward">
                                                          <KeyFrame Cue="0%">
                                                              <Setter Property="Opacity" Value="0"/>
@@ -258,232 +234,122 @@
                                                  </Style.Animations>
                                              </Style>
                                          </Border.Styles>
+    
                                         <Grid PointerEntered="MapCard_PointerEntered" PointerExited="MapCard_PointerExited" Background="Transparent">
                                             <Grid.ContextMenu>
                                                 <ContextMenu>
-                                                    <MenuItem Header="Beatmap Info" 
-                                                              Command="{Binding OpenBeatmapUrlCommand}" 
-                                                              CommandParameter="{Binding}">
-                                                        <MenuItem.Icon>
-                                                            <PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
-                                                        </MenuItem.Icon>
+                                                    <MenuItem Header="Beatmap Info" Command="{Binding OpenBeatmapUrlCommand}" CommandParameter="{Binding}">
+                                                        <MenuItem.Icon><PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/></MenuItem.Icon>
                                                     </MenuItem>
-                                                    <MenuItem Header="Open Directory" 
-                                                              Command="{Binding OpenDirectoryCommand}" 
-                                                              CommandParameter="{Binding}">
-                                                        <MenuItem.Icon>
-                                                            <PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
-                                                        </MenuItem.Icon>
-                                                    </MenuItem>
-                                                    <MenuItem Header="Download Original BG" 
-                                                              Command="{Binding ExportBackgroundCommand}" 
-                                                              CommandParameter="{Binding}">
-                                                        <MenuItem.Icon>
-                                                            <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
-                                                        </MenuItem.Icon>
+                                                    <MenuItem Header="Open Directory" Command="{Binding OpenDirectoryCommand}" CommandParameter="{Binding}">
+                                                        <MenuItem.Icon><PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></MenuItem.Icon>
                                                     </MenuItem>
                                                 </ContextMenu>
                                             </Grid.ContextMenu>
-                                                <!-- ContextMenu Moved to Parent Grid -->
-                                            <!-- </Border.ContextMenu> -->
-                                        <!-- Stack Effect (Back Cards) - Optimized -->
-                                        <!-- Card 3 (Bottom) -->
-                                        <Border Width="180" Height="260" CornerRadius="4" Background="#E0E0E0" Opacity="0.6"
-                                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                                                IsVisible="{Binding IsStack}">
-                                            <Border.RenderTransform>
-                                                <TransformGroup>
-                                                    <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
-                                                    <TranslateTransform Y="-16"/>
-                                                    <RotateTransform Angle="-5"/>
-                                                </TransformGroup>
-                                            </Border.RenderTransform>
-                                        </Border>
-                                        
-                                        <!-- Card 2 (Middle) -->
-                                        <Border Width="180" Height="260" CornerRadius="4" Background="#E8E8E8" Opacity="0.8"
-                                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                                                IsVisible="{Binding IsStack}">
-                                            <Border.RenderTransform>
-                                                <TransformGroup>
-                                                     <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
-                                                     <TranslateTransform Y="-8"/>
-                                                     <RotateTransform Angle="3"/>
-                                                </TransformGroup>
-                                            </Border.RenderTransform>
-                                        </Border>
-
-                                        <!-- Main Card -->
-                                        <Border Width="180" Height="260" CornerRadius="4" Background="White"
-                                                BoxShadow="0 4 16 0 #4D000000">
-                                             <Border.Styles>
-                                                 <!-- Interaction Triggers via Styles (No entrance animation here to avoid conflict) -->
-                                                 <Style Selector="Border">
-                                                     <Setter Property="RenderTransform">
-                                                         <TransformGroup>
-                                                             <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                                             <RotateTransform Angle="0"/>
-                                                         </TransformGroup>
-                                                     </Setter>
-                                                     <Setter Property="Transitions">
-                                                         <Transitions>
-                                                             <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="QuadraticEaseOut"/>
-                                                             <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
-                                                         </Transitions>
-                                                     </Setter>
-                                                 </Style>
-                                                 <Style Selector="Border:pointerover">
-                                                     <Setter Property="RenderTransform" Value="scale(1.05) rotate(2deg)"/>
-                                                     <Setter Property="BoxShadow" Value="0 15 35 0 #33000000"/>
-                                                     <Setter Property="ZIndex" Value="1"/>
-                                                 </Style>
-                                            </Border.Styles>
-                                            <!-- Main Card Content -->
-                                            <Panel>
- 
-                                            <Grid RowDefinitions="*,Auto">
-                                                 <!-- Cover Image (Anchored meticulously to polaroid) -->
-                                                 <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" 
-                                                         CornerRadius="2" ClipToBounds="True">
-                                                     <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" 
-                                                            Stretch="UniformToFill"
-                                                            VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                                 </Border>
- 
-                                                <!-- Info Section -->
-                                                <StackPanel Grid.Row="1" Margin="12,8,12,12">
-                                                    <TextBlock Text="{Binding Title}" 
-                                                               Foreground="#333" FontWeight="SemiBold" FontSize="12" 
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Artist}" 
-                                                               Foreground="{StaticResource AccentBrush}" FontSize="12" 
-                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
-                                                        <TextBlock.Effect>
-                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" Opacity="0.4" OffsetX="0" OffsetY="0"/>
-                                                        </TextBlock.Effect>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" 
-                                                               Foreground="#999" FontSize="10" 
-                                                               TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
-                                                </StackPanel>
- 
-                                                <!-- Selection Glow & Energy Flow -->
-                                                <Border Grid.Row="0" Grid.RowSpan="2"
-                                                        CornerRadius="4"
-                                                        ClipToBounds="True"
-                                                        IsHitTestVisible="False"
-                                                        IsVisible="{Binding IsSelected}">
-                                                    
-                                                    <!-- Animated Entrance/Exit -->
-                                                    <Border.Styles>
-                                                        <Style Selector="Border[IsVisible=true]">
-                                                            <Style.Animations>
-                                                                <Animation Duration="0:0:0.6" Easing="CubicEaseOut" FillMode="Forward">
-                                                                    <KeyFrame Cue="0%">
-                                                                        <Setter Property="Opacity" Value="0"/>
-                                                                        <Setter Property="ScaleTransform.ScaleX" Value="0.95"/>
-                                                                        <Setter Property="ScaleTransform.ScaleY" Value="0.95"/>
-                                                                    </KeyFrame>
-                                                                    <KeyFrame Cue="100%">
-                                                                        <Setter Property="Opacity" Value="1"/>
-                                                                        <Setter Property="ScaleTransform.ScaleX" Value="1.02"/>
-                                                                        <Setter Property="ScaleTransform.ScaleY" Value="1.02"/>
-                                                                    </KeyFrame>
-                                                                </Animation>
-                                                            </Style.Animations>
-                                                        </Style>
-                                                    </Border.Styles>
-
-                                                    <Panel Width="180" Height="260">
-                                                        <!-- Majestic Flowing Border (Energy Stream) -->
-                                                        <Rectangle Stroke="#00FF44"
-                                                                   StrokeThickness="4"
-                                                                   StrokeDashArray="12,8"
-                                                                   RadiusX="4" RadiusY="4">
-                                                            <Rectangle.Styles>
-                                                                <Style Selector="Rectangle">
-                                                                    <Style.Animations>
-                                                                        <Animation Duration="0:0:3" IterationCount="Infinite">
-                                                                            <KeyFrame Cue="0%">
-                                                                                <Setter Property="StrokeDashOffset" Value="0"/>
-                                                                            </KeyFrame>
-                                                                            <KeyFrame Cue="100%">
-                                                                                <Setter Property="StrokeDashOffset" Value="40"/>
-                                                                            </KeyFrame>
-                                                                        </Animation>
-                                                                    </Style.Animations>
-                                                                </Style>
-                                                            </Rectangle.Styles>
-                                                            <Rectangle.Effect>
-                                                                <DropShadowEffect Color="#00FF44" BlurRadius="25" Opacity="0.8"/>
-                                                            </Rectangle.Effect>
-                                                        </Rectangle>
-
-                                                        <!-- Pulse Glow Layer -->
-                                                        <Rectangle Stroke="#00FF44" StrokeThickness="2" RadiusX="4" RadiusY="4" Opacity="0.4">
-                                                            <Rectangle.Styles>
-                                                                <Style Selector="Rectangle">
-                                                                    <Style.Animations>
-                                                                        <Animation Duration="0:0:2" IterationCount="Infinite" PlaybackDirection="Alternate">
-                                                                            <KeyFrame Cue="0%">
-                                                                                <Setter Property="Opacity" Value="0.2"/>
-                                                                            </KeyFrame>
-                                                                            <KeyFrame Cue="100%">
-                                                                                <Setter Property="Opacity" Value="0.6"/>
-                                                                            </KeyFrame>
-                                                                        </Animation>
-                                                                    </Style.Animations>
-                                                                </Style>
-                                                            </Rectangle.Styles>
-                                                        </Rectangle>
+    
+                                            <!-- Stack Effect -->
+                                            <Border Width="180" Height="260" CornerRadius="4" Background="#E0E0E0" Opacity="0.6" IsVisible="{Binding IsStack}">
+                                                <Border.RenderTransform>
+                                                    <TransformGroup><ScaleTransform ScaleX="0.9" ScaleY="0.9"/><TranslateTransform Y="-16"/><RotateTransform Angle="-5"/></TransformGroup>
+                                                </Border.RenderTransform>
+                                            </Border>
+                                            <Border Width="180" Height="260" CornerRadius="4" Background="#E8E8E8" Opacity="0.8" IsVisible="{Binding IsStack}">
+                                                <Border.RenderTransform>
+                                                    <TransformGroup><ScaleTransform ScaleX="0.95" ScaleY="0.95"/><TranslateTransform Y="-8"/><RotateTransform Angle="3"/></TransformGroup>
+                                                </Border.RenderTransform>
+                                            </Border>
+    
+                                            <!-- Main Card Border (Interactions here) -->
+                                            <Border Width="180" Height="260" CornerRadius="4" Background="White" BoxShadow="0 4 12 0 #33000000">
+                                                <Border.Styles>
+                                                    <Style Selector="Border">
+                                                        <Setter Property="Transitions">
+                                                            <Transitions>
+                                                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+                                                            </Transitions>
+                                                        </Setter>
+                                                    </Style>
+                                                    <Style Selector="Border:pointerover">
+                                                        <Setter Property="RenderTransform" Value="scale(1.05) rotate(2deg)"/>
+                                                        <Setter Property="BoxShadow" Value="0 15 35 0 #4D000000"/>
+                                                        <Setter Property="ZIndex" Value="10"/>
+                                                    </Style>
+                                                </Border.Styles>
+                                                <Panel>
+                                                    <Grid RowDefinitions="*,Auto">
+                                                        <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" CornerRadius="2" ClipToBounds="True">
+                                                            <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="LowQuality"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Row="1" Margin="12,8,12,12">
+                                                            <TextBlock Text="{Binding Title}" Foreground="#333" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
+                                                                <TextBlock.Effect><DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" Opacity="0.4" OffsetX="0" OffsetY="0"/></TextBlock.Effect>
+                                                            </TextBlock>
+                                                            <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" Foreground="#999" FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+                                                        </StackPanel>
                                                         
-                                                    </Panel>
-                                                </Border>
-
-
-
-                                                <!-- Click Area -->
-                                                <Button Grid.Row="0" Grid.RowSpan="2" 
-                                                        Background="Transparent" 
-                                                        Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                                    <Button.Styles>
-                                                        <Style Selector="Button">
-                                                            <Setter Property="Template">
-                                                                <ControlTemplate>
-                                                                    <Panel Background="Transparent"/>
-                                                                </ControlTemplate>
-                                                            </Setter>
-                                                        </Style>
-                                                    </Button.Styles>
-                                                </Button>
-                                            </Grid>
-                                        </Panel>
+                                                        <!-- Premium Selection Border -->
+                                                        <Border Grid.Row="0" Grid.RowSpan="2" CornerRadius="4" IsHitTestVisible="False" IsVisible="{Binding IsSelected}">
+                                                            <Panel Width="184" Height="264" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Rectangle Stroke="#00FF44" StrokeThickness="3" StrokeDashArray="12,8" RadiusX="4" RadiusY="4">
+                                                                    <Rectangle.Styles>
+                                                                        <Style Selector="Rectangle">
+                                                                            <Style.Animations>
+                                                                                <Animation Duration="0:0:3" IterationCount="Infinite">
+                                                                                    <KeyFrame Cue="0%">
+                                                                                        <Setter Property="StrokeDashOffset" Value="0"/>
+                                                                                    </KeyFrame>
+                                                                                    <KeyFrame Cue="100%">
+                                                                                        <Setter Property="StrokeDashOffset" Value="40"/>
+                                                                                    </KeyFrame>
+                                                                                </Animation>
+                                                                            </Style.Animations>
+                                                                        </Style>
+                                                                    </Rectangle.Styles>
+                                                                    <Rectangle.Effect><DropShadowEffect Color="#00FF44" BlurRadius="15" Opacity="0.6"/></Rectangle.Effect>
+                                                                </Rectangle>
+    
+                                                                <!-- Pulse Glow Layer -->
+                                                                <Rectangle Stroke="#00FF44" StrokeThickness="2" RadiusX="4" RadiusY="4" Opacity="0.4">
+                                                                    <Rectangle.Styles>
+                                                                        <Style Selector="Rectangle">
+                                                                            <Style.Animations>
+                                                                                <Animation Duration="0:0:2" IterationCount="Infinite" PlaybackDirection="Alternate">
+                                                                                    <KeyFrame Cue="0%">
+                                                                                        <Setter Property="Opacity" Value="0.2"/>
+                                                                                    </KeyFrame>
+                                                                                    <KeyFrame Cue="100%">
+                                                                                        <Setter Property="Opacity" Value="0.6"/>
+                                                                                    </KeyFrame>
+                                                                                </Animation>
+                                                                            </Style.Animations>
+                                                                        </Style>
+                                                                    </Rectangle.Styles>
+                                                                </Rectangle>
+                                                            </Panel>
+                                                        </Border>
+    
+                                                        <Button Grid.Row="0" Grid.RowSpan="2" Background="Transparent" Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                                            <Button.Template><ControlTemplate><Panel Background="Transparent"/></ControlTemplate></Button.Template>
+                                                        </Button>
+                                                    </Grid>
+                                                </Panel>
+                                            </Border>
+                                        </Grid>
                                     </Border>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- Load More Maps Section -->
-                        <Grid Margin="0,16,0,16">
-                            <Button Content="Load More Maps" 
-                                    Classes="Secondary"
-                                    HorizontalAlignment="Center" 
-                                    Command="{Binding LoadMoreCommand}"
-                                    IsVisible="{Binding CanLoadMore}"/>
-                             
-                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center"
-                                        IsVisible="{Binding IsLoadingMore}">
-                                <ProgressBar IsIndeterminate="True" Width="100" />
-                                <TextBlock Text="Loading more..." FontSize="13" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+    
+                        <!-- Load More Section -->
+                        <Grid Grid.Row="1" Margin="0,16,16,32">
+                            <Button Content="Load More Maps" Classes="Secondary" HorizontalAlignment="Center" Command="{Binding LoadMoreCommand}" IsVisible="{Binding CanLoadMore}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" IsVisible="{Binding IsLoadingMore}">
+                                <ProgressBar IsIndeterminate="True" Width="100" /><TextBlock Text="Loading more..." FontSize="13" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
-
-                        
-                    </StackPanel>
+                    </Grid>
                 </ScrollViewer>
 
 
@@ -503,34 +369,33 @@
 
         <!-- Floating Bottom Selection Bar -->
         <Border Grid.Row="1" 
-                VerticalAlignment="Bottom" 
-                Margin="32,0,32,32"
-                Background="{StaticResource SurfaceElevatedBrush}" 
+                IsVisible="{Binding HasSelectedMaps}"
+                VerticalAlignment="Bottom"
+                Margin="22"
                 CornerRadius="24"
+                Background="{StaticResource SurfaceElevatedBrush}"
+                BoxShadow="0 10 40 0 #66000000"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1"
-                BoxShadow="0 10 30 0 #4D000000"
-                IsVisible="{Binding SelectedCount, Converter={StaticResource NumericToBoolConverter}}"
-                Height="{Binding IsBottomBarExpanded, Converter={StaticResource BoolToHeightConverter}, ConverterParameter='80,500'}"
-                Opacity="{Binding SelectedCount, Converter={StaticResource BoolToDoubleConverter}, ConverterParameter='0,1'}"
-                ClipToBounds="False">
-
-            <Border.RenderTransform>
-                <!-- Majestic Entrance: If SelectedCount > 0, translate to 0. Else, hide at 300. -->
-                <Binding Path="SelectedCount" Converter="{StaticResource BoolToTransformConverter}" ConverterParameter="translate(0, 300px)|translate(0, 0px)"/>
-            </Border.RenderTransform>
+                Opacity="{Binding HasSelectedMaps, Converter={StaticResource BoolToDoubleConverter}, ConverterParameter='0,1'}"
+                IsHitTestVisible="{Binding HasSelectedMaps}"
+                Height="{Binding IsBottomBarExpanded, Converter={StaticResource BoolToDoubleConverter}, ConverterParameter='80,480'}"
+                ClipToBounds="True">
+            
             <Border.Transitions>
                 <Transitions>
-                    <DoubleTransition Property="Height" Duration="0:0:0.4" Easing="QuadraticEaseOut"/>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.4"/>
-                    <ThicknessTransition Property="Margin" Duration="0:0:0.5" Easing="QuarticEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.6" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Height" Duration="0:0:0.4" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="CubicEaseOut"/>
                 </Transitions>
             </Border.Transitions>
 
+
+
             <Grid RowDefinitions="80,*">
                 <!-- Collapsed View / Header of Bar -->
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="24,0">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="24,0"
+                      Background="Transparent">
+
                     <!-- Latest Item Info -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="16"
                                 IsVisible="{Binding !IsBottomBarExpanded}">
@@ -552,7 +417,7 @@
                                    FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Expand/Collapse Toggle Area (Center) -->
+                    <!-- Expand/Collapse Toggle Area (Original State - Classes="Secondary") -->
                     <Button Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
                             Background="Transparent" BorderThickness="0" Padding="0"
                             Classes="Secondary"
@@ -561,10 +426,14 @@
                                     FontSize="14" HorizontalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                     </Button>
 
+
+
+
                     <!-- Quick Actions -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="16">
                         <!-- Minimal Path View in Collapsed State -->
-                        <Border IsVisible="{Binding !IsBottomBarExpanded}" 
+                        <!-- Minimal Path View - Only shown when expanded to keep collapsed view clean for "Last Song" -->
+                        <Border IsVisible="{Binding IsBottomBarExpanded}" 
                                 Background="{StaticResource SurfaceBrush}" 
                                 CornerRadius="12" Padding="12,8" 
                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
@@ -705,7 +574,9 @@
                                              Background="White"
                                              BoxShadow="0 2 8 0 #1A000000"
                                              PointerEntered="DifficultyCard_PointerEntered"
-                                             PointerExited="DifficultyCard_PointerExited">
+                                             PointerExited="DifficultyCard_PointerExited"
+                                             Cursor="Hand">
+
                                          <!-- Reusing Main Card Styles manually for now or duplicated -->
                                            <Border.Styles>
                                                <Style Selector="Border">
@@ -756,19 +627,21 @@
                                           <Grid RowDefinitions="*,Auto">
                                               <!-- Cover Image -->
                                               <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" ClipToBounds="True">
-                                                  <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" Stretch="UniformToFill"/>
+                                                  <Image Source="{Binding CoverPath, Converter={StaticResource PathToBitmapConverter}}" 
+                                                         Stretch="UniformToFill"
+                                                         RenderOptions.BitmapInterpolationMode="LowQuality"/>
                                               </Border>
 
                                               <!-- Info Section -->
                                               <StackPanel Grid.Row="1" Margin="12,8,12,12">
                                                   <!-- Title -->
                                                   <TextBlock Text="{Binding Title}" 
-                                                             Foreground="#222" FontWeight="SemiBold" FontSize="12" 
-                                                             TextTrimming="CharacterEllipsis"/>
+                                                              Foreground="#222" FontWeight="SemiBold" FontSize="12" 
+                                                              TextTrimming="CharacterEllipsis"/>
                                                   <!-- Artist -->
                                                   <TextBlock Text="{Binding Artist}" 
-                                                             Foreground="{StaticResource AccentBrush}" FontSize="11" 
-                                                             TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                              Foreground="{StaticResource AccentBrush}" FontSize="11" 
+                                                              TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
                                                   
                                                   <!-- Audio Indicator Only -->
                                                   <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="4">
@@ -956,5 +829,94 @@
                 </StackPanel>
             </Grid>
         </Panel>
+        <!-- Loading Overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="2" 
+                IsVisible="{Binding IsScanning}" 
+                Background="#990A0E14" 
+                ZIndex="200"
+                Classes="AnimatedOpacity">
+            <Border Background="{StaticResource SurfaceElevatedBrush}"
+                    CornerRadius="24"
+                    Padding="40"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    BoxShadow="0 10 40 0 #66000000"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1">
+                <StackPanel Spacing="24" Width="400">
+                    <TextBlock Text="Scanning Beatmaps" 
+                               FontSize="20" FontWeight="Bold" 
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center"/>
+                    
+                    <Grid RowDefinitions="Auto,Auto">
+                        <ProgressBar Value="{Binding ProgressPercentage}" 
+                                     Height="8" 
+                                     CornerRadius="4"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     Background="{StaticResource SurfaceBrush}"/>
+                        
+                        <TextBlock Grid.Row="1" 
+                                   Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" 
+                                   FontSize="12" FontWeight="Bold" 
+                                   Foreground="{StaticResource AccentBrush}"
+                                   HorizontalAlignment="Right"
+                                   Margin="0,8,0,0"/>
+                    </Grid>
+                    
+                    <TextBlock Text="{Binding ScanStatusMessage}" 
+                               FontSize="13" 
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- Processing Overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="2" 
+                IsVisible="{Binding IsProcessing}" 
+                Background="#990A0E14" 
+                ZIndex="201"
+                Classes="AnimatedOpacity">
+            <Border Background="{StaticResource SurfaceElevatedBrush}"
+                    CornerRadius="24"
+                    Padding="40"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    BoxShadow="0 10 40 0 #66000000"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1">
+                <StackPanel Spacing="24" Width="400">
+                    <TextBlock Text="Processing MP3s" 
+                               FontSize="20" FontWeight="Bold" 
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center"/>
+                    
+                    <Grid RowDefinitions="Auto,Auto">
+                        <ProgressBar Value="{Binding ProgressPercentage}" 
+                                     Height="8" 
+                                     CornerRadius="4"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     Background="{StaticResource SurfaceBrush}"/>
+                        
+                        <TextBlock Grid.Row="1" 
+                                   Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" 
+                                   FontSize="12" FontWeight="Bold" 
+                                   Foreground="{StaticResource AccentBrush}"
+                                   HorizontalAlignment="Right"
+                                   Margin="0,8,0,0"/>
+                    </Grid>
+                    
+                    <TextBlock Text="{Binding ProgressMessage}" 
+                               FontSize="13" 
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Border>
     </Grid>
 </Window>

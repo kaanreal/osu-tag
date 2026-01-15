@@ -112,9 +112,8 @@ namespace OsuTag.Services
                     IsNewer = isNewer
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[UpdateService] Check failed: {ex.Message}");
                 // Fallback to mock for testing flow if API fails (optional, good for debugging)
 #if DEBUG
                 return new UpdateInfo
@@ -176,9 +175,8 @@ namespace OsuTag.Services
                 // Set path for next step (Apply)
                 _downloadedFilePath = tempPath;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                 Console.WriteLine($"[UpdateService] Download failed: {ex.Message}");
                  throw;
             }
         }
@@ -189,7 +187,6 @@ namespace OsuTag.Services
         {
             if (string.IsNullOrEmpty(_downloadedFilePath) || !File.Exists(_downloadedFilePath))
             {
-                Console.WriteLine("No update file to apply.");
                 return;
             }
 
@@ -206,9 +203,8 @@ namespace OsuTag.Services
                 
                 Environment.Exit(0);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Failed to launch update: {ex.Message}");
             }
         }
 
