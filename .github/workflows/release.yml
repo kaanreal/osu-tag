@@ -49,7 +49,7 @@ jobs:
         strategy:
             matrix:
                 include:
-                    - os: windows-2022
+                    - os: windows-latest
                       rid: win-x64
                       name: windows
                     - os: macos-latest
