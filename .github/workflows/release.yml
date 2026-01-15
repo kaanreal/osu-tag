@@ -22,12 +22,6 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: "8.0.x"
-                  cache: false
-
             - name: Get Version
               id: get_version
               shell: bash
@@ -72,6 +66,12 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
+
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: "8.0"
+                  cache: false
 
             - name: Publish (Self-Contained)
               run: |
