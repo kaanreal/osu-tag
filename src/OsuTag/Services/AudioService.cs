@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace OsuTag.Services
@@ -19,6 +20,9 @@ namespace OsuTag.Services
         private bool _useWindowsNative = false;
         private bool _useMacNative = false;
         private int _volume = (int)SettingsService.Settings.PreviewVolume;
+        private CancellationTokenSource? _playbackCancellation;
+        private string? _currentPlayingPath;
+        private readonly object _playbackLock = new object();
 
         public int Volume
         {
@@ -26,78 +30,92 @@ namespace OsuTag.Services
             set
             {
                 _volume = value;
-                // Volume is applied per-playback in native players
+                // Update volume in settings
+                SettingsService.Settings.PreviewVolume = value;
             }
         }
 
 #if WINDOWS
-        // Windows Native Player using mciSendString (winmm.dll)
+        // Windows Native Player using winmm.dll (mciSendString)
+        // This is lightweight and avoids COM threading issues associated with WMP/OCX
         internal static class WindowsNativePlayer
         {
-            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
-            private static extern long mciSendString(string command, StringBuilder? returnValue, int returnLength, IntPtr winHandle);
+            [DllImport("winmm.dll")]
+            private static extern long mciSendString(string strCommand, StringBuilder? strReturn, int iReturnLength, IntPtr hwndCallback);
+
+            [DllImport("winmm.dll")]
+            private static extern int mciGetErrorString(int errCode, StringBuilder strReturn, int iReturnLength);
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+            private static extern uint GetShortPathName([MarshalAs(UnmanagedType.LPTStr)] string lpszLongPath, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszShortPath, uint cchBuffer);
 
             public static void Play(string path, int startTimeMs, float volume)
             {
-                Task.Run(() => {
-                    try
+                // Stop any previous playback first to be safe
+                Stop();
+
+                try
+                {
+                    // Convert to short path to avoid quote/space issues in MCI commands
+                    StringBuilder shortPath = new StringBuilder(255);
+                    GetShortPathName(path, shortPath, (uint)shortPath.Capacity);
+                    string playPath = shortPath.ToString();
+
+                    if (string.IsNullOrEmpty(playPath))
                     {
-                        StopInternal();
-                        
-                        string shortPath = GetShortPathName(path);
-                        
-                        string[] variations = {
-                            $"open \"{shortPath}\" type mpegvideo alias preview",
-                            $"open \"{shortPath}\" alias preview",
-                            $"open \"{path}\" type mpegvideo alias preview",
-                            $"open \"{path}\" alias preview"
-                        };
-
-                        long res = -1;
-                        foreach (var cmd in variations)
-                        {
-                            try {
-                                res = mciSendString(cmd, null, 0, IntPtr.Zero);
-                                if (res == 0) break;
-                            } catch { }
-                        }
-
-                        if (res == 0)
-                        {
-                            mciSendString("set preview time format ms", null, 0, IntPtr.Zero);
-                            int vol = (int)Math.Clamp(volume * 10, 0, 1000);
-                            mciSendString("setaudio preview volume to " + vol, null, 0, IntPtr.Zero);
-                            mciSendString("play preview from " + startTimeMs, null, 0, IntPtr.Zero);
-                        }
+                        // Fallback to manual quoting if short path fails
+                        playPath = $"\"{path}\"";
                     }
-                    catch { }
-                });
+
+                    // Open the file
+                    string alias = "osutag_preview";
+                    
+                    // Close just in case
+                    mciSendString($"close {alias}", null, 0, IntPtr.Zero);
+
+                    string openCommand = $"open {playPath} type mpegvideo alias {alias}";
+                    int result = (int)mciSendString(openCommand, null, 0, IntPtr.Zero);
+
+                    if (result != 0)
+                    {
+                        StringBuilder sb = new StringBuilder(128);
+                        mciGetErrorString(result, sb, 128);
+                        return;
+                    }
+
+                    // Set volume (0-1000)
+                    int mciVolume = (int)(volume * 10);
+                    mciSendString($"setaudio {alias} volume to {mciVolume}", null, 0, IntPtr.Zero);
+
+                    // Seek if needed
+                    if (startTimeMs > 0)
+                    {
+                        mciSendString($"seek {alias} to {startTimeMs}", null, 0, IntPtr.Zero);
+                    }
+
+                    // Play
+                    mciSendString($"play {alias}", null, 0, IntPtr.Zero);
+                }
+                catch (Exception)
+                {
+                }
             }
 
-            public static void Stop() => Task.Run(() => { try { StopInternal(); } catch { } });
-
-            private static void StopInternal()
-            {
-                mciSendString("stop preview", null, 0, IntPtr.Zero);
-                mciSendString("close preview", null, 0, IntPtr.Zero);
-            }
-
-            private static string GetShortPathName(string path)
+            public static void Stop()
             {
                 try
                 {
-                    StringBuilder shortPath = new StringBuilder(1024);
-                    int res = GetShortPathName(path, shortPath, shortPath.Capacity);
-                    return res > 0 ? shortPath.ToString() : path;
+                    string alias = "osutag_preview";
+                    mciSendString($"stop {alias}", null, 0, IntPtr.Zero);
+                    mciSendString($"close {alias}", null, 0, IntPtr.Zero);
                 }
-                catch { return path; }
+                catch { }
             }
 
-            [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-            private static extern int GetShortPathName(string lpszLongPath, StringBuilder lpszShortPath, int cchBuffer);
-
-            [DllImport("winmm.dll", CharSet = CharSet.Auto)]
-            private static extern long mciGetErrorString(long errorCode, StringBuilder errorText, int errorTextSize);
+            public static void Dispose()
+            {
+                Stop();
+            }
         }
 #endif
 
@@ -207,7 +225,7 @@ namespace OsuTag.Services
 
             if (PlatformService.IsWindows)
             {
-                _useWindowsNative = true;
+                _useWindowsNative = true; 
             }
             else if (PlatformService.IsMacOS)
             {
@@ -221,27 +239,64 @@ namespace OsuTag.Services
         {
             if (!_isInitialized) Initialize();
 
-            int finalVolume = volume ?? _volume;
-
-            if (_useWindowsNative)
+            // Debouncing: Cancel any pending playback
+            lock (_playbackLock)
             {
+                _playbackCancellation?.Cancel();
+                _playbackCancellation = new CancellationTokenSource();
+            }
+
+            var currentToken = _playbackCancellation;
+
+            try
+            {
+                // Check if this playback was cancelled
+                if (currentToken.Token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                // Prevent playing the same file if already playing
+                lock (_playbackLock)
+                {
+                    if (_currentPlayingPath == path)
+                    {
+                        return;
+                    }
+                    _currentPlayingPath = path;
+                }
+
+                int finalVolume = volume ?? _volume;
+
+                if (_useWindowsNative)
+                {
 #if WINDOWS
-                WindowsNativePlayer.Play(path, startTimeMs, finalVolume);
+                    WindowsNativePlayer.Play(path, startTimeMs, finalVolume);
 #endif
-                return;
-            }
+                    return;
+                }
 
-            if (_useMacNative)
-            {
+                if (_useMacNative)
+                {
 #if !WINDOWS
-                MacNativePlayer.Play(path, startTimeMs, finalVolume);
+                    MacNativePlayer.Play(path, startTimeMs, finalVolume);
 #endif
-                return;
+                    return;
+                }
             }
+            catch (TaskCanceledException) { }
+            catch (Exception) { }
         }
 
         public void Stop()
         {
+            // Cancel any pending playback
+            lock (_playbackLock)
+            {
+                _playbackCancellation?.Cancel();
+                _currentPlayingPath = null;
+            }
+
             if (_useWindowsNative)
             {
 #if WINDOWS
@@ -259,6 +314,19 @@ namespace OsuTag.Services
         public void Dispose()
         {
             Stop();
+            
+            if (_useWindowsNative)
+            {
+#if WINDOWS
+                WindowsNativePlayer.Dispose();
+#endif
+            }
+            else if (_useMacNative)
+            {
+#if !WINDOWS
+                MacNativePlayer.Dispose();
+#endif
+            }
         }
     }
 }

@@ -19,7 +19,8 @@
         <converters:PathToBitmapConverter x:Key="PathToBitmapConverter"/>
     </Window.Resources>
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*" Classes="WindowEntrance">
+
         <!-- Title Bar (Draggable via WindowChrome) -->
         <Border Height="50" Background="Transparent" IsHitTestVisible="False" Margin="0,10,0,0">
             <TextBlock Text="Edit Metadata" HorizontalAlignment="Center" VerticalAlignment="Center" 

@@ -245,10 +245,18 @@ namespace OsuTag.ViewModels
         public ObservableCollection<object> SelectedItems
         {
             get => _selectedItems;
-            set => SetProperty(ref _selectedItems, value);
+            set 
+            {
+                if (SetProperty(ref _selectedItems, value))
+                {
+                    OnPropertyChanged(nameof(SelectedCount));
+                    OnPropertyChanged(nameof(HasSelectedMaps));
+                }
+            }
         }
 
         public int SelectedCount => _selectedItems.Count;
+        public bool HasSelectedMaps => SelectedCount > 0;
 
         private SelectedItemInfo? _lastSelectedItem;
         public SelectedItemInfo? LastSelectedItem
@@ -287,6 +295,23 @@ namespace OsuTag.ViewModels
         public bool IsWindows => PlatformService.IsWindows;
         public string AppVersion => "v" + OsuTag.Services.AppVersion.Current;
         public bool IsCompanellaSupported => PlatformService.IsWindows;
+        
+        // Update Properties
+        private bool _isUpdateAvailable;
+        public bool IsUpdateAvailable
+        {
+            get => _isUpdateAvailable;
+            set => SetProperty(ref _isUpdateAvailable, value);
+        }
+
+        private string _newUpdateVersion = "";
+        public string NewUpdateVersion
+        {
+            get => _newUpdateVersion;
+            set => SetProperty(ref _newUpdateVersion, value);
+        }
+
+        public ICommand OpenUpdateWindowCommand { get; }
         
         private string _companellaStatus = "Scanning...";
         public string CompanellaStatus
@@ -627,9 +652,9 @@ namespace OsuTag.ViewModels
                 await LoadCompanellaPlayCounts();
                 FilterMaps();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[MainViewModel] RefreshCompanellaSorting failed: {ex.Message}");
+                // Silent failure
             }
         }
 
@@ -755,6 +780,7 @@ namespace OsuTag.ViewModels
         public ICommand OpenBeatmapUrlCommand { get; }
         public ICommand OpenDirectoryCommand { get; }
         public ICommand ExportBackgroundCommand { get; }
+        public ICommand OpenSupporterUrlCommand { get; }
 
         public MainViewModel()
         {
@@ -783,9 +809,11 @@ namespace OsuTag.ViewModels
             RemoveItemCommand = new RelayCommand(param => RemoveItem(param as SelectedItemInfo));
             EditItemCommand = new RelayCommand(param => EditItem(param as SelectedItemInfo));
             ClearCacheCommand = new RelayCommand(_ => ClearCache());
+            OpenSupporterUrlCommand = new RelayCommand(_ => OpenSupporterUrl());
             OpenBeatmapUrlCommand = new RelayCommand(param => OpenBeatmapUrl(param as MapItemGroup));
             OpenDirectoryCommand = new RelayCommand(param => OpenDirectory(param as MapItemGroup));
             ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
+            OpenUpdateWindowCommand = new RelayCommand(_ => OpenUpdateWindow());
 
             // Auto-scan for Companella on Windows
             if (IsCompanellaSupported)
@@ -793,6 +821,8 @@ namespace OsuTag.ViewModels
                 _ = AutoDiscoverCompanellaAsync();
             }
 
+            // Check for updates on startup
+            _ = CheckUpdatesOnStartup();
 
             // Auto-load saved path if enabled - load from cache then smart scan for new
             if (SettingsService.Settings.RememberSongsPath &&
@@ -871,6 +901,7 @@ namespace OsuTag.ViewModels
                     DisplayName = $"{OverlayMapGroup.Artist} - {OverlayMapGroup.Title}",
                     SubDisplayName = diff.DifficultyName 
                 };
+                IsBottomBarExpanded = false;
             }
             
             RefreshSelectedItems();
@@ -913,6 +944,7 @@ namespace OsuTag.ViewModels
                 MapGroup = group, 
                 DisplayName = $"{group.Artist} - {group.Title}" 
             };
+            IsBottomBarExpanded = false;
             RefreshSelectedItems();
         }
 
@@ -935,9 +967,8 @@ namespace OsuTag.ViewModels
                     await RefreshCompanellaSorting();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[MainViewModel] Failed to open settings: {ex.Message}");
             }
         }
 
@@ -1396,6 +1427,7 @@ namespace OsuTag.ViewModels
                     {
                         lastUpdate = now;
                         int progress = (int)((currentProcessed / (double)totalFolders) * 100);
+                        ProgressPercentage = progress;
 
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
@@ -1638,22 +1670,20 @@ namespace OsuTag.ViewModels
             {
                 if (group.IsStack)
                 {
-                    // For multi-audio maps/stacks, add selected difficulties
-                    // Previously we used UniqueAudioFiles, but now we allow selecting individual difficulties from the overlay
                     foreach (var diff in group.Difficulties.Where(d => d.IsSelected))
                     {
-                        newSelection.Add(new SelectedItemInfo
+                        var info = new SelectedItemInfo
                         {
                             MapGroup = group,
-                            AudioFile = null, // Or create a dummy one if needed, but we used DiffName mainly
+                            AudioFile = null,
                             DisplayName = $"{group.Artist} - {group.Title}",
-                            SubDisplayName = diff.DifficultyName // This is now the Version string (e.g. "Song Name")
-                        });
+                            SubDisplayName = diff.DifficultyName
+                        };
+                        newSelection.Add(info);
                     }
                 }
                 else if (group.IsSelected)
                 {
-                    // For simple maps, add the group
                     newSelection.Add(new SelectedItemInfo
                     {
                         MapGroup = group,
@@ -1666,12 +1696,21 @@ namespace OsuTag.ViewModels
 
             SelectedItems = new ObservableCollection<object>(newSelection);
             
+            // Manage LastSelectedItem to prevent stale/incorrect collapsed state details
             if (SelectedCount == 0)
             {
+                LastSelectedItem = null;
                 IsBottomBarExpanded = false;
+            }
+            else if (LastSelectedItem == null || !newSelection.Any(x => x is SelectedItemInfo info && info.MapGroup == LastSelectedItem.MapGroup && info.SubDisplayName == LastSelectedItem.SubDisplayName))
+            {
+                // If current LastSelectedItem is gone or null, pick the actual last one from current selection
+                var last = newSelection.LastOrDefault() as SelectedItemInfo;
+                if (last != null) LastSelectedItem = last;
             }
 
             OnPropertyChanged(nameof(SelectedCount));
+            OnPropertyChanged(nameof(HasSelectedMaps));
             ((RelayCommand)StartConversionCommand).RaiseCanExecuteChanged();
         }
 
@@ -1935,15 +1974,39 @@ namespace OsuTag.ViewModels
         {
             try
             {
-                // Only override titles if the group actually has multiple different audio files (i.e. is a stack)
-                // AND has variance in metadata (Artist, Title, or Cover) to distinguish "Compilations" from "Rate Packs".
-                // Separation: We no longer strictly overwrite the Title in the UI here
-                // because we handle the 'Export Title' logic inside RunConversion.
-                // This keeps the cards showing their version/difficulty names as intended.
+                // Refined Logic (User Request):
+                // 1. It must be a "Stack" (Multiple UNIQUE audio files = Compilations/Mappacks).
+                //    Single-audio mapsets (just diffs or rates) should keep their song title.
+                // 2. Titles must be identical across all difficulties (e.g. "Favorites Compilation").
+                //    If titles differ (e.g. "Mappack 1" containing "Song A", "Song B"), we keep original titles.
+
+                if (!group.IsStack) return; // Skip if not a multi-audio stack
+
+                // Aligning logic with RunConversion (MP3 Tagging):
+                // We swap Title -> Version (DifficultyName) if:
+                // A) It is a "Compilation" (Different Titles) -> e.g. Mappack where Version holds real name.
+                // B) It is "Multi-Artist" (Different Artists) -> e.g. Favorites Comp where Version holds real name.
+                //
+                // We DO NOT swap if it is a "Rate Pack" (Same Title, Same Artist) -> Keep Title "My Song".
+
+                bool distinctTitles = group.Difficulties.Select(d => d.Title).Distinct().Count() > 1;
+                bool distinctArtists = group.Difficulties.Select(d => d.Artist).Distinct().Count() > 1;
+
+                if (distinctTitles || distinctArtists)
+                {
+                    // Swap to Version (DifficultyName)
+                    foreach (var diff in group.Difficulties)
+                    {
+                        if (!string.IsNullOrEmpty(diff.DifficultyName))
+                        {
+                            diff.Title = diff.DifficultyName;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
-                // Safely ignore metadata finalization errors to prevent crashes
+                // Safely ignore metadata finalization errors
                 System.Diagnostics.Debug.WriteLine($"Error finalizing metadata: {ex.Message}");
             }
         }
@@ -1973,6 +2036,16 @@ namespace OsuTag.ViewModels
                 CompanellaStatus = $"Error scanning for Companella: {ex.Message}";
             }
         }
+        private void OpenSupporterUrl()
+        {
+            var url = "https://osu.ppy.sh/store/products/supporter-tag?target=Kxxn";
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+            }
+            catch { /* Ignore */ }
+        }
+
         private void OpenBeatmapUrl(MapItemGroup? group)
         {
             if (group == null) return;
@@ -2054,6 +2127,51 @@ namespace OsuTag.ViewModels
                 }
                 catch { /* Ignore save errors */ }
             }
+        }
+        
+        private async Task CheckUpdatesOnStartup()
+        {
+            try
+            {
+                var updateInfo = await Task.Run(() => UpdateService.Instance.CheckForUpdatesAsync());
+                
+                // Update UI on main thread
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (updateInfo != null && updateInfo.IsNewer)
+                    {
+                        IsUpdateAvailable = true;
+                        NewUpdateVersion = "New Update Available: " + updateInfo.Version;
+                    }
+                    else
+                    {
+                        IsUpdateAvailable = false;
+                        NewUpdateVersion = "";
+                    }
+                });
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private async void OpenUpdateWindow()
+        {
+             // Use cached result if valid, else re-check or use what we have
+             // For now just re-check to ensure we get the latest info object
+             var updateInfo = await UpdateService.Instance.CheckForUpdatesAsync();
+             if (updateInfo != null)
+             {
+                 // Even if not strictly newer, allow opening if manually triggered? 
+                 // But this is usually triggered by "New Update" badge, so it implies newer.
+                 
+                 var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+                 if (topLevel != null)
+                 {
+                     var updateWin = new Views.UpdateWindow(updateInfo);
+                     await updateWin.ShowDialog(topLevel);
+                 }
+             }
         }
     }
 }

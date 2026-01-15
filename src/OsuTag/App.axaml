@@ -133,6 +133,8 @@
                 <ControlTemplate>
                     <Border x:Name="Border" 
                             Background="{TemplateBinding Background}" 
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="8" 
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Content="{TemplateBinding Content}"/>
@@ -143,9 +145,37 @@
         <Style Selector="Button.HeaderButton:pointerover /template/ Border#Border">
             <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
         </Style>
-        <Style Selector="Button.HeaderButton:pressed">
-             <Setter Property="RenderTransform" Value="scale(0.96)"/>
+        <Style Selector="Button.HeaderButton:pressed /template/ Border#Border">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
         </Style>
+
+        <!-- Invisible Toggle Button -->
+        <Style Selector="Button.InvisibleToggle">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Background="{TemplateBinding Background}"
+                                      BorderBrush="{TemplateBinding BorderBrush}"
+                                      BorderThickness="{TemplateBinding BorderThickness}"
+                                      CornerRadius="{TemplateBinding CornerRadius}"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.InvisibleToggle:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.InvisibleToggle:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
         <Style Selector="Button.HeaderButton:disabled /template/ Border#Border">
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
@@ -209,10 +239,10 @@
         <!-- Animations and Transitions -->
         <Style Selector="Grid.WindowEntrance">
             <Style.Animations>
-                <Animation Duration="0:0:0.8" Easing="QuadraticEaseOut" FillMode="Forward"> 
+                <Animation Duration="0:0:0.8" Easing="CubicEaseOut" FillMode="Forward"> 
                     <KeyFrame KeyTime="0:0:0">
                         <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="20"/>
+                        <Setter Property="TranslateTransform.Y" Value="30"/>
                     </KeyFrame>
                     <KeyFrame KeyTime="0:0:0.8">
                         <Setter Property="Opacity" Value="1"/>
@@ -222,9 +252,10 @@
             </Style.Animations>
         </Style>
 
+
         <Style Selector="Border.AnimatedOpacity">
             <Style.Animations>
-                <Animation Duration="0:0:0.5" Easing="QuadraticEaseOut" FillMode="Forward"> 
+                <Animation Duration="0:0:0.5" Easing="CubicEaseOut" FillMode="Forward"> 
                     <KeyFrame KeyTime="0:0:0">
                         <Setter Property="Opacity" Value="0"/>
                     </KeyFrame>
@@ -234,6 +265,7 @@
                 </Animation>
             </Style.Animations>
         </Style>
+
 
         <!-- Premium Slider Style -->
         <Style Selector="Slider">
