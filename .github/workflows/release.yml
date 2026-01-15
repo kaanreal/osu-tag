@@ -4,6 +4,10 @@ on:
     release:
         types: [published]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false 
+
 jobs:
     versioning:
         name: Prepare Versioning
@@ -63,10 +67,14 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Fix Git Safe Directory
+              run: git config --global --add safe.directory ${{ github.workspace }}
+
             - name: Setup .NET
               uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: "8.0.x"
+                  cache: true
 
             - name: Publish (Self-Contained)
               run: |
