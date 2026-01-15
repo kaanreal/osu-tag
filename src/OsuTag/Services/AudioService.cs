@@ -211,6 +211,11 @@ namespace OsuTag.Services
                     Marshal.FreeHGlobal(utf8String);
                 }
             }
+
+            internal static void Dispose()
+            {
+                throw new NotImplementedException();
+            }
         }
 #endif
 
