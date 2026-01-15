@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using OsuTag.Services;
+using OsuTag.Views;
 
 namespace OsuTag.Views
 {
@@ -283,11 +284,35 @@ namespace OsuTag.Views
 
         private async void CheckForUpdates_Click(object? sender, RoutedEventArgs e)
         {
-            var updateInfo = await UpdateService.CheckForUpdatesAsync();
-            if (updateInfo != null && updateInfo.IsNewer)
+            var btn = sender as Button;
+            if (btn != null) btn.IsEnabled = false;
+
+            try 
             {
-                // Show update available
-                UpdateService.OpenDownloadPage(updateInfo.DownloadUrl);
+                // Force a fresh check
+                var updateInfo = await UpdateService.Instance.CheckForUpdatesAsync();
+                
+                if (updateInfo != null && updateInfo.IsNewer)
+                {
+                    // Update found - open window
+                    var updateWindow = new UpdateWindow(updateInfo);
+                    await updateWindow.ShowDialog(this);
+                }
+                else
+                {
+                    // No update found - show feedback
+                    var msgWin = new MessageWindow("Check for Updates", "You are on the newest version.");
+                    await msgWin.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                 var msgWin = new MessageWindow("Error", $"Update check failed: {ex.Message}");
+                 await msgWin.ShowDialog(this);
+            }
+            finally
+            {
+                if (btn != null) btn.IsEnabled = true;
             }
         }
     }

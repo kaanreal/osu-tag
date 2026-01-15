@@ -90,9 +90,9 @@
                         <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
                             <StackPanel Spacing="24">
                                 <!-- Companella -->
-                                <Grid ColumnDefinitions="*,Auto">
+                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsCompanellaSupported}">
                                     <StackPanel Spacing="4">
-                                        <CheckBox Content="Sort by play count (Companella)" IsChecked="{Binding SortByMostPlayed}" IsEnabled="{Binding IsCompanellaSupported}"/>
+                                        <CheckBox Content="Sort by play count (Companella)" IsChecked="{Binding SortByMostPlayed}"/>
                                         <TextBlock Text="{Binding CompanellaStatus}" FontSize="11" Foreground="{StaticResource SuccessBrush}" Margin="32,0,0,0"/>
                                     </StackPanel>
                                 </Grid>

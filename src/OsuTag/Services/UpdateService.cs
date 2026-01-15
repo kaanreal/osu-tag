@@ -1,324 +1,220 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Reflection;
 using System.Threading.Tasks;
+using OsuTag.Models;
 
 namespace OsuTag.Services
 {
-    internal class UpdateInfo
+    public class UpdateInfo
     {
         public string Version { get; set; } = "";
+        public string Changelog { get; set; } = "";
         public string DownloadUrl { get; set; } = "";
-        public string ReleaseNotes { get; set; } = "";
-        public string ReleaseName { get; set; } = "";
-        public DateTime PublishedAt { get; set; }
+        public DateTime ReleaseDate { get; set; }
         public bool IsNewer { get; set; }
-        public long FileSize { get; set; }
-        public string FileName { get; set; } = "";
     }
 
-    internal class UpdateService
+    public class UpdateService
     {
-        // GitHub repository info
-        private const string GITHUB_OWNER = "kaanreal";
-        private const string GITHUB_REPO = "osu-tag";
-        private const string GITHUB_API_URL = "https://api.github.com/repos/{0}/{1}/releases/latest";
+        private static readonly Lazy<UpdateService> _instance = new(() => new UpdateService());
+        public static UpdateService Instance => _instance.Value;
+        
+        public bool IsUpdateAvailable { get; private set; }
+        public string LatestVersion { get; private set; } = "";
+        
+        // Event to notify view model when update is found
+        public event EventHandler? UpdateAvailable;
 
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private readonly HttpClient _httpClient;
+        private const string GITHUB_API_URL = "https://api.github.com/repos/kaanreal/osu-tag/releases/latest";
 
-        static UpdateService()
+        private UpdateService()
         {
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "OsuTag-UpdateChecker");
-            _httpClient.Timeout = TimeSpan.FromMinutes(10);
+            _httpClient = new HttpClient();
+            _httpClient.Timeout = TimeSpan.FromSeconds(10);
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "OsuTag-Updater");
         }
 
-        /// <summary>
-        /// Check for updates from GitHub releases
-        /// </summary>
-        public static async Task<UpdateInfo?> CheckForUpdatesAsync()
+        public async Task<UpdateInfo?> CheckForUpdatesAsync()
         {
             try
             {
-                var url = string.Format(GITHUB_API_URL, GITHUB_OWNER, GITHUB_REPO);
-                var response = await _httpClient.GetStringAsync(url);
-
+#if DEBUG
+                // Keep the mock for debugging stability if API fails, or remove for production logic testing
+                // Uncomment to force real check in debug:
+#endif
+                var response = await _httpClient.GetStringAsync(GITHUB_API_URL);
                 using var doc = JsonDocument.Parse(response);
                 var root = doc.RootElement;
 
                 var tagName = root.GetProperty("tag_name").GetString() ?? "";
-                var releaseName = root.GetProperty("name").GetString() ?? "";
                 var body = root.GetProperty("body").GetString() ?? "";
                 var publishedAt = root.GetProperty("published_at").GetDateTime();
-                var htmlUrl = root.GetProperty("html_url").GetString() ?? "";
-
-                string downloadUrl = htmlUrl;
-                string fileName = "";
-                long fileSize = 0;
-
-                // Determine which asset to download based on platform
-                string platformExtension = GetPlatformAssetExtension();
-
-                if (root.TryGetProperty("assets", out var assets))
+                
+                string downloadUrl = "";
+                if (root.TryGetProperty("assets", out var assets) && assets.GetArrayLength() > 0)
                 {
+                    // Find first suitable asset (zip/exe)
                     foreach (var asset in assets.EnumerateArray())
                     {
-                        var assetName = asset.GetProperty("name").GetString() ?? "";
-                        
-                        // Look for platform-specific assets
-                        if (assetName.Contains(GetPlatformIdentifier(), StringComparison.OrdinalIgnoreCase) ||
-                            assetName.EndsWith(platformExtension, StringComparison.OrdinalIgnoreCase))
+                        var url = asset.GetProperty("browser_download_url").GetString();
+                        if (url != null && (url.EndsWith(".exe") || url.EndsWith(".zip") || url.EndsWith(".msi")))
                         {
-                            downloadUrl = asset.GetProperty("browser_download_url").GetString() ?? htmlUrl;
-                            fileName = assetName;
-                            fileSize = asset.GetProperty("size").GetInt64();
+                            downloadUrl = url;
                             break;
                         }
-                        
-                        // Fallback to generic exe/zip if no platform-specific found
-                        if (string.IsNullOrEmpty(fileName))
-                        {
-                            if (assetName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && PlatformService.IsWindows)
-                            {
-                                downloadUrl = asset.GetProperty("browser_download_url").GetString() ?? htmlUrl;
-                                fileName = assetName;
-                                fileSize = asset.GetProperty("size").GetInt64();
-                            }
-                            else if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                            {
-                                downloadUrl = asset.GetProperty("browser_download_url").GetString() ?? htmlUrl;
-                                fileName = assetName;
-                                fileSize = asset.GetProperty("size").GetInt64();
-                            }
-                        }
+                    }
+                    
+                    // Fallback to first asset if no specific extension match
+                    if (string.IsNullOrEmpty(downloadUrl))
+                    {
+                        downloadUrl = assets[0].GetProperty("browser_download_url").GetString() ?? "";
                     }
                 }
 
-                var latestVersion = NormalizeVersion(tagName);
-                var currentVersion = NormalizeVersion(AppVersion.Current);
+                // Clean version string (remove 'v' prefix)
+                var cleanTag = tagName.TrimStart('v');
+                var currentVersion = AppVersion.Current; 
+                
+                // Compare versions
+                // Using simple string comparison or parsing version if strictly semver
+                // Assuming format x.y.z
+                
+                bool isNewer = false;
+                if (Version.TryParse(cleanTag, out var remoteVer) && Version.TryParse(currentVersion, out var localVer))
+                {
+                    isNewer = remoteVer > localVer;
+                }
+                else
+                {
+                    // Fallback string compare
+                     isNewer = string.Compare(cleanTag, currentVersion, StringComparison.OrdinalIgnoreCase) > 0;
+                }
+
+                // Update Service State
+                IsUpdateAvailable = isNewer;
+                LatestVersion = tagName;
+                if (isNewer)
+                {
+                    UpdateAvailable?.Invoke(this, EventArgs.Empty);
+                }
 
                 return new UpdateInfo
                 {
                     Version = tagName,
+                    Changelog = body,
                     DownloadUrl = downloadUrl,
-                    ReleaseNotes = body,
-                    ReleaseName = releaseName,
-                    PublishedAt = publishedAt,
-                    IsNewer = CompareVersions(latestVersion, currentVersion) > 0,
-                    FileSize = fileSize,
-                    FileName = fileName
+                    ReleaseDate = publishedAt,
+                    IsNewer = isNewer
                 };
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Log error or handle appropriately in release
+                Console.WriteLine($"[UpdateService] Check failed: {ex.Message}");
+                // Fallback to mock for testing flow if API fails (optional, good for debugging)
+#if DEBUG
+                return new UpdateInfo
+                {
+                    Version = "v1.5.0",
+                    Changelog = "Release fetch failed. This is a fallback mock.\n\n- Real GitHub API check failed.\n- Check internet connection.",
+                    DownloadUrl = "https://example.com/mock.zip",
+                    IsNewer = true
+                };
+#else
                 return null;
+#endif
             }
         }
 
-        private static string GetPlatformIdentifier()
-        {
-            if (PlatformService.IsWindows) return "win";
-            if (PlatformService.IsMacOS) return "osx";
-            if (PlatformService.IsLinux) return "linux";
-            return "";
-        }
-
-        private static string GetPlatformAssetExtension()
-        {
-            if (PlatformService.IsWindows) return ".exe";
-            if (PlatformService.IsMacOS) return ".app.zip";
-            if (PlatformService.IsLinux) return ".tar.gz";
-            return ".zip";
-        }
-
-        /// <summary>
-        /// Download update with progress reporting
-        /// </summary>
-        public static async Task<string?> DownloadUpdateAsync(UpdateInfo updateInfo, IProgress<(long downloaded, long total)>? progress = null)
+        public async Task DownloadUpdateAsync(string downloadUrl, IProgress<double> progress)
         {
             try
             {
-                var tempDir = Path.Combine(Path.GetTempPath(), "OsuTagUpdate");
-                Directory.CreateDirectory(tempDir);
-
-                var fileName = !string.IsNullOrEmpty(updateInfo.FileName)
-                    ? updateInfo.FileName
-                    : $"OsuTag_{updateInfo.Version}{GetPlatformAssetExtension()}";
-                var downloadPath = Path.Combine(tempDir, fileName);
-
-                foreach (var file in Directory.GetFiles(tempDir))
+                // Download to temp file
+                var tempPath = Path.Combine(Path.GetTempPath(), "osutag_update_v" + DateTime.Now.Ticks + ".exe");
+                
+                using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
                 {
-                    try { File.Delete(file); } catch { /* Ignore delete errors - cleanup best-effort */ }
+                    response.EnsureSuccessStatusCode();
+                    
+                    var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                    var canReportProgress = totalBytes != -1;
+
+                    using (var contentStream = await response.Content.ReadAsStreamAsync())
+                    using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                    {
+                        var totalRead = 0L;
+                        var buffer = new byte[8192];
+                        var isMoreToRead = true;
+
+                        do
+                        {
+                            var read = await contentStream.ReadAsync(buffer, 0, buffer.Length);
+                            if (read == 0)
+                            {
+                                isMoreToRead = false;
+                            }
+                            else
+                            {
+                                await fileStream.WriteAsync(buffer, 0, read);
+
+                                totalRead += read;
+                                if (canReportProgress)
+                                {
+                                    progress.Report((double)totalRead / totalBytes * 100);
+                                }
+                            }
+                        }
+                        while (isMoreToRead);
+                    }
                 }
+                
+                // Set path for next step (Apply)
+                _downloadedFilePath = tempPath;
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"[UpdateService] Download failed: {ex.Message}");
+                 throw;
+            }
+        }
 
-                using var response = await _httpClient.GetAsync(updateInfo.DownloadUrl, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
+        private string? _downloadedFilePath;
 
-                var totalBytes = response.Content.Headers.ContentLength ?? updateInfo.FileSize;
+        public void ApplyUpdate()
+        {
+            if (string.IsNullOrEmpty(_downloadedFilePath) || !File.Exists(_downloadedFilePath))
+            {
+                Console.WriteLine("No update file to apply.");
+                return;
+            }
 
-                using var contentStream = await response.Content.ReadAsStreamAsync();
-                using var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-                var buffer = new byte[8192];
-                long totalRead = 0;
-                int bytesRead;
-
-                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            // Launch the new installer/exe
+            // If it's an installer, run it. If it's a raw exe replacement, we need a script.
+            // Assuming for now the update is a setup.exe or self-extracting archive
+            try 
+            {
+                Process.Start(new ProcessStartInfo
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead);
-                    totalRead += bytesRead;
-                    progress?.Report((totalRead, totalBytes));
-                }
-
-                return downloadPath;
+                    FileName = _downloadedFilePath,
+                    UseShellExecute = true 
+                });
+                
+                Environment.Exit(0);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Log error or handle appropriately in release
-                return null;
+                Console.WriteLine($"Failed to launch update: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Apply the update - platform-specific update mechanism
-        /// </summary>
-        public static bool ApplyUpdate(string downloadedFilePath)
+        public void IgnoreUpdate(string version)
         {
-            try
-            {
-                var currentExePath = Process.GetCurrentProcess().MainModule?.FileName;
-                if (string.IsNullOrEmpty(currentExePath)) return false;
-
-                var currentDir = Path.GetDirectoryName(currentExePath)!;
-                var currentExeName = Path.GetFileName(currentExePath);
-                var backupPath = Path.Combine(currentDir, $"{currentExeName}.backup");
-
-                if (PlatformService.IsWindows)
-                {
-                    return ApplyUpdateWindows(downloadedFilePath, currentExePath, backupPath);
-                }
-                else
-                {
-                    // For Linux/macOS, use a shell script
-                    return ApplyUpdateUnix(downloadedFilePath, currentExePath, backupPath);
-                }
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        private static bool ApplyUpdateWindows(string downloadedFilePath, string currentExePath, string backupPath)
-        {
-            var currentDir = Path.GetDirectoryName(currentExePath)!;
-            var batchPath = Path.Combine(Path.GetTempPath(), "OsuTagUpdater.bat");
-            var batchContent = $@"@echo off
-chcp 65001 >nul
-title osu!tag Updater
-
-:waitloop
-tasklist /FI ""PID eq {Process.GetCurrentProcess().Id}"" 2>NUL | find /I ""{Process.GetCurrentProcess().Id}"" >NUL
-if not errorlevel 1 (
-    timeout /t 1 /nobreak >NUL
-    goto waitloop
-)
-
-timeout /t 1 /nobreak >NUL
-
-if exist ""{currentExePath}"" (
-    if exist ""{backupPath}"" del /f ""{backupPath}""
-    move /y ""{currentExePath}"" ""{backupPath}""
-)
-
-copy /y ""{downloadedFilePath}"" ""{currentExePath}""
-
-if exist ""{downloadedFilePath}"" del /f ""{downloadedFilePath}""
-if exist ""{backupPath}"" del /f ""{backupPath}""
-
-start """" ""{currentExePath}""
-
-(goto) 2>nul & del ""%~f0""
-";
-
-            File.WriteAllText(batchPath, batchContent);
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c \"{batchPath}\"",
-                UseShellExecute = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
-
-            Process.Start(startInfo);
-            return true;
-        }
-
-        private static bool ApplyUpdateUnix(string downloadedFilePath, string currentExePath, string backupPath)
-        {
-            var scriptPath = Path.Combine(Path.GetTempPath(), "osutag_updater.sh");
-            var scriptContent = $@"#!/bin/bash
-sleep 2
-if [ -f ""{currentExePath}"" ]; then
-    mv ""{currentExePath}"" ""{backupPath}""
-fi
-cp ""{downloadedFilePath}"" ""{currentExePath}""
-chmod +x ""{currentExePath}""
-rm -f ""{downloadedFilePath}""
-rm -f ""{backupPath}""
-""{currentExePath}"" &
-rm -f ""{scriptPath}""
-";
-
-            File.WriteAllText(scriptPath, scriptContent);
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "/bin/bash",
-                Arguments = scriptPath,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            Process.Start(startInfo);
-            return true;
-        }
-
-        public static void OpenDownloadPage(string url)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-            }
-            catch { /* Ignore errors - update checks are non-critical */ }
-        }
-
-        private static string NormalizeVersion(string version) => version.TrimStart('v', 'V').Trim();
-
-        private static int CompareVersions(string v1, string v2)
-        {
-            try
-            {
-                var version1 = new Version(NormalizeVersionForParsing(v1));
-                var version2 = new Version(NormalizeVersionForParsing(v2));
-                return version1.CompareTo(version2);
-            }
-            catch { return string.Compare(v1, v2, StringComparison.OrdinalIgnoreCase); }
-        }
-
-        private static string NormalizeVersionForParsing(string version)
-        {
-            var normalized = NormalizeVersion(version);
-            var parts = normalized.Split('.');
-            if (parts.Length == 1) return $"{normalized}.0.0";
-            if (parts.Length == 2) return $"{normalized}.0";
-            return normalized;
+            Console.WriteLine($"Ignored version: {version}");
         }
     }
 }

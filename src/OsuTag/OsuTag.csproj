@@ -42,7 +42,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**"/>
+    <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,6 +55,7 @@
     
     <!-- Cross-platform dependencies (same as WPF version) -->
     <PackageReference Include="DiscordRichPresence" Version="1.0.175" />
+    <PackageReference Include="Markdown.Avalonia" Version="11.0.2" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
