@@ -30,8 +30,18 @@ jobs:
               id: analyze
               shell: bash
               run: |
-                  # Improved range scanning
-                  MESSAGES=$(git log --format="%s" -n 20)
+                  # Determine the range of commits to scan
+                  # If it's a new branch, we scan the last 1 commit.
+                  # Otherwise, we scan everything between the old push and the new push.
+                  if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+                    MESSAGES=$(git log --format="%s" -n 1)
+                  else
+                    MESSAGES=$(git log --format="%s" ${{ github.event.before }}..${{ github.event.after }})
+                  fi
+
+                  echo "Scanning commits:"
+                  echo "$MESSAGES"
+
                   if echo "$MESSAGES" | grep -q "^major:"; then
                     echo "BUMP=major" >> $GITHUB_OUTPUT
                   elif echo "$MESSAGES" | grep -q "^feat:"; then
