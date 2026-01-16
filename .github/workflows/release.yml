@@ -194,6 +194,7 @@ jobs:
                   tag_name: ${{ needs.version-bump.outputs.new_version }}
                   name: Release ${{ needs.version-bump.outputs.new_version }}
                   generate_release_notes: true
+                  make_latest: true
                   # THIS WAS MISSING: Tell the action which files to upload
                   files: |
                       *.exe
