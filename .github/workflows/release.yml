@@ -201,32 +201,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    sync-testing:
-        name: 🔄 Sync Testing Branch
-        needs: publish
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            - name: 🧹 Cleanup Artifacts
+              uses: geekyeggo/delete-artifact@v5
               with:
-                  fetch-depth: 0
-                  token: ${{ secrets.GITHUB_TOKEN }}
-
-            - name: Merge main into testing
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "github-actions[bot]@users.noreply.github.com"
-
-                  # Get latest changes
-                  git fetch origin main
-                  git fetch origin testing
-
-                  git checkout testing
-
-                  # Sync testing with main
-                  git merge origin/main
-
-                  # Push back to testing
-                  git push origin testing
+                  name: assets-*
