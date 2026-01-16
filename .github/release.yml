@@ -6,16 +6,20 @@ changelog:
     categories:
         - title: "Features"
           labels:
-              - feat
+              - feature
+              - enhancement
           commits:
-              - "feat:*"
+              - "feat*"
+              - "feature*"
         - title: "Bug Fixes"
           labels:
+              - bug
               - fix
           commits:
-              - "fix:*"
+              - "fix*"
         - title: "Maintenance"
           commits:
-              - "chore:*"
-              - "docs:*"
-              - "refactor:*"
+              - "chore*"
+              - "docs*"
+              - "refactor*"
+              - "style*"
