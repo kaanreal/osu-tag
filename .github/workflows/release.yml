@@ -130,8 +130,8 @@ jobs:
                   cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
 
-                  # Copy the Icon (Must be .icns)
-                  cp src/OsuTag/app.icns "osu!tag.app/Contents/Resources/app.icns"
+                  # Copy the Icon (Must be .ico)
+                  cp src/OsuTag/Assets/app.ico "osu!tag.app/Contents/Resources/app.ico"
 
                   # Create a basic Info.plist so macOS knows where the icon is
                   echo '<?xml version="1.0" encoding="UTF-8"?>
