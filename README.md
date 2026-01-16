@@ -37,15 +37,15 @@
 
 ### Main Interface
 
-![Main Interface](screenshots/main.png)
+![Main Interface](src/OsuTag/Assets/Screenshots/main.png)
 
 ### Map Selection
 
-![Map Selection](screenshots/selection.png)
+![Map Selection](src/OsuTag/Assets/Screenshots/selection.png)
 
 ### Settings
 
-![Settings](screenshots/settings.png)
+![Settings](src/OsuTag/Assets/Screenshots/settings.png)
 
 ## Installation
 
