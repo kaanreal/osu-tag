@@ -10,7 +10,7 @@
     <RootNamespace>OsuTag</RootNamespace>
     <AssemblyName>OsuTag</AssemblyName>
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <Product>osu!tag</Product>
     <!-- Optimization: Production Stability -->
     <PublishTrimmed>true</PublishTrimmed>
@@ -70,4 +70,5 @@
   </ItemGroup>
 
 </Project>
+
 
