@@ -30,9 +30,8 @@ jobs:
               id: analyze
               shell: bash
               run: |
-                  # Grabs the last 10 commit messages to check for triggers
-                  # Priority: major > feat > fix
-                  MESSAGES=$(git log --format="%s" -n 10)
+                  # Improved range scanning
+                  MESSAGES=$(git log --format="%s" -n 20)
                   if echo "$MESSAGES" | grep -q "^major:"; then
                     echo "BUMP=major" >> $GITHUB_OUTPUT
                   elif echo "$MESSAGES" | grep -q "^feat:"; then
@@ -63,16 +62,12 @@ jobs:
                       $newVer = "$major.$minor.$patch"
                       if ($changed -eq "true") {
                           $content -replace '<Version>[\d\.]+</Version>', "<Version>$newVer</Version>" | Set-Content $path
-                          Write-Host "New Version calculated: $newVer"
                           echo "NEW_VERSION=v$newVer" >> $env:GITHUB_OUTPUT
                       }
                       echo "VERSION_CHANGED=$changed" >> $env:GITHUB_OUTPUT
-                  } else {
-                      Write-Error "Could not find <Version> tag in $path"
-                      exit 1
                   }
 
-            - name: Push Version Update to Main
+            - name: Push Version Update
               if: steps.bump.outputs.VERSION_CHANGED == 'true'
               run: |
                   git config user.name "github-actions[bot]"
@@ -82,12 +77,12 @@ jobs:
                   git push origin main
 
     build:
-        name: 🏗️ Build ${{ matrix.name }}
+        name: 🏗️ Build
         needs: version-bump
         if: needs.version-bump.outputs.version_changed == 'true'
-        runs-on: ${{ matrix.os }}
         strategy:
             matrix:
+                os: [windows-latest, macos-latest, ubuntu-latest]
                 include:
                     - os: windows-latest
                       rid: win-x64
@@ -98,18 +93,19 @@ jobs:
                     - os: ubuntu-latest
                       rid: linux-x64
                       name: linux
+        runs-on: ${{ matrix.os }}
         steps:
-            - name: Checkout Updated Code
+            - name: Checkout Code
               uses: actions/checkout@v4
               with:
                   ref: main
 
-            - name: Setup .NET 8
+            - name: Setup .NET
               uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: "8.0"
 
-            - name: Dotnet Publish
+            - name: Publish
               run: |
                   dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 
@@ -135,41 +131,32 @@ jobs:
                   cd publish
                   zip -r ../osu-tag-${{ needs.version-bump.outputs.new_version }}-linux.zip .
 
-            - name: Upload Build Artifacts
+            - name: Upload
               uses: actions/upload-artifact@v4
               with:
                   name: assets-${{ matrix.name }}
                   path: |
                       *.exe
                       *.zip
-                  retention-days: 1
 
     publish:
-        name: 🚀 Publish Release
+        name: 🚀 Publish
         needs: [version-bump, build]
         runs-on: ubuntu-latest
         permissions:
             contents: write
         steps:
-            - name: Download all artifacts
+            - name: Download
               uses: actions/download-artifact@v4
               with:
                   pattern: assets-*
                   merge-multiple: true
 
-            - name: Create GitHub Release
+            - name: Create Release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.version-bump.outputs.new_version }}
                   name: Release ${{ needs.version-bump.outputs.new_version }}
                   generate_release_notes: true
-                  body: |
-                      ## OsuTag ${{ needs.version-bump.outputs.new_version }}
-                      Automated build for Windows, macOS, and Linux.
-                  files: |
-                      osu-tag-v*-win-setup.exe
-                      osu-tag-v*-win-portable.exe
-                      osu-tag-v*-macos.zip
-                      osu-tag-v*-linux.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
