@@ -2,6 +2,7 @@ changelog:
     exclude:
         authors:
             - github-actions[bot]
+    include_full_changelog_link: true
     categories:
         - title: "Features"
           labels:

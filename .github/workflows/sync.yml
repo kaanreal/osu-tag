@@ -1,0 +1,34 @@
+name: 🔄 Auto-Sync Branches
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    sync-to-testing:
+        name: Sync Main to Testing
+        runs-on: ubuntu-latest
+        # Skip if the commit was made by the release bot to avoid loops
+        if: github.actor != 'github-actions[bot]'
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Push changes to testing
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  git fetch origin main
+                  git fetch origin testing
+
+                  git checkout testing
+                  # Force testing to match main exactly
+                  git reset --hard origin/main
+                  git push origin testing --force
