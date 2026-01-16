@@ -30,8 +30,19 @@ jobs:
               id: analyze
               shell: bash
               run: |
-                  # Improved range scanning
-                  MESSAGES=$(git log --format="%s" -n 20)
+                  # If this is the first push to a branch, github.event.before is all zeros
+                  if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+                    # Fallback for new branches: just look at the last commit
+                    MESSAGES=$(git log --format="%s" -n 1)
+                  else
+                    # THE FIX: Only scan commits between the old state and the new state
+                    MESSAGES=$(git log --format="%s" ${{ github.event.before }}..${{ github.event.after }})
+                  fi
+
+                  echo "--- Commits in this push ---"
+                  echo "$MESSAGES"
+                  echo "----------------------------"
+
                   if echo "$MESSAGES" | grep -q "^major:"; then
                     echo "BUMP=major" >> $GITHUB_OUTPUT
                   elif echo "$MESSAGES" | grep -q "^feat:"; then
