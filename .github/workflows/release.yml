@@ -5,22 +5,18 @@ on:
         types: [published]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false 
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: false
 
 jobs:
     versioning:
         name: Prepare Versioning
         runs-on: ubuntu-latest
-        permissions:
-            contents: write
         outputs:
             VERSION: ${{ steps.get_version.outputs.VERSION }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
 
             - name: Get Version
               id: get_version
@@ -29,27 +25,10 @@ jobs:
                   VERSION=$(grep -oE '<Version>[^<]+' src/OsuTag/OsuTag.csproj | sed 's/<Version>//')
                   echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-            - name: Create Version Branch
-              shell: bash
-              run: |
-                  git config --global user.name "github-actions[bot]"
-                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
-                  BRANCH_NAME="release/v${{ steps.get_version.outputs.VERSION }}"
-                  if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-                    echo "Branch $BRANCH_NAME already exists."
-                  else
-                    git checkout -b "$BRANCH_NAME"
-                    git push origin "$BRANCH_NAME"
-                  fi
-
-
-
     build:
         name: Build ${{ matrix.os }}
         needs: versioning
         runs-on: ${{ matrix.os }}
-        permissions:
-            contents: write
         strategy:
             matrix:
                 include:
@@ -80,7 +59,6 @@ jobs:
             - name: Create macOS App Bundle
               if: matrix.os == 'macos-latest'
               run: |
-                  # Generate macOS icns
                   mkdir app.iconset
                   sips -z 16 16   src/OsuTag/Assets/app.ico --out app.iconset/icon_16x16.png -s format png
                   sips -z 32 32   src/OsuTag/Assets/app.ico --out app.iconset/icon_16x16@2x.png -s format png
@@ -106,10 +84,7 @@ jobs:
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  # Use Inno Setup to create a real installer
                   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.versioning.outputs.VERSION }} installer.iss
-
-                  # Rename SingleFile exe for direct download
                   Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ needs.versioning.outputs.VERSION }}-win-portable.exe"
 
             - name: Zip Linux
@@ -118,12 +93,33 @@ jobs:
                   cd publish
                   zip -r ../osu-tag-v${{ needs.versioning.outputs.VERSION }}-linux.zip .
 
+            - name: Store Artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: assets-${{ matrix.name }}
+                  path: |
+                      *.exe
+                      *.zip
+                  retention-days: 1
+
+    publish:
+        name: Finalize Release
+        needs: [versioning, build]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Download all artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: assets-*
+                  merge-multiple: true
+
             - name: Upload Release Assets
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.event.release.tag_name }}
                   generate_release_notes: true
-                  append_body: true
                   files: |
                       osu-tag-v*-win-setup.exe
                       osu-tag-v*-win-portable.exe
