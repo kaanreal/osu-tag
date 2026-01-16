@@ -205,6 +205,8 @@ jobs:
         name: 🔄 Sync Testing Branch
         needs: publish
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -217,11 +219,13 @@ jobs:
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
 
-                  # Get the latest changes from main (including the version bump)
+                  # Get latest changes
                   git fetch origin main
+                  git fetch origin testing
+
                   git checkout testing
 
-                  # Merge main into testing to sync the version.txt/csproj
+                  # Sync testing with main
                   git merge origin/main
 
                   # Push back to testing
