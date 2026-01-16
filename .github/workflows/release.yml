@@ -122,10 +122,33 @@ jobs:
             - name: 🍎 Package macOS
               if: matrix.os == 'macos-latest'
               run: |
+                  # Create the structure macOS expects
                   mkdir -p "osu!tag.app/Contents/MacOS"
+                  mkdir -p "osu!tag.app/Contents/Resources"
+
+                  # Copy the binary
                   cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
-                  zip -r "osu-tag-${{ needs.version-bump.outputs.new_version }}-macos.zip" "osu!tag.app"
+
+                  # Copy the Icon (Must be .icns)
+                  cp src/OsuTag/app.icns "osu!tag.app/Contents/Resources/app.icns"
+
+                  # Create a basic Info.plist so macOS knows where the icon is
+                  echo '<?xml version="1.0" encoding="UTF-8"?>
+                  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.microsoft.com/DTDs/PropertyList-1.0.dtd">
+                  <plist version="1.0">
+                  <dict>
+                      <key>CFBundleIconFile</key>
+                      <string>app.icns</string>
+                      <key>CFBundleExecutable</key>
+                      <string>OsuTag</string>
+                      <key>CFBundlePackageType</key>
+                      <string>APPL</string>
+                  </dict>
+                  </plist>' > "osu!tag.app/Contents/Info.plist"
+
+                  # Use ditto to preserve permissions and metadata (fixes "Damaged" error)
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-${{ needs.version-bump.outputs.new_version }}-macos.zip"
 
             - name: 🪟 Package Windows
               if: matrix.os == 'windows-latest'
@@ -177,3 +200,29 @@ jobs:
                       *.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    sync-testing:
+        name: 🔄 Sync Testing Branch
+        needs: publish
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Merge main into testing
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  # Get the latest changes from main (including the version bump)
+                  git fetch origin main
+                  git checkout testing
+
+                  # Merge main into testing to sync the version.txt/csproj
+                  git merge origin/main
+
+                  # Push back to testing
+                  git push origin testing
