@@ -30,18 +30,17 @@ jobs:
               id: analyze
               shell: bash
               run: |
-                  # If this is the first push to a branch, github.event.before is all zeros
+                  # Get the range of commits
                   if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-                    # Fallback for new branches: just look at the last commit
+                    # New branch: check last commit
                     MESSAGES=$(git log --format="%s" -n 1)
                   else
-                    # THE FIX: Only scan commits between the old state and the new state
-                    MESSAGES=$(git log --format="%s" ${{ github.event.before }}..${{ github.event.after }})
+                    # ONLY check new commits and IGNORE merge commits (--no-merges)
+                    MESSAGES=$(git log --format="%s" --no-merges ${{ github.event.before }}..${{ github.event.after }})
                   fi
 
-                  echo "--- Commits in this push ---"
+                  echo "--- New Work Found ---"
                   echo "$MESSAGES"
-                  echo "----------------------------"
 
                   if echo "$MESSAGES" | grep -q "^major:"; then
                     echo "BUMP=major" >> $GITHUB_OUTPUT
