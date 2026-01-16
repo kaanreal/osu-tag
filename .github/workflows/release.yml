@@ -156,11 +156,14 @@ jobs:
         permissions:
             contents: write
         steps:
-            - name: Download
+            - name: Download Artifacts
               uses: actions/download-artifact@v4
               with:
                   pattern: assets-*
                   merge-multiple: true
+
+            - name: List Files (Debug)
+              run: ls -R
 
             - name: Create Release
               uses: softprops/action-gh-release@v2
@@ -168,5 +171,9 @@ jobs:
                   tag_name: ${{ needs.version-bump.outputs.new_version }}
                   name: Release ${{ needs.version-bump.outputs.new_version }}
                   generate_release_notes: true
+                  # THIS WAS MISSING: Tell the action which files to upload
+                  files: |
+                      *.exe
+                      *.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
