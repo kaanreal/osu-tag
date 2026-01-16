@@ -13,6 +13,7 @@
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
+  <a href="#screenshots">Screenshots</a> •
   <a href="#license">License</a>
 </p>
 
@@ -20,26 +21,40 @@
 
 ## Features
 
--   **Batch Export** - Process and tag multiple beatmaps simultaneously.
--   **Metadata Tagging** - Automatically applies ID3 tags including Artist, Title, and Album info.
--   **Cover Art Extraction** - Extracts beatmap backgrounds and embeds them as album art.
--   **Modern Interface** - Clean glassmorphism design built with Avalonia.
--   **Context Actions** - Right-click support to view maps online, open local folders, or export backgrounds.
--   **Incremental Scanning** - Only scans for new beatmap folders on subsequent launches.
--   **Audio Previews** - Preview map audio by hovering over cards.
--   **Path Persistence** - Automatically remembers and loads your Songs folder.
--   **Companella! Integration** - Detects ([Companella!](https://github.com/Leinadix/companella)) for play count statistics.
--   **Update Checker** - Notifies you of new releases on startup.
--   **Anonymous Telemetry** - Optional usage statistics to assist with development.
+- **Batch Export** - Process and tag multiple beatmaps simultaneously.
+- **Metadata Tagging** - Automatically applies ID3 tags including Artist, Title, and Album info.
+- **Cover Art Extraction** - Extracts beatmap backgrounds and embeds them as album art.
+- **Modern Interface** - Clean glassmorphism design built with Avalonia.
+- **Context Actions** - Right-click support to view maps online, open local folders, or export backgrounds.
+- **Incremental Scanning** - Only scans for new beatmap folders on subsequent launches.
+- **Audio Previews** - Preview map audio by hovering over cards.
+- **Path Persistence** - Automatically remembers and loads your Songs folder.
+- **Companella! Integration** - Detects ([Companella!](https://github.com/Leinadix/companella)) for play count statistics.
+- **Update Checker** - Notifies you of new releases on startup.
+- **Anonymous Telemetry** - Optional usage statistics to assist with development.
+
+## Screenshots
+
+### Main Interface
+
+![Main Interface](screenshots/main.png)
+
+### Map Selection
+
+![Map Selection](screenshots/selection.png)
+
+### Settings
+
+![Settings](screenshots/settings.png)
 
 ## Installation
 
 ### Requirements
 
--   **Windows**: Windows 10/11
--   **macOS**: macOS 10.15 or newer
--   **Linux**: Distributions supporting GLibc (Ubuntu, Fedora, etc.)
--   **.NET 8.0 Runtime** (Optional if using the self-contained installer)
+- **Windows**: Windows 10/11
+- **macOS**: macOS 10.15 or newer
+- **Linux**: Distributions supporting GLibc (Ubuntu, Fedora, etc.)
+- **.NET 8.0 Runtime** (Optional if using the self-contained installer)
 
 ### Download
 
@@ -59,10 +74,10 @@
 
 ## Tech Stack
 
--   **Framework**: Avalonia UI (.NET 8.0)
--   **Image Processing**: SixLabors.ImageSharp
--   **Audio Tagging**: TagLibSharp
--   **Audio Playback**: LibVLCSharp / NSSound
+- **Framework**: Avalonia UI (.NET 8.0)
+- **Image Processing**: SixLabors.ImageSharp
+- **Audio Tagging**: TagLibSharp
+- **Audio Playback**: LibVLCSharp / NSSound
 
 ## License
 
