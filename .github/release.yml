@@ -5,13 +5,21 @@ changelog:
     include_full_changelog_link: true
     categories:
         - title: "Features"
+          labels:
+              - feature
+              - enhancement
           commits:
-              - "feat:*"
               - "feat*"
+              - "feature*"
         - title: "Bug Fixes"
+          labels:
+              - bug
+              - fix
           commits:
-              - "fix:*"
               - "fix*"
         - title: "Maintenance"
           commits:
-              - "chore:*"
+              - "chore*"
+              - "docs*"
+              - "refactor*"
+              - "style*"
