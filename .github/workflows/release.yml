@@ -1,12 +1,10 @@
 name: Release
 
 on:
-    push:
-        branches:
-            - main
+    workflow_dispatch:
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
+    group: ${{ github.workflow }}
     cancel-in-progress: false
 
 jobs:
@@ -19,27 +17,28 @@ jobs:
         outputs:
             new_version: ${{ steps.bump.outputs.NEW_VERSION }}
             version_changed: ${{ steps.bump.outputs.VERSION_CHANGED }}
+
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-                  token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Analyze Commit Tags
+            - name: Analyze Commits Since Last Tag
               id: analyze
               shell: bash
               run: |
-                  # Get the range of commits
-                  if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-                    # New branch: check last commit
-                    MESSAGES=$(git log --format="%s" -n 1)
+                  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+                  if [ -z "$LAST_TAG" ]; then
+                    echo "No previous tag found – using full history"
+                    MESSAGES=$(git log --format="%s" --no-merges)
                   else
-                    # ONLY check new commits and IGNORE merge commits (--no-merges)
-                    MESSAGES=$(git log --format="%s" --no-merges ${{ github.event.before }}..${{ github.event.after }})
+                    echo "Last tag: $LAST_TAG"
+                    MESSAGES=$(git log "$LAST_TAG"..HEAD --format="%s" --no-merges)
                   fi
 
-                  echo "--- New Work Found ---"
+                  echo "--- Commits considered for release ---"
                   echo "$MESSAGES"
 
                   if echo "$MESSAGES" | grep -q "^major:"; then
@@ -61,20 +60,22 @@ jobs:
                   $content = Get-Content $path -Raw
 
                   if ($content -match '<Version>(\d+)\.(\d+)\.(\d+)</Version>') {
-                      $major, $minor, $patch = [int]$Matches[1], [int]$Matches[2], [int]$Matches[3]
-                      $changed = "true"
+                    $major, $minor, $patch = [int]$Matches[1], [int]$Matches[2], [int]$Matches[3]
+                    $changed = "true"
 
-                      if ($bumpType -eq "major") { $major++; $minor = 0; $patch = 0 }
-                      elseif ($bumpType -eq "minor") { $minor++; $patch = 0 }
-                      elseif ($bumpType -eq "patch") { $patch++ }
-                      else { $changed = "false" }
-                      
-                      $newVer = "$major.$minor.$patch"
-                      if ($changed -eq "true") {
-                          $content -replace '<Version>[\d\.]+</Version>', "<Version>$newVer</Version>" | Set-Content $path
-                          echo "NEW_VERSION=v$newVer" >> $env:GITHUB_OUTPUT
-                      }
-                      echo "VERSION_CHANGED=$changed" >> $env:GITHUB_OUTPUT
+                    if ($bumpType -eq "major") { $major++; $minor = 0; $patch = 0 }
+                    elseif ($bumpType -eq "minor") { $minor++; $patch = 0 }
+                    elseif ($bumpType -eq "patch") { $patch++ }
+                    else { $changed = "false" }
+
+                    $newVer = "$major.$minor.$patch"
+
+                    if ($changed -eq "true") {
+                      $content -replace '<Version>[\d\.]+</Version>', "<Version>$newVer</Version>" | Set-Content $path
+                      echo "NEW_VERSION=v$newVer" >> $env:GITHUB_OUTPUT
+                    }
+
+                    echo "VERSION_CHANGED=$changed" >> $env:GITHUB_OUTPUT
                   }
 
             - name: Push Version Update
@@ -84,7 +85,8 @@ jobs:
                   git config user.email "github-actions[bot]@users.noreply.github.com"
                   git add src/OsuTag/OsuTag.csproj
                   git commit -m "chore: bump version to ${{ steps.bump.outputs.NEW_VERSION }} [skip ci]"
-                  git push origin main
+                  git tag ${{ steps.bump.outputs.NEW_VERSION }}
+                  git push origin main --tags
 
     build:
         name: 🏗️ Build
@@ -104,11 +106,10 @@ jobs:
                       rid: linux-x64
                       name: linux
         runs-on: ${{ matrix.os }}
+
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
-              with:
-                  ref: main
 
             - name: Setup .NET
               uses: actions/setup-dotnet@v4
@@ -122,32 +123,24 @@ jobs:
             - name: 🍎 Package macOS
               if: matrix.os == 'macos-latest'
               run: |
-                  # Create the structure macOS expects
                   mkdir -p "osu!tag.app/Contents/MacOS"
                   mkdir -p "osu!tag.app/Contents/Resources"
-
-                  # Copy the binary
                   cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
-
-                  # Copy the Icon (Must be .icns format)
                   cp src/OsuTag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns"
 
-                  # Create a basic Info.plist so macOS knows where the icon is
-                  echo '<?xml version="1.0" encoding="UTF-8"?>
+                  cat > "osu!tag.app/Contents/Info.plist" <<EOF
+                  <?xml version="1.0" encoding="UTF-8"?>
                   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.microsoft.com/DTDs/PropertyList-1.0.dtd">
                   <plist version="1.0">
                   <dict>
-                      <key>CFBundleIconFile</key>
-                      <string>app.icns</string>
-                      <key>CFBundleExecutable</key>
-                      <string>OsuTag</string>
-                      <key>CFBundlePackageType</key>
-                      <string>APPL</string>
+                    <key>CFBundleExecutable</key><string>OsuTag</string>
+                    <key>CFBundleIconFile</key><string>app.icns</string>
+                    <key>CFBundlePackageType</key><string>APPL</string>
                   </dict>
-                  </plist>' > "osu!tag.app/Contents/Info.plist"
+                  </plist>
+                  EOF
 
-                  # Use ditto to preserve permissions and metadata (fixes "Damaged" error)
                   ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-${{ needs.version-bump.outputs.new_version }}-macos.zip"
 
             - name: 🪟 Package Windows
@@ -178,12 +171,8 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
-        steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
 
+        steps:
             - name: Download Artifacts
               uses: actions/download-artifact@v4
               with:
@@ -194,7 +183,7 @@ jobs:
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.version-bump.outputs.new_version }}
-                  name: "osu!tag (${{ needs.version-bump.outputs.new_version }}) - release notes"
+                  name: "osu!tag (${{ needs.version-bump.outputs.new_version }})"
                   generate_release_notes: true
                   make_latest: true
                   files: |
