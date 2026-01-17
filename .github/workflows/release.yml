@@ -193,6 +193,8 @@ jobs:
               with:
                   tag_name: ${{ needs.version-bump.outputs.new_version }}
                   name: Release ${{ needs.version-bump.outputs.new_version }}
+                  body: |
+                      ## osu!tag (${{ needs.version-bump.outputs.new_version }}) - release notes
                   generate_release_notes: true
                   make_latest: true
                   files: |
