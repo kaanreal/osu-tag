@@ -59,8 +59,7 @@ jobs:
                   EOF
                   )
 
-                  CLEANED=$(echo "$RAW_BODY" | tail -n +3)
-                  FINAL_BODY=$(echo "$CLEANED" | sed 's/### /---\n### /g')
+                  FINAL_BODY=$(echo "$RAW_BODY" | sed 's/### /---\n### /g')
 
                   echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
                   echo "$FINAL_BODY" >> $GITHUB_ENV
@@ -84,7 +83,7 @@ jobs:
                   EOF
                   ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.$CLEAN_VER-macos.zip"
 
-            - name: 🟦 Package Windows
+            - name: 🪟 Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |

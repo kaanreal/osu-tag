@@ -2,7 +2,8 @@
     "primary-branch": "main",
     "tag-separator": "",
     "include-component-in-tag": false,
-    "pull-request-title-pattern": "v.${version}",
+    "pull-request-title-pattern": "Release v.${version}",
+    "pull-request-header": "",
     "packages": {
         ".": {
             "release-type": "simple",
