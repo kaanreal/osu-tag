@@ -3,20 +3,20 @@
     "tag-separator": "",
     "include-component-in-tag": false,
     "pull-request-title-pattern": "chore: release ${version}",
+    "pull-request-header": "",
     "packages": {
         ".": {
             "release-type": "simple",
             "package-name": "osu!tag",
             "version-file": "src/OsuTag/version.txt",
+            "changelog-template": ".github/template.hbs",
             "changelog-sections": [
-                { "type": "feat", "section": "✨ New Features" },
-                { "type": "fix", "section": "🛠 Improvements" },
-                { "type": "perf", "section": "🛠 Improvements" },
-                { "type": "bug", "section": "🐞 Bug Fixes" },
-                { "type": "chore", "section": "🔧 Under the Hood" }
+                { "type": "feat", "section": "✨ New Features", "hidden": false },
+                { "type": "fix", "section": "🛠 Improvements", "hidden": false },
+                { "type": "perf", "section": "🛠 Improvements", "hidden": false },
+                { "type": "bug", "section": "🐞 Bug Fixes", "hidden": false },
+                { "type": "chore", "section": "🔧 Under the Hood", "hidden": false }
             ]
         }
-    },
-    "header": "Thank you for using **osu!tag**! 🚀",
-    "footer": "---\nDownload the new version and enjoy a smoother experience."
+    }
 }
