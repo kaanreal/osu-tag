@@ -48,17 +48,23 @@ jobs:
               with:
                   dotnet-version: "8.0"
 
-            - name: Prepare Version Metadata
-              shell: pwsh
+            - name: Prepare Version & Clean Body
+              shell: bash
               run: |
-                  $ver = "${{ needs.release-please.outputs.tag_name }}".Replace("v.","").Replace("v","")
-                  # Sicherstellen, dass die version.txt existiert/aktuell ist
-                  New-Item -Path "src/OsuTag" -Name "version.txt" -ItemType "file" -Value $ver -Force
-                  echo "CLEAN_VER=$ver" >> $env:GITHUB_ENV
+                  VER=$(echo "${{ needs.release-please.outputs.tag_name }}" | sed 's/[v.]//g')
+                  echo "CLEAN_VER=$VER" >> $GITHUB_ENV
+
+                  RAW_BODY='${{ needs.release-please.outputs.body }}'
+                  CLEANED=$(echo "$RAW_BODY" | tail -n +2)
+                  FINAL_BODY=$(echo "$CLEANED" | sed 's/### /---\n### /g')
+
+                  echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+                  echo "$FINAL_BODY" >> $GITHUB_ENV
+                  echo "EOF" >> $GITHUB_ENV
 
             - name: Publish
               run: |
-                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ env.CLEAN_VER }} -o publish
 
             - name: 🍎 Package macOS
               if: matrix.os == 'macos-latest'
@@ -95,7 +101,7 @@ jobs:
                       # osu!tag ${{ needs.release-please.outputs.tag_name }} – Release Notes
                       Author: @${{ github.actor }}
 
-                      ${{ needs.release-please.outputs.body }}
+                      ${{ env.RELEASE_BODY }}
                   files: |
                       *.exe
                       *.zip
