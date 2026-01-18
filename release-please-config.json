@@ -1,9 +1,19 @@
 {
+    "tag-separator": "",
+    "include-component-in-tag": false,
+    "pull-request-title-pattern": "${version}",
     "packages": {
         ".": {
             "release-type": "simple",
-            "package-name": "OsuTag",
-            "version-file": "src/OsuTag/OsuTag.csproj",
+            "package-name": "osu!tag",
+            "version-file": "src/OsuTag/version.txt",
+            "changelog-sections": [
+                { "type": "feat", "section": "✨ New Features", "hidden": false },
+                { "type": "fix", "section": "🛠 Improvements", "hidden": false },
+                { "type": "perf", "section": "🛠 Improvements", "hidden": false },
+                { "type": "bug", "section": "🐞 Bug Fixes", "hidden": false },
+                { "type": "refactor", "section": "🔧 Under the Hood", "hidden": false }
+            ],
             "replace-patterns": [
                 {
                     "search": "<Version>[0-9]+\\.[0-9]+\\.[0-9]+</Version>",
@@ -11,5 +21,6 @@
                 }
             ]
         }
-    }
+    },
+    "header": "---\n\nThank you for using **osu!tag**!  \nDownload the new version and enjoy a smoother experience and easier installation."
 }
