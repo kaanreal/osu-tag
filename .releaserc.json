@@ -1,0 +1,39 @@
+{
+    "branches": ["main"],
+    "tagFormat": "v.${version}",
+    "plugins": [
+        [
+            "@semantic-release/commit-analyzer",
+            {
+                "preset": "conventionalcommits"
+            }
+        ],
+        [
+            "@semantic-release/release-notes-generator",
+            {
+                "preset": "conventionalcommits",
+                "writerOpts": {
+                    "headerPartial": "# osu!tag v{{version}} – Release notes\n\n",
+                    "footerPartial": "\n## Installation\n\nGrab the version for your OS from the assets below.\n* **Windows**: Use the installer or the standalone zip.\n* **macOS/Linux**: Extract the zip and run the executable.\n\nThanks for using **osu!tag**!\n\n**Full Changelog**: {{host}}/{{owner}}/{{repository}}/compare/{{previousTag}}...{{currentTag}}"
+                },
+                "presetConfig": {
+                    "types": [
+                        { "type": "feat", "section": "## What’s New" },
+                        { "type": "fix", "section": "## Improvements & Changes" },
+                        { "type": "perf", "section": "## Improvements & Changes" },
+                        { "type": "refactor", "section": "## Improvements & Changes" }
+                    ]
+                }
+            }
+        ],
+        [
+            "@semantic-release/github",
+            {
+                "assets": [
+                    { "path": "*.exe", "label": "Windows" },
+                    { "path": "*.zip", "label": "macOS/Linux" }
+                ]
+            }
+        ]
+    ]
+}
