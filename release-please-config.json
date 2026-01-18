@@ -2,7 +2,7 @@
     "primary-branch": "main",
     "tag-separator": "",
     "include-component-in-tag": false,
-    "pull-request-title-pattern": "chore: release ${version}",
+    "pull-request-title-pattern": "chore(${scope}): release ${component} ${version}",
     "pull-request-header": "",
     "packages": {
         ".": {
