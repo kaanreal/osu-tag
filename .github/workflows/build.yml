@@ -1,31 +1,15 @@
 name: Release & Build
 
 on:
-    push:
-        branches:
-            - main
+    release:
+        types: [published]
 
 permissions:
     contents: write
     pull-requests: write
 
 jobs:
-    release-please:
-        runs-on: ubuntu-latest
-        outputs:
-            release_created: ${{ steps.release.outputs.release_created }}
-            tag_name: ${{ steps.release.outputs.tag_name }}
-            body: ${{ steps.release.outputs.body }}
-            version: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
-        steps:
-            - uses: googleapis/release-please-action@v4
-              id: release
-              with:
-                  token: ${{ secrets.MY_RELEASE_TOKEN }}
-
     build:
-        needs: release-please
-        if: ${{ needs.release-please.outputs.release_created }}
         strategy:
             matrix:
                 include:
@@ -41,13 +25,22 @@ jobs:
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v4
+
             - uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: "8.0"
 
+            - name: Get Version
+              id: get_version
+              shell: bash
+              run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
             - name: Publish
               run: |
-                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ needs.release-please.outputs.version }} -o publish
+                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} \
+                  --self-contained -p:PublishSingleFile=true \
+                  -p:IncludeNativeLibrariesForSelfExtract=true \
+                  -p:Version=${{ steps.get_version.outputs.VERSION }} -o publish
 
             - name: Package macOS
               if: matrix.os == 'macos-latest'
@@ -58,44 +51,25 @@ jobs:
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
                   cp src/OsuTag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns"
                   echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>OsuTag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>' > "osu!tag.app/Contents/Info.plist"
-                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.${{ needs.release-please.outputs.version }}-macos.zip"
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v${{ steps.get_version.outputs.VERSION }}-macos.zip"
 
             - name: Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.release-please.outputs.version }} installer.iss
-                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.${{ needs.release-please.outputs.version }}-win-portable.exe"
+                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.get_version.outputs.VERSION }} installer.iss
+                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win-portable.exe"
 
             - name: Package Linux
               if: matrix.os == 'ubuntu-latest'
               run: |
-                  cd publish && zip -r ../osu-tag-v.${{ needs.release-please.outputs.version }}-linux.zip .
+                  cd publish && zip -r ../osu-tag-v${{ steps.get_version.outputs.VERSION }}-linux.zip .
 
-            - name: Upload Artifacts
-              uses: actions/upload-artifact@v4
-              with:
-                  name: assets-${{ matrix.artifact_id }}
-                  path: |
-                      *.exe
-                      *.zip
-
-    upload-release:
-        needs: [release-please, build]
-        runs-on: ubuntu-latest
-        steps:
-            - name: Download Artifacts
-              uses: actions/download-artifact@v4
-              with:
-                  path: ./dist
-                  pattern: assets-*
-                  merge-multiple: true
-
-            - name: Push Release
+            - name: Upload to Release
               uses: softprops/action-gh-release@v2
               with:
-                  tag_name: ${{ needs.release-please.outputs.tag_name }}
-                  body: ${{ needs.release-please.outputs.body }}
-                  files: ./dist/*
+                  files: |
+                      *.exe
+                      *.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
