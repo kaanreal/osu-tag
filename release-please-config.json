@@ -2,7 +2,7 @@
     "dry-run": true,
     "packages": {
         ".": {
-            "release-type": "dotnet",
+            "release-type": "simple",
             "package-name": "OsuTag",
             "version-file": "src/OsuTag/OsuTag.csproj"
         }
