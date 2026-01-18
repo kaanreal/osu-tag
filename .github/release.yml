@@ -4,26 +4,14 @@ changelog:
             - github-actions[bot]
     categories:
         - title: "🚀 Features"
-          labels:
-              - feature
-          rewrite:
-              title_is_enough: true
           filter:
               commit-expressions:
-                  - '^feat(\(.*\))?:'
-                  - '^feature(\(.*\))?:'
-
+                  - "(?i)^feat"
         - title: "🐛 Bug Fixes"
-          labels:
-              - bug
           filter:
               commit-expressions:
-                  - '^fix(\(.*\))?:'
-
+                  - "(?i)^fix"
         - title: "🔧 Maintenance"
           filter:
               commit-expressions:
-                  - '^chore(\(.*\))?:'
-                  - '^docs(\(.*\))?:'
-                  - '^refactor(\(.*\))?:'
-                  - '^style(\(.*\))?:'
+                  - "(?i)^(chore|docs|refactor|style)"
