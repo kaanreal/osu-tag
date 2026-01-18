@@ -74,7 +74,17 @@ namespace OsuTag.Views
                 var progress = new Progress<double>(p =>
                 {
                     progressBar.Value = p;
-                    if (progressText != null) progressText.Text = $"{(int)p}%";
+                    if (progressText != null)
+                    {
+                        if (p >= 100)
+                        {
+                            progressText.Text = "Installing, please wait...";
+                        }
+                        else
+                        {
+                            progressText.Text = $"{(int)p}%";
+                        }
+                    }
                 });
 
                 if (_updateInfo?.DownloadUrl != null)
@@ -83,7 +93,7 @@ namespace OsuTag.Views
                 }
 
                 // Download complete
-                if (progressText != null) progressText.Text = "Installing...";
+                if (progressText != null) progressText.Text = "Installing, please wait...";
                 await Task.Delay(500); // Visual pause
 
                 UpdateService.Instance.ApplyUpdate();

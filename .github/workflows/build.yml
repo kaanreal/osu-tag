@@ -19,13 +19,13 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
-                  token: ${{ secrets.RELEASE_TOKEN }}
+                  token: ${{ secrets.MY_RELEASE_TOKEN }}
                   fetch-depth: 0
 
             - uses: googleapis/release-please-action@v4
               id: release
               with:
-                  token: ${{ secrets.RELEASE_TOKEN }}
+                  token: ${{ secrets.MY_RELEASE_TOKEN }}
                   include-component-in-tag: false
 
     build:
@@ -63,20 +63,20 @@ jobs:
                   # Extract the version from the tag (e.g., v1.1.1 -> 1.1.1)
                   TAG_NAME="${{ needs.release-please.outputs.tag_name }}"
                   VERSION="${TAG_NAME#v}"
-                  
+
                   # Create the header (using – which is an en dash, matching user request)
                   HEADER="# osu!tag v$VERSION – Release Notes"
-                  
+
                   # Get the changelog from release-please
                   BODY=$(cat << 'EOF'
                   ${{ needs.release-please.outputs.body }}
                   EOF
                   )
-                  
+
                   # Remove the default version header from release-please body and all lines before first section
                   # Then convert H3 (###) to H2 (##) as requested. Using portable sed syntax.
                   CLEANED_BODY=$(echo "$BODY" | sed -n '/^### /,$p' | sed 's/^### /## /g')
-                  
+
                   # Extract comparison link (e.g., v1.1.1...v2.0.0) from the header
                   COMPARE_TAGS=$(echo "$BODY" | grep -oE "compare/[v0-9.]+...[v0-9.]+" | cut -d'/' -f2)
                   if [ -n "$COMPARE_TAGS" ]; then
@@ -87,13 +87,11 @@ jobs:
 
                   # Construct full body
                   FULL_BODY="$HEADER\n\n$CLEANED_BODY$CHANGELOG_FOOTER"
-                  
-                  # Use a heredoc for setting the environment variable
-                  {
-                    echo "RELEASE_BODY<<EOF"
-                    echo -e "$FULL_BODY"
-                    echo "EOF"
-                  } >> $GITHUB_ENV
+
+                  # Set the output for use in later steps
+                  echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
+                  echo -e "$FULL_BODY" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
 
             - name: Publish
               shell: bash
@@ -133,7 +131,7 @@ jobs:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
                   name: Release v.${{ steps.get_version.outputs.VERSION }}
                   body: |
-                      ${{ env.RELEASE_BODY }}
+                      ${{ steps.release_notes.outputs.RELEASE_BODY }}
 
                       Thank you for using **osu!tag** by **kaancat**! Download the new version and enjoy a smoother experience and easier installation.
                   files: |
