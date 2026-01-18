@@ -6,7 +6,7 @@ changelog:
         - title: "🚀 Features"
           filter:
               commit-expressions:
-                  - "(?i)^feat" # Matcht feat:, Feat:, feat(ui):
+                  - "(?i)^feat"
         - title: "🐛 Bug Fixes"
           filter:
               commit-expressions:
