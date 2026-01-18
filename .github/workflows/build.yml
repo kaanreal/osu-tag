@@ -42,11 +42,8 @@ jobs:
         env:
             CLEAN_VER: ${{ needs.release-please.outputs.version }}
         steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
-
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
+            - uses: actions/checkout@v4
+            - uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: "8.0"
 
@@ -77,7 +74,7 @@ jobs:
               run: |
                   cd publish && zip -r ../osu-tag-v.${{ env.CLEAN_VER }}-linux.zip .
 
-            - name: Upload Artifacts
+            - name: Store Artifacts
               uses: actions/upload-artifact@v4
               with:
                   name: assets-${{ matrix.artifact_id }}
@@ -85,18 +82,18 @@ jobs:
                       *.exe
                       *.zip
 
-    upload:
+    upload-release:
         needs: [release-please, build]
         runs-on: ubuntu-latest
         steps:
-            - name: Download Artifacts
+            - name: Download All Artifacts
               uses: actions/download-artifact@v4
               with:
                   path: ./dist
                   pattern: assets-*
                   merge-multiple: true
 
-            - name: Push Release
+            - name: Finalize GitHub Release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
