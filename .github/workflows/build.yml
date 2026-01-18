@@ -39,8 +39,6 @@ jobs:
                       rid: linux-x64
                       artifact_id: linux
         runs-on: ${{ matrix.os }}
-        env:
-            CLEAN_VER: ${{ needs.release-please.outputs.version }}
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-dotnet@v4
@@ -49,7 +47,7 @@ jobs:
 
             - name: Publish
               run: |
-                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ env.CLEAN_VER }} -o publish
+                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ needs.release-please.outputs.version }} -o publish
 
             - name: Package macOS
               if: matrix.os == 'macos-latest'
@@ -60,21 +58,21 @@ jobs:
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
                   cp src/OsuTag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns"
                   echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>OsuTag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>' > "osu!tag.app/Contents/Info.plist"
-                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.${{ env.CLEAN_VER }}-macos.zip"
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.${{ needs.release-please.outputs.version }}-macos.zip"
 
             - name: Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ env.CLEAN_VER }} installer.iss
-                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.${{ env.CLEAN_VER }}-win-portable.exe"
+                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.release-please.outputs.version }} installer.iss
+                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.${{ needs.release-please.outputs.version }}-win-portable.exe"
 
             - name: Package Linux
               if: matrix.os == 'ubuntu-latest'
               run: |
-                  cd publish && zip -r ../osu-tag-v.${{ env.CLEAN_VER }}-linux.zip .
+                  cd publish && zip -r ../osu-tag-v.${{ needs.release-please.outputs.version }}-linux.zip .
 
-            - name: Store Artifacts
+            - name: Upload Artifacts
               uses: actions/upload-artifact@v4
               with:
                   name: assets-${{ matrix.artifact_id }}
@@ -86,18 +84,40 @@ jobs:
         needs: [release-please, build]
         runs-on: ubuntu-latest
         steps:
-            - name: Download All Artifacts
+            - name: Download Artifacts
               uses: actions/download-artifact@v4
               with:
                   path: ./dist
                   pattern: assets-*
                   merge-multiple: true
 
-            - name: Finalize GitHub Release
+            - name: Format Release Body
+              shell: bash
+              run: |
+                  # Extrahiere den Teil nach dem ersten Header von release-please
+                  RAW_BODY=$(cat <<'EOF'
+                  ${{ needs.release-please.outputs.body }}
+                  EOF
+                  )
+                  CHANGELOG=$(echo "$RAW_BODY" | sed -n '/##/,$p')
+
+                  {
+                    echo "# Release v.${{ needs.release-please.outputs.version }}"
+                    echo ""
+                    echo "Thank you for using **osu!tag**! 🚀"
+                    echo ""
+                    echo "$CHANGELOG"
+                    echo ""
+                    echo "---"
+                    echo ""
+                    echo "Download the new version and enjoy a smoother experience."
+                  } > formatted_body.md
+
+            - name: Push Release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
-                  body: ${{ needs.release-please.outputs.body }}
+                  body_path: formatted_body.md
                   files: ./dist/*
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
