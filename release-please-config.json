@@ -9,8 +9,8 @@
             "release-type": "simple",
             "package-name": "osu!tag",
             "version-file": "src/OsuTag/version.txt",
-            "changelogtemplate": ".github/template.hbs",
-            "changelog-sections": [
+            "changelogTemplate": ".github/template.hbs",
+            "changelogSections": [
                 { "type": "feat", "section": "✨ New Features", "hidden": false },
                 { "type": "fix", "section": "🛠 Improvements", "hidden": false },
                 { "type": "perf", "section": "🛠 Improvements", "hidden": false },
