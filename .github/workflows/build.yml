@@ -1,4 +1,4 @@
-name: Release & Build (Release Please)
+name: Release & Build
 
 on:
     push:
@@ -31,14 +31,14 @@ jobs:
                 include:
                     - os: windows-latest
                       rid: win-x64
-                      name: windows
                     - os: macos-latest
                       rid: osx-arm64
-                      name: macos
                     - os: ubuntu-latest
                       rid: linux-x64
-                      name: linux
         runs-on: ${{ matrix.os }}
+        env:
+            CLEAN_VER: ""
+            RELEASE_BODY: ""
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
@@ -48,14 +48,18 @@ jobs:
               with:
                   dotnet-version: "8.0"
 
-            - name: Prepare Version & Clean Body
+            - name: Process Version and Body
               shell: bash
               run: |
                   VER=$(echo "${{ needs.release-please.outputs.tag_name }}" | sed 's/[v.]//g')
                   echo "CLEAN_VER=$VER" >> $GITHUB_ENV
 
-                  RAW_BODY='${{ needs.release-please.outputs.body }}'
-                  CLEANED=$(echo "$RAW_BODY" | tail -n +2)
+                  RAW_BODY=$(cat <<'EOF'
+                  ${{ needs.release-please.outputs.body }}
+                  EOF
+                  )
+
+                  CLEANED=$(echo "$RAW_BODY" | tail -n +3)
                   FINAL_BODY=$(echo "$CLEANED" | sed 's/### /---\n### /g')
 
                   echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
@@ -64,7 +68,7 @@ jobs:
 
             - name: Publish
               run: |
-                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ env.CLEAN_VER }} -o publish
+                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=$CLEAN_VER -o publish
 
             - name: 🍎 Package macOS
               if: matrix.os == 'macos-latest'
@@ -78,22 +82,23 @@ jobs:
                   <?xml version="1.0" encoding="UTF-8"?>
                   <plist version="1.0"><dict><key>CFBundleExecutable</key><string>OsuTag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>
                   EOF
-                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.${{ env.CLEAN_VER }}-macos.zip"
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.$CLEAN_VER-macos.zip"
 
-            - name: 🪟 Package Windows
+            - name: 🟦 Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ env.CLEAN_VER }} installer.iss
-                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.${{ env.CLEAN_VER }}-win-portable.exe"
+                  $ver = $env:CLEAN_VER
+                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer.iss
+                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.$ver-win-portable.exe"
 
             - name: 🐧 Package Linux
               if: matrix.os == 'ubuntu-latest'
               run: |
                   cd publish
-                  zip -r ../osu-tag-v.${{ env.CLEAN_VER }}-linux.zip .
+                  zip -r ../osu-tag-v.$CLEAN_VER-linux.zip .
 
-            - name: Upload to GitHub Release
+            - name: Upload Release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
