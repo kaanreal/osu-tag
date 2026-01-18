@@ -68,8 +68,8 @@ jobs:
                   )
                   
                   # Remove the default version header from release-please body and all lines before first section
-                  # Then convert H3 (###) to H2 (##) as requested
-                  CLEANED_BODY=$(echo "$BODY" | sed '1,/^### / { /^### / !d }' | sed 's/^### /## /g')
+                  # Then convert H3 (###) to H2 (##) as requested. Using portable sed syntax.
+                  CLEANED_BODY=$(echo "$BODY" | sed -n '/^### /,$p' | sed 's/^### /## /g')
                   
                   # Construct full body
                   FULL_BODY="$HEADER\n\n$CLEANED_BODY"
