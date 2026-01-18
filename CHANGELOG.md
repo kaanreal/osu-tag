@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/kaanreal/osu-tag/compare/v2.1.0...v2.1.1) (2026-01-18)
+
+
+### 🐞 Bug Fixes
+
+* test test test ([f06ab67](https://github.com/kaanreal/osu-tag/commit/f06ab67175b040f6dff91cfbb44c76235d579711))
+
 ## [2.1.0](https://github.com/kaanreal/osu-tag/compare/v2.0.0...v2.1.0) (2026-01-18)
 
 
