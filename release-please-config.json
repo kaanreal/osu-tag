@@ -1,7 +1,7 @@
 {
     "packages": {
         ".": {
-            "release-type": "dotnet",
+            "release-type": "simple",
             "package-name": "osu!tag",
             "changelog-path": "CHANGELOG.md",
             "bump-minor-pre-major": true,
