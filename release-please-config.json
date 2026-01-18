@@ -1,9 +1,5 @@
 {
     "primary-branch": "main",
-    "tag-separator": "",
-    "include-component-in-tag": false,
-    "pull-request-title-pattern": "chore: release ${version}",
-    "pull-request-header": "",
     "packages": {
         ".": {
             "release-type": "simple",
