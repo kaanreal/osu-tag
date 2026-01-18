@@ -3,6 +3,46 @@
 ## [2.1.0](https://github.com/kaanreal/osu-tag/compare/v2.0.0...v2.1.0) (2026-01-18)
 
 
+### Features
+
+* delete goog ([7090fe2](https://github.com/kaanreal/osu-tag/commit/7090fe271d71afa222456d622a36c4c756ef70bd))
+* feat test ([09a0eb1](https://github.com/kaanreal/osu-tag/commit/09a0eb1c24102ae4bd8da7527fff1f9d937b4227))
+* goog ([0b42230](https://github.com/kaanreal/osu-tag/commit/0b42230324c2d71fe041f45c0f57b37e322ee7bf))
+* goog ([bffc93f](https://github.com/kaanreal/osu-tag/commit/bffc93f6a921af80849d7faddf96d8b642b2a010))
+* goog ([fa47ecd](https://github.com/kaanreal/osu-tag/commit/fa47ecd4ea4db892a0b465f80f06ad8bbe93975f))
+* goog ([#33](https://github.com/kaanreal/osu-tag/issues/33)) ([2b7b3e8](https://github.com/kaanreal/osu-tag/commit/2b7b3e835b9f63689b52c0f42803fd236945cd11))
+* goog part.idk ([bff90f1](https://github.com/kaanreal/osu-tag/commit/bff90f185c4280e9082fed5be9f6cf15262838af))
+* goog part.idk ([71eed72](https://github.com/kaanreal/osu-tag/commit/71eed7264688ab9cf78beedc2be93ad7b0febf28))
+* goog remove ([52c1cef](https://github.com/kaanreal/osu-tag/commit/52c1cef794a2305f0e89651341f3757209ebe0b3))
+* goog remove ([349d462](https://github.com/kaanreal/osu-tag/commit/349d4621755aa6a96de23492ad973866b9cf52c9))
+* goog test ([bed818b](https://github.com/kaanreal/osu-tag/commit/bed818b7404df84cd1bfe2e2b2d0b8e82032193f))
+* goog test ([c9bfe9b](https://github.com/kaanreal/osu-tag/commit/c9bfe9b59efce55c8bbc21ffb45f561723226e06))
+* goog test ([d44e115](https://github.com/kaanreal/osu-tag/commit/d44e1156879821d8cbbd012d740c3d9fcfffe9a1))
+* goog test ([f5a215e](https://github.com/kaanreal/osu-tag/commit/f5a215e8f29183e3f4943e96d80cbe0157e2d353))
+* test ([192e290](https://github.com/kaanreal/osu-tag/commit/192e290b022a1c794a5372f16b2dd8816e22456f))
+* test ([0b2e586](https://github.com/kaanreal/osu-tag/commit/0b2e5869dd466e9072bbda2ea94087ea9ae11c6d))
+* test goog ([803203a](https://github.com/kaanreal/osu-tag/commit/803203a9e19fbb4bc92996f45a0b2f46923163af))
+* test goog ([#55](https://github.com/kaanreal/osu-tag/issues/55)) ([803203a](https://github.com/kaanreal/osu-tag/commit/803203a9e19fbb4bc92996f45a0b2f46923163af))
+* test test test idk ([4a2a882](https://github.com/kaanreal/osu-tag/commit/4a2a882beb3e03b06544142d0fec508b35dfbecc))
+* test thingy ([1458302](https://github.com/kaanreal/osu-tag/commit/14583026f82de71a215378fbe154d4b796efc0f9))
+
+
+### Bug Fixes
+
+* goog ([c2a1eec](https://github.com/kaanreal/osu-tag/commit/c2a1eecfdc39b3522ba31583cf2554e93944223f))
+* goog ([7afc494](https://github.com/kaanreal/osu-tag/commit/7afc4946c51ceec8b8a19ef566bcf72644948a89))
+* goog ([1ac6b4a](https://github.com/kaanreal/osu-tag/commit/1ac6b4a8c55639fc9fbbf7d92daa1b349a3cec70))
+* goog ([74cd0c1](https://github.com/kaanreal/osu-tag/commit/74cd0c1c95a89e001aea1bfda021103e2971ddf0))
+* goog test fix ([299c5f8](https://github.com/kaanreal/osu-tag/commit/299c5f813d9ba3bbb714365dac63103476f44b6f))
+* increment test ([68ca743](https://github.com/kaanreal/osu-tag/commit/68ca74396d2b2b3861938d85e90511fded0e7c66))
+* increment test ([a028b60](https://github.com/kaanreal/osu-tag/commit/a028b6098743b430128fc103a7f9626c556cfa87))
+* test ([c191f70](https://github.com/kaanreal/osu-tag/commit/c191f707d7e4e909c43b67d41183f0b1404aba89))
+* test ([c191f70](https://github.com/kaanreal/osu-tag/commit/c191f707d7e4e909c43b67d41183f0b1404aba89))
+* test fix ([e37e3b8](https://github.com/kaanreal/osu-tag/commit/e37e3b8aca83ee059d806549c2fb40afa48630d5))
+
+## [2.1.0](https://github.com/kaanreal/osu-tag/compare/v2.0.0...v2.1.0) (2026-01-18)
+
+
 ### ✨ New Features
 
 * delete goog ([7090fe2](https://github.com/kaanreal/osu-tag/commit/7090fe271d71afa222456d622a36c4c756ef70bd))
