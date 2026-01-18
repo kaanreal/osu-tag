@@ -44,7 +44,40 @@ jobs:
               shell: bash
               run: |
                   RAW_TAG="${{ needs.release-please.outputs.tag_name }}"
-                  echo "VERSION=${RAW_TAG#v.}" >> $GITHUB_OUTPUT
+                  VERSION="${RAW_TAG#v}"
+                  echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+            - name: Prepare Release Notes
+              id: release_notes
+              shell: bash
+              run: |
+                  # Extract the version from the tag (e.g., v1.1.1 -> 1.1.1)
+                  TAG_NAME="${{ needs.release-please.outputs.tag_name }}"
+                  VERSION="${TAG_NAME#v}"
+                  
+                  # Create the header
+                  HEADER="# osu!tag v$VERSION – Release Notes"
+                  
+                  # Get the changelog from release-please
+                  # googleapis/release-please-action@v4 provides 'body' output
+                  BODY=$(cat << 'EOF'
+                  ${{ needs.release-please.outputs.body }}
+                  EOF
+                  )
+                  
+                  # Remove the default version header from release-please body if it exists
+                  # (usually looks like ## [1.1.1](...))
+                  CLEANED_BODY=$(echo "$BODY" | sed '1,2d')
+                  
+                  # Construct full body
+                  FULL_BODY="$HEADER\n\n$CLEANED_BODY"
+                  
+                  # Use a heredoc for setting the environment variable to handle multi-line content safely
+                  {
+                    echo "RELEASE_BODY<<EOF"
+                    echo -e "$FULL_BODY"
+                    echo "EOF"
+                  } >> $GITHUB_ENV
 
             - name: Publish
               run: |
@@ -66,7 +99,6 @@ jobs:
 
             - name: Package Windows
               if: matrix.os == 'windows-latest'
-              shell: pwsh
               run: |
                   if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
                     & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.get_version.outputs.VERSION }} installer.iss
@@ -82,7 +114,9 @@ jobs:
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
-                  append_body: |
+                  name: Release ${{ needs.release-please.outputs.tag_name }}
+                  body: |
+                      ${{ env.RELEASE_BODY }}
 
                       ---
                       Thank you for using **osu!tag**!

@@ -12,7 +12,7 @@
                 {
                     "type": "json",
                     "path": "src/OsuTag/version.txt",
-                    "jsonpath": "$.version"
+                    "jsonpath": "$"
                 }
             ]
         }
