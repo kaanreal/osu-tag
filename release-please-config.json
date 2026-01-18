@@ -2,7 +2,7 @@
     "packages": {
         ".": {
             "release-type": "simple",
-            "package-name": "osu!tag",
+            "package-name": "",
             "changelog-path": "CHANGELOG.md",
             "bump-minor-pre-major": true,
             "bump-patch-for-minor-pre-major": true,
@@ -10,9 +10,8 @@
             "prerelease": false,
             "extra-files": [
                 {
-                    "type": "json",
-                    "path": "src/OsuTag/version.txt",
-                    "jsonpath": "$"
+                    "type": "generic",
+                    "path": "src/OsuTag/version.txt"
                 }
             ]
         }
