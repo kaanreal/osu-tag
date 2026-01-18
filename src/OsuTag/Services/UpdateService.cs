@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.IO.Compression;
 using OsuTag.Models;
 
 namespace OsuTag.Services
@@ -58,18 +59,23 @@ namespace OsuTag.Services
                 string downloadUrl = "";
                 if (root.TryGetProperty("assets", out var assets) && assets.GetArrayLength() > 0)
                 {
-                    // Find first suitable asset (zip/exe)
+                    string targetExtension = PlatformService.IsWindows ? ".exe" : 
+                                            PlatformService.IsMacOS ? "-macos.zip" : ".zip";
+
+                    // Find first suitable asset
                     foreach (var asset in assets.EnumerateArray())
                     {
+                        var name = asset.GetProperty("name").GetString()?.ToLower() ?? "";
                         var url = asset.GetProperty("browser_download_url").GetString();
-                        if (url != null && (url.EndsWith(".exe") || url.EndsWith(".zip") || url.EndsWith(".msi")))
+                        
+                        if (url != null && name.EndsWith(targetExtension))
                         {
                             downloadUrl = url;
                             break;
                         }
                     }
                     
-                    // Fallback to first asset if no specific extension match
+                    // Fallback to first asset if no platform-specific match
                     if (string.IsNullOrEmpty(downloadUrl))
                     {
                         downloadUrl = assets[0].GetProperty("browser_download_url").GetString() ?? "";
@@ -133,8 +139,9 @@ namespace OsuTag.Services
         {
             try
             {
-                // Download to temp file
-                var tempPath = Path.Combine(Path.GetTempPath(), "osutag_update_v" + DateTime.Now.Ticks + ".exe");
+                // Download to temp file with correct extension
+                string extension = Path.GetExtension(downloadUrl) ?? (PlatformService.IsWindows ? ".exe" : ".zip");
+                var tempPath = Path.Combine(Path.GetTempPath(), $"osutag_update_{DateTime.Now.Ticks}{extension}");
                 
                 using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
                 {
@@ -190,21 +197,79 @@ namespace OsuTag.Services
                 return;
             }
 
-            // Launch the new installer/exe
-            // If it's an installer, run it. If it's a raw exe replacement, we need a script.
-            // Assuming for now the update is a setup.exe or self-extracting archive
-            try 
+            if (PlatformService.IsWindows)
             {
-                Process.Start(new ProcessStartInfo
+                try 
                 {
-                    FileName = _downloadedFilePath,
-                    UseShellExecute = true 
-                });
-                
-                Environment.Exit(0);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = _downloadedFilePath,
+                        UseShellExecute = true 
+                    });
+                    
+                    Environment.Exit(0);
+                }
+                catch (Exception)
+                {
+                }
             }
-            catch (Exception)
+            else if (PlatformService.IsMacOS)
             {
+                try
+                {
+                    // For macOS, we expect a .zip containing the .app bundle
+                    string extractPath = Path.Combine(Path.GetTempPath(), "osutag_extraction_" + DateTime.Now.Ticks);
+                    Directory.CreateDirectory(extractPath);
+                    ZipFile.ExtractToDirectory(_downloadedFilePath, extractPath);
+
+                    // Find the .app folder
+                    string[] apps = Directory.GetDirectories(extractPath, "*.app");
+                    if (apps.Length == 0) return;
+
+                    string newAppPath = apps[0];
+                    
+                    // Get current app path. AppContext.BaseDirectory is inside the bundle (Contents/MacOS/ for published apps)
+                    // We need to find the parent .app bundle.
+                    string currentPath = AppContext.BaseDirectory;
+                    int contentsIndex = currentPath.IndexOf(".app/Contents/");
+                    if (contentsIndex == -1) return; // Not running as a bundle
+                    
+                    string currentAppPath = currentPath.Substring(0, contentsIndex + 4);
+                    string currentPid = Process.GetCurrentProcess().Id.ToString();
+
+                    // Create a small shell script to replace the app
+                    string scriptPath = Path.Combine(Path.GetTempPath(), "install_osutag_update.sh");
+                    string scriptContent = $@"#!/bin/bash
+# Wait for the app to exit
+while kill -0 {currentPid} 2>/dev/null; do sleep 0.5; done
+
+# Replace the app
+rm -rf ""{currentAppPath}""
+mv ""{newAppPath}"" ""{currentAppPath}""
+
+# Relaunch
+open ""{currentAppPath}""
+
+# Self cleanup
+rm -- ""$0""
+";
+                    File.WriteAllText(scriptPath, scriptContent);
+                    
+                    // Make it executable and run it
+                    Process.Start("chmod", $"+x \"{scriptPath}\"").WaitForExit();
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "/bin/bash",
+                        Arguments = $"\"{scriptPath}\"",
+                        UseShellExecute = true,
+                        CreateNoWindow = true
+                    });
+
+                    Environment.Exit(0);
+                }
+                catch (Exception)
+                {
+                }
             }
         }
 
