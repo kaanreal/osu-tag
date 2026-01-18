@@ -1,98 +1,17 @@
-name: Release
+name: Build & Publish
 
 on:
-    workflow_dispatch:
+    release:
+        types: [published]
 
 concurrency:
     group: ${{ github.workflow }}
     cancel-in-progress: false
 
 jobs:
-    version-bump:
-        name: 🏷️ Version Bump
-        runs-on: ubuntu-latest
-        if: github.actor != 'github-actions[bot]'
-        permissions:
-            contents: write
-        outputs:
-            new_version: ${{ steps.bump.outputs.NEW_VERSION }}
-            version_changed: ${{ steps.bump.outputs.VERSION_CHANGED }}
-
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-
-            - name: Analyze Commits Since Last Tag
-              id: analyze
-              shell: bash
-              run: |
-                  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-                  if [ -z "$LAST_TAG" ]; then
-                    echo "No previous tag found – using full history"
-                    MESSAGES=$(git log --format="%s" --no-merges)
-                  else
-                    echo "Last tag: $LAST_TAG"
-                    MESSAGES=$(git log "$LAST_TAG"..HEAD --format="%s" --no-merges)
-                  fi
-
-                  echo "--- Commits considered for release ---"
-                  echo "$MESSAGES"
-
-                  # Nutzt -qi für Case-Insensitivity (Groß-/Kleinschreibung egal)
-                  if echo "$MESSAGES" | grep -qi "^major:"; then
-                    echo "BUMP=major" >> $GITHUB_OUTPUT
-                  elif echo "$MESSAGES" | grep -qi "^feat:"; then
-                    echo "BUMP=minor" >> $GITHUB_OUTPUT
-                  elif echo "$MESSAGES" | grep -qi "^fix:"; then
-                    echo "BUMP=patch" >> $GITHUB_OUTPUT
-                  else
-                    echo "BUMP=none" >> $GITHUB_OUTPUT
-                  fi
-
-            - name: Update CSPROJ Version
-              id: bump
-              shell: pwsh
-              run: |
-                  $bumpType = "${{ steps.analyze.outputs.BUMP }}"
-                  $path = "src/OsuTag/OsuTag.csproj"
-                  $content = Get-Content $path -Raw
-
-                  if ($content -match '<Version>(\d+)\.(\d+)\.(\d+)</Version>') {
-                    $major, $minor, $patch = [int]$Matches[1], [int]$Matches[2], [int]$Matches[3]
-                    $changed = "true"
-
-                    if ($bumpType -eq "major") { $major++; $minor = 0; $patch = 0 }
-                    elseif ($bumpType -eq "minor") { $minor++; $patch = 0 }
-                    elseif ($bumpType -eq "patch") { $patch++ }
-                    else { $changed = "false" }
-
-                    $newVer = "$major.$minor.$patch"
-
-                    if ($changed -eq "true") {
-                      $content -replace '<Version>[\d\.]+</Version>', "<Version>$newVer</Version>" | Set-Content $path
-                      echo "NEW_VERSION=v$newVer" >> $env:GITHUB_OUTPUT
-                    }
-
-                    echo "VERSION_CHANGED=$changed" >> $env:GITHUB_OUTPUT
-                  }
-
-            - name: Push Version Update
-              if: steps.bump.outputs.VERSION_CHANGED == 'true'
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git add src/OsuTag/OsuTag.csproj
-                  git commit -m "chore: bump version to ${{ steps.bump.outputs.NEW_VERSION }} [skip ci]"
-                  git tag ${{ steps.bump.outputs.NEW_VERSION }}
-                  git push origin main --tags
-
     build:
         name: 🏗️ Build
-        needs: version-bump
-        if: needs.version-bump.outputs.version_changed == 'true'
+        runs-on: ${{ matrix.os }}
         strategy:
             matrix:
                 os: [windows-latest, macos-latest, ubuntu-latest]
@@ -106,13 +25,12 @@ jobs:
                     - os: ubuntu-latest
                       rid: linux-x64
                       name: linux
-        runs-on: ${{ matrix.os }}
 
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
               with:
-                  ref: main
+                  ref: ${{ github.event.release.target_commitish }}
 
             - name: Setup .NET
               uses: actions/setup-dotnet@v4
@@ -144,13 +62,13 @@ jobs:
                   </plist>
                   EOF
 
-                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-${{ needs.version-bump.outputs.new_version }}-macos.zip"
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-${{ github.event.release.tag_name }}-macos.zip"
 
             - name: 🪟 Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  $ver = "${{ needs.version-bump.outputs.new_version }}".Replace("v","")
+                  $ver = "${{ github.event.release.tag_name }}".Replace("v","")
                   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer.iss
                   Copy-Item publish/OsuTag.exe -Destination "osu-tag-v$ver-win-portable.exe"
 
@@ -158,7 +76,7 @@ jobs:
               if: matrix.os == 'ubuntu-latest'
               run: |
                   cd publish
-                  zip -r ../osu-tag-${{ needs.version-bump.outputs.new_version }}-linux.zip .
+                  zip -r ../osu-tag-${{ github.event.release.tag_name }}-linux.zip .
 
             - name: Upload
               uses: actions/upload-artifact@v4
@@ -170,8 +88,8 @@ jobs:
 
     publish:
         name: 🚀 Publish
-        needs: [version-bump, build]
         runs-on: ubuntu-latest
+        needs: build
         permissions:
             contents: write
 
@@ -182,14 +100,11 @@ jobs:
                   pattern: assets-*
                   merge-multiple: true
 
-            - name: Create Release
+            - name: Attach to Release
               uses: softprops/action-gh-release@v2
               with:
-                  tag_name: ${{ needs.version-bump.outputs.new_version }}
-                  name: "Release ${{ needs.version-bump.outputs.new_version }}"
-                  generate_release_notes: true
-                  target_commitish: main
-                  make_latest: true
+                  tag_name: ${{ github.event.release.tag_name }}
+                  name: "Release ${{ github.event.release.tag_name }}"
                   files: |
                       *.exe
                       *.zip
