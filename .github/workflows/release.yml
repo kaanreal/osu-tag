@@ -4,14 +4,9 @@ on:
     release:
         types: [published]
 
-concurrency:
-    group: ${{ github.workflow }}
-    cancel-in-progress: false
-
 jobs:
     build:
         name: 🏗️ Build
-        runs-on: ${{ matrix.os }}
         strategy:
             matrix:
                 os: [windows-latest, macos-latest, ubuntu-latest]
@@ -25,6 +20,7 @@ jobs:
                     - os: ubuntu-latest
                       rid: linux-x64
                       name: linux
+        runs-on: ${{ matrix.os }}
 
         steps:
             - name: Checkout Code
@@ -49,10 +45,8 @@ jobs:
                   cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
                   chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
                   cp src/OsuTag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns"
-
                   cat > "osu!tag.app/Contents/Info.plist" <<EOF
                   <?xml version="1.0" encoding="UTF-8"?>
-                  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.microsoft.com/DTDs/PropertyList-1.0.dtd">
                   <plist version="1.0">
                   <dict>
                     <key>CFBundleExecutable</key><string>OsuTag</string>
@@ -61,7 +55,6 @@ jobs:
                   </dict>
                   </plist>
                   EOF
-
                   ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-${{ github.event.release.tag_name }}-macos.zip"
 
             - name: 🪟 Package Windows
@@ -78,7 +71,7 @@ jobs:
                   cd publish
                   zip -r ../osu-tag-${{ github.event.release.tag_name }}-linux.zip .
 
-            - name: Upload
+            - name: Upload Artifact
               uses: actions/upload-artifact@v4
               with:
                   name: assets-${{ matrix.name }}
@@ -87,24 +80,21 @@ jobs:
                       *.zip
 
     publish:
-        name: 🚀 Publish
-        runs-on: ubuntu-latest
+        name: 🚀 Publish Assets
         needs: build
+        runs-on: ubuntu-latest
         permissions:
             contents: write
-
         steps:
-            - name: Download Artifacts
+            - name: Download All Artifacts
               uses: actions/download-artifact@v4
               with:
                   pattern: assets-*
                   merge-multiple: true
 
-            - name: Attach to Release
+            - name: Upload to GitHub Release
               uses: softprops/action-gh-release@v2
               with:
-                  tag_name: ${{ github.event.release.tag_name }}
-                  name: "Release ${{ github.event.release.tag_name }}"
                   files: |
                       *.exe
                       *.zip

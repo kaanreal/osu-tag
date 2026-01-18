@@ -1,10 +1,15 @@
 {
-    "dry-run": true,
     "packages": {
         ".": {
             "release-type": "simple",
             "package-name": "OsuTag",
-            "version-file": "src/OsuTag/OsuTag.csproj"
+            "version-file": "src/OsuTag/OsuTag.csproj",
+            "replace-patterns": [
+                {
+                    "search": "<Version>[0-9]+\\.[0-9]+\\.[0-9]+</Version>",
+                    "replace": "<Version>$${version}</Version>"
+                }
+            ]
         }
     }
 }
