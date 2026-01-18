@@ -1,16 +1,27 @@
 {
     "packages": {
         ".": {
-            "release-type": "simple",
+            "release-type": "dotnet",
             "package-name": "osu!tag",
-            "version-file": "src/OsuTag/version.txt",
-            "changelog-path": ".github/template.hbs",
-            "changelogSections": [
-                { "type": "feat", "section": "✨ New Features", "hidden": false },
-                { "type": "fix", "section": "🐞 Bug Fixes", "hidden": false },
-                { "type": "perf", "section": "🛠 Improvements", "hidden": false },
-                { "type": "chore", "section": "🔧 Under the Hood", "hidden": false }
+            "changelog-path": "CHANGELOG.md",
+            "bump-minor-pre-major": true,
+            "bump-patch-for-minor-pre-major": true,
+            "draft": false,
+            "prerelease": false,
+            "extra-files": [
+                {
+                    "type": "json",
+                    "path": "src/OsuTag/version.txt",
+                    "jsonpath": "$.version"
+                }
             ]
         }
-    }
+    },
+    "changelog-sections": [
+        { "type": "feat", "section": "✨ New Features", "hidden": false },
+        { "type": "fix", "section": "🐞 Bug Fixes", "hidden": false },
+        { "type": "perf", "section": "🛠 Improvements", "hidden": false },
+        { "type": "refactor", "section": "🔧 Under the Hood", "hidden": false },
+        { "type": "chore", "section": "🔧 Under the Hood", "hidden": false }
+    ]
 }
