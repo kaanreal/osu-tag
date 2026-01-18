@@ -10,6 +10,16 @@
             "prerelease": false,
             "extra-files": [
                 {
+                    "type": "xml",
+                    "path": "src/OsuTag/OsuTag.csproj",
+                    "xpath": "//Version"
+                },
+                {
+                    "type": "xml",
+                    "path": "src/OsuTag/Info.plist",
+                    "xpath": "//plist/dict/string[preceding-sibling::key[1]='CFBundleVersion' or preceding-sibling::key[1]='CFBundleShortVersionString']"
+                },
+                {
                     "type": "generic",
                     "path": "src/OsuTag/version.txt"
                 }
