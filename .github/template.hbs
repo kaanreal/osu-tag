@@ -1,16 +1,12 @@
 # osu!tag v{{version}}
-– Release Notes
+– Release Notes ({{date}})
 
-{{#each sections}}
-    {{#if commits}}
-        ##
-        {{sectionHeader}}
+{{#each changes}}
+    ##
+    {{this.title}}
 
-        {{#each commits}}
-            -
-            {{message}}
-        {{/each}}
-    {{/if}}
+    {{this.notes}}
+
 {{/each}}
 
 --- Thank you for using **osu!tag**! Download the new version and enjoy a smoother experience and easier installation.

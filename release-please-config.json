@@ -1,20 +1,14 @@
 {
-    "primary-branch": "main",
-    "tag-separator": "",
-    "include-component-in-tag": false,
-    "pull-request-title-pattern": "chore(${scope}): release ${component} ${version}",
-    "pull-request-header": "",
     "packages": {
         ".": {
             "release-type": "simple",
             "package-name": "osu!tag",
             "version-file": "src/OsuTag/version.txt",
-            "changelogTemplate": ".github/template.hbs",
+            "changelog-path": ".github/template.hbs",
             "changelogSections": [
                 { "type": "feat", "section": "✨ New Features", "hidden": false },
-                { "type": "fix", "section": "🛠 Improvements", "hidden": false },
+                { "type": "fix", "section": "🐞 Bug Fixes", "hidden": false },
                 { "type": "perf", "section": "🛠 Improvements", "hidden": false },
-                { "type": "bug", "section": "🐞 Bug Fixes", "hidden": false },
                 { "type": "chore", "section": "🔧 Under the Hood", "hidden": false }
             ]
         }
