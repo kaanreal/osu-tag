@@ -9,8 +9,6 @@ jobs:
     sync-to-testing:
         name: Sync Main to Testing
         runs-on: ubuntu-latest
-        # Skip if the commit was made by the release bot to avoid loops
-        if: github.actor != 'github-actions[bot]'
         permissions:
             contents: write
         steps:
