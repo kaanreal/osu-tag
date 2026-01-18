@@ -1,4 +1,4 @@
-name: Semantic Release & Build
+name: Release & Build (Release Please)
 
 on:
     push:
@@ -8,32 +8,23 @@ on:
 permissions:
     contents: write
     pull-requests: write
-    issues: write
 
 jobs:
-    release:
-        name: 🚀 Release
+    release-please:
         runs-on: ubuntu-latest
         outputs:
-            new_release_published: ${{ steps.semantic.outputs.new_release_published }}
-            new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+            release_created: ${{ steps.release.outputs.release_created }}
+            tag_name: ${{ steps.release.outputs.tag_name }}
+            body: ${{ steps.release.outputs.body }}
         steps:
-            - uses: actions/checkout@v4
-            - name: Semantic Release
-              id: semantic
-              uses: cycjimmy/semantic-release-action@v4
+            - uses: googleapis/release-please-action@v4
+              id: release
               with:
-                  extra_plugins: |
-                      @semantic-release/commit-analyzer
-                      @semantic-release/release-notes-generator
-                      conventional-changelog-conventionalcommits
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  token: ${{ secrets.MY_RELEASE_TOKEN }}
 
     build:
-        name: 🏗️ Build Assets
-        needs: release
-        if: needs.release.outputs.new_release_published == 'true'
+        needs: release-please
+        if: ${{ needs.release-please.outputs.release_created }}
         strategy:
             matrix:
                 os: [windows-latest, macos-latest, ubuntu-latest]
@@ -57,11 +48,13 @@ jobs:
               with:
                   dotnet-version: "8.0"
 
-            - name: Update Version in .csproj
+            - name: Prepare Version Metadata
               shell: pwsh
               run: |
-                  $ver = "${{ needs.release.outputs.new_release_version }}"
-                  (Get-Content src/OsuTag/OsuTag.csproj) -replace '<Version>.*</Version>', "<Version>$ver</Version>" | Set-Content src/OsuTag/OsuTag.csproj
+                  $ver = "${{ needs.release-please.outputs.tag_name }}".Replace("v.","").Replace("v","")
+                  # Sicherstellen, dass die version.txt existiert/aktuell ist
+                  New-Item -Path "src/OsuTag" -Name "version.txt" -ItemType "file" -Value $ver -Force
+                  echo "CLEAN_VER=$ver" >> $env:GITHUB_ENV
 
             - name: Publish
               run: |
@@ -77,36 +70,35 @@ jobs:
                   cp src/OsuTag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns"
                   cat > "osu!tag.app/Contents/Info.plist" <<EOF
                   <?xml version="1.0" encoding="UTF-8"?>
-                  <plist version="1.0">
-                  <dict>
-                    <key>CFBundleExecutable</key><string>OsuTag</string>
-                    <key>CFBundleIconFile</key><string>app.icns</string>
-                    <key>CFBundlePackageType</key><string>APPL</string>
-                  </dict>
-                  </plist>
+                  <plist version="1.0"><dict><key>CFBundleExecutable</key><string>OsuTag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>
                   EOF
-                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.${{ needs.release.outputs.new_release_version }}-macos.zip"
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v.${{ env.CLEAN_VER }}-macos.zip"
 
             - name: 🪟 Package Windows
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  $ver = "${{ needs.release.outputs.new_release_version }}"
-                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer.iss
-                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.$ver-win-portable.exe"
+                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ env.CLEAN_VER }} installer.iss
+                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.${{ env.CLEAN_VER }}-win-portable.exe"
 
             - name: 🐧 Package Linux
               if: matrix.os == 'ubuntu-latest'
               run: |
                   cd publish
-                  zip -r ../osu-tag-v.${{ needs.release.outputs.new_release_version }}-linux.zip .
+                  zip -r ../osu-tag-v.${{ env.CLEAN_VER }}-linux.zip .
 
             - name: Upload to GitHub Release
               uses: softprops/action-gh-release@v2
               with:
-                  tag_name: v.${{ needs.release.outputs.new_release_version }}
+                  tag_name: ${{ needs.release-please.outputs.tag_name }}
+                  body: |
+                      # osu!tag ${{ needs.release-please.outputs.tag_name }} – Release Notes
+                      Author: @${{ github.actor }}
+
+                      ${{ needs.release-please.outputs.body }}
                   files: |
                       *.exe
                       *.zip
+                      src/OsuTag/version.txt
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
