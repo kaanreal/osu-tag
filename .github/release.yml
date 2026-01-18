@@ -2,24 +2,28 @@ changelog:
     exclude:
         authors:
             - github-actions[bot]
-    include_full_changelog_link: true
     categories:
-        - title: "Features"
+        - title: "🚀 Features"
           labels:
               - feature
-              - enhancement
-          commits:
-              - "feat*"
-              - "feature*"
-        - title: "Bug Fixes"
+          rewrite:
+              title_is_enough: true
+          filter:
+              commit-expressions:
+                  - '^feat(\(.*\))?:'
+                  - '^feature(\(.*\))?:'
+
+        - title: "🐛 Bug Fixes"
           labels:
               - bug
-              - fix
-          commits:
-              - "fix*"
-        - title: "Maintenance"
-          commits:
-              - "chore*"
-              - "docs*"
-              - "refactor*"
-              - "style*"
+          filter:
+              commit-expressions:
+                  - '^fix(\(.*\))?:'
+
+        - title: "🔧 Maintenance"
+          filter:
+              commit-expressions:
+                  - '^chore(\(.*\))?:'
+                  - '^docs(\(.*\))?:'
+                  - '^refactor(\(.*\))?:'
+                  - '^style(\(.*\))?:'
