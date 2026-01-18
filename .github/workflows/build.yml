@@ -51,7 +51,8 @@ jobs:
             - name: Process Version and Body
               shell: bash
               run: |
-                  VER=$(echo "${{ needs.release-please.outputs.tag_name }}" | sed 's/[v.]//g')
+                  TAG="${{ needs.release-please.outputs.tag_name }}"
+                  VER=$(echo "$TAG" | sed 's/[v.]//g')
                   echo "CLEAN_VER=$VER" >> $GITHUB_ENV
 
                   RAW_BODY=$(cat <<'EOF'
@@ -59,10 +60,21 @@ jobs:
                   EOF
                   )
 
-                  FINAL_BODY=$(echo "$RAW_BODY" | sed 's/### /---\n### /g')
+                  CHG=$(echo "$RAW_BODY" | sed -n '/##/,$p')
+
+                  {
+                    echo "# Release v.$VER"
+                    echo ""
+                    echo "$CHG"
+                    echo ""
+                    echo "---"
+                    echo ""
+                    echo "Thank you for using **osu!tag**!  "
+                    echo "Download the new version and enjoy a smoother experience and easier installation."
+                  } > final_notes.md
 
                   echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-                  echo "$FINAL_BODY" >> $GITHUB_ENV
+                  cat final_notes.md >> $GITHUB_ENV
                   echo "EOF" >> $GITHUB_ENV
 
             - name: Publish
@@ -87,9 +99,9 @@ jobs:
               if: matrix.os == 'windows-latest'
               shell: pwsh
               run: |
-                  $ver = $env:CLEAN_VER
-                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer.iss
-                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.$ver-win-portable.exe"
+                  $v = $env:CLEAN_VER
+                  & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$v installer.iss
+                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v.$v-win-portable.exe"
 
             - name: 🐧 Package Linux
               if: matrix.os == 'ubuntu-latest'
@@ -101,11 +113,8 @@ jobs:
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
-                  body: |
-                      # osu!tag ${{ needs.release-please.outputs.tag_name }} – Release Notes
-                      Author: @${{ github.actor }}
-
-                      ${{ env.RELEASE_BODY }}
+                  name: Release v.${{ env.CLEAN_VER }}
+                  body: ${{ env.RELEASE_BODY }}
                   files: |
                       *.exe
                       *.zip

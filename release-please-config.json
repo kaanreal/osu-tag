@@ -2,7 +2,7 @@
     "primary-branch": "main",
     "tag-separator": "",
     "include-component-in-tag": false,
-    "pull-request-title-pattern": "Release v.${version}",
+    "pull-request-title-pattern": "v.${version}",
     "pull-request-header": "",
     "packages": {
         ".": {
@@ -10,10 +10,11 @@
             "package-name": "osu!tag",
             "version-file": "src/OsuTag/version.txt",
             "changelog-sections": [
-                { "type": "feat", "section": "✨ New Features", "hidden": false },
-                { "type": "fix", "section": "🛠 Improvements", "hidden": false },
-                { "type": "perf", "section": "🛠 Improvements", "hidden": false },
-                { "type": "bug", "section": "🐞 Bug Fixes", "hidden": false }
+                { "type": "feat", "section": "## ✨ New Features", "hidden": false },
+                { "type": "fix", "section": "## 🛠 Improvements", "hidden": false },
+                { "type": "perf", "section": "## 🛠 Improvements", "hidden": false },
+                { "type": "bug", "section": "## 🐞 Bug Fixes", "hidden": false },
+                { "type": "chore", "section": "## 🔧 Under the Hood", "hidden": false }
             ]
         }
     }
