@@ -16,8 +16,4 @@ jobs:
         steps:
             - uses: googleapis/release-please-action@v4
               with:
-                  # Release-Please will automatically find your .csproj Version and update it, plus manage CHANGELOG.md
-                  # By default, it will try to detect "component" from project root.
-                  # You can specify the project path if needed:
-                  # monorepo-tags: 'src/OsuTag/OsuTag.csproj'
                   token: ${{ secrets.GITHUB_TOKEN }}

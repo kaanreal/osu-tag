@@ -1,8 +1,9 @@
 {
+    "dry-run": true,
     "packages": {
         ".": {
-            "package-name": "OsuTag",
             "release-type": "dotnet",
+            "package-name": "OsuTag",
             "version-file": "src/OsuTag/OsuTag.csproj"
         }
     }
