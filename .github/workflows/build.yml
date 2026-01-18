@@ -58,7 +58,7 @@ jobs:
                   TAG_NAME="${{ needs.release-please.outputs.tag_name }}"
                   VERSION="${TAG_NAME#v}"
                   
-                  # Create the header
+                  # Create the header (using – which is an en dash, matching user request)
                   HEADER="# osu!tag v$VERSION – Release Notes"
                   
                   # Get the changelog from release-please
@@ -67,14 +67,14 @@ jobs:
                   EOF
                   )
                   
-                  # Remove the default version header from release-please body if it exists
-                  # (usually looks like ## [1.1.1](...))
-                  CLEANED_BODY=$(echo "$BODY" | sed '1,2d')
+                  # Remove the default version header from release-please body
+                  # Then convert H3 (###) to H2 (##) as requested
+                  CLEANED_BODY=$(echo "$BODY" | sed '1,2d' | sed 's/^### /## /g')
                   
                   # Construct full body
                   FULL_BODY="$HEADER\n\n$CLEANED_BODY"
                   
-                  # Use a heredoc for setting the environment variable to handle multi-line content safely
+                  # Use a heredoc for setting the environment variable
                   {
                     echo "RELEASE_BODY<<EOF"
                     echo -e "$FULL_BODY"
@@ -121,7 +121,7 @@ jobs:
                       ${{ env.RELEASE_BODY }}
 
                       ---
-                      Thank you for using **osu!tag**!
+                      Thank you for using **osu!tag**!  
                       Download the new version and enjoy a smoother experience and easier installation.
                   files: |
                       *.exe
