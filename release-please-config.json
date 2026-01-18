@@ -1,0 +1,9 @@
+{
+    "packages": {
+        ".": {
+            "package-name": "OsuTag",
+            "release-type": "dotnet",
+            "version-file": "src/OsuTag/OsuTag.csproj"
+        }
+    }
+}
