@@ -41,11 +41,12 @@ jobs:
                   echo "--- Commits considered for release ---"
                   echo "$MESSAGES"
 
-                  if echo "$MESSAGES" | grep -q "^major:"; then
+                  # Nutzt -qi für Case-Insensitivity (Groß-/Kleinschreibung egal)
+                  if echo "$MESSAGES" | grep -qi "^major:"; then
                     echo "BUMP=major" >> $GITHUB_OUTPUT
-                  elif echo "$MESSAGES" | grep -q "^feat:"; then
+                  elif echo "$MESSAGES" | grep -qi "^feat:"; then
                     echo "BUMP=minor" >> $GITHUB_OUTPUT
-                  elif echo "$MESSAGES" | grep -q "^fix:"; then
+                  elif echo "$MESSAGES" | grep -qi "^fix:"; then
                     echo "BUMP=patch" >> $GITHUB_OUTPUT
                   else
                     echo "BUMP=none" >> $GITHUB_OUTPUT
@@ -110,6 +111,8 @@ jobs:
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
+              with:
+                  ref: main
 
             - name: Setup .NET
               uses: actions/setup-dotnet@v4
@@ -185,7 +188,7 @@ jobs:
                   tag_name: ${{ needs.version-bump.outputs.new_version }}
                   name: "Release ${{ needs.version-bump.outputs.new_version }}"
                   generate_release_notes: true
-                  target_commitish: ${{ github.sha }}
+                  target_commitish: main
                   make_latest: true
                   files: |
                       *.exe
