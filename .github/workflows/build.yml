@@ -17,9 +17,15 @@ jobs:
             tag_name: ${{ steps.release.outputs.tag_name }}
             body: ${{ steps.release.outputs.body }}
         steps:
+            - uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.RELEASE_TOKEN }}
+                  fetch-depth: 0
+
             - uses: googleapis/release-please-action@v4
               id: release
               with:
+                  token: ${{ secrets.RELEASE_TOKEN }}
                   include-component-in-tag: false
 
     build:
@@ -71,8 +77,16 @@ jobs:
                   # Then convert H3 (###) to H2 (##) as requested. Using portable sed syntax.
                   CLEANED_BODY=$(echo "$BODY" | sed -n '/^### /,$p' | sed 's/^### /## /g')
                   
+                  # Extract comparison link (e.g., v1.1.1...v2.0.0) from the header
+                  COMPARE_TAGS=$(echo "$BODY" | grep -oE "compare/[v0-9.]+...[v0-9.]+" | cut -d'/' -f2)
+                  if [ -n "$COMPARE_TAGS" ]; then
+                    CHANGELOG_FOOTER="\n\n**Full Changelog**: $COMPARE_TAGS"
+                  else
+                    CHANGELOG_FOOTER=""
+                  fi
+
                   # Construct full body
-                  FULL_BODY="$HEADER\n\n$CLEANED_BODY"
+                  FULL_BODY="$HEADER\n\n$CLEANED_BODY$CHANGELOG_FOOTER"
                   
                   # Use a heredoc for setting the environment variable
                   {
@@ -121,9 +135,7 @@ jobs:
                   body: |
                       ${{ env.RELEASE_BODY }}
 
-                      ---
-                      Thank you for using **osu!tag**!  
-                      Download the new version and enjoy a smoother experience and easier installation.
+                      Thank you for using **osu!tag** by **kaancat**! Download the new version and enjoy a smoother experience and easier installation.
                   files: |
                       *.exe
                       *.zip
