@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.2](https://github.com/kaanreal/osu-tag/compare/v2.2.1...v2.2.2) (2026-01-18)
+
+
+### 🐞 Bug Fixes
+
+* Specify bash shell for Publish step in CI ([444ceb6](https://github.com/kaanreal/osu-tag/commit/444ceb6f4ae749db0a3d382a5026b526db99509e))
+
 ## [2.2.1](https://github.com/kaanreal/osu-tag/compare/v2.2.0...v2.2.1) (2026-01-18)
 
 
