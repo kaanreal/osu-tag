@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <RootNamespace>Osutag</RootNamespace>
+    <AssemblyName>Osutag</AssemblyName>
+    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
+    <Version>2.0.0</Version>
+    <Authors>kaancat</Authors>
+    <Company>kaancat</Company>
+    <Product>osu!tag</Product>
+    <!-- Optimization: Production Stability -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <DebuggerSupport>false</DebuggerSupport>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    
+    <!-- Runtime feature switches for further reduction -->
+    <EventSourceSupport>false</EventSourceSupport>
+    <StackTraceSupport>false</StackTraceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <UseNativeHttpHandler>true</UseNativeHttpHandler>
+  </PropertyGroup>
+
+  <!-- Platform-specific compilation symbols -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.4"/>
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.4"/>
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.4"/>
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.4"/>
+    <PackageReference Include="Avalonia.Controls.ItemsRepeater" Version="11.1.5"/>
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.4"/>
+    
+    <!-- Cross-platform dependencies (same as WPF version) -->
+    <PackageReference Include="DiscordRichPresence" Version="1.0.175"/>
+    <PackageReference Include="Markdown.Avalonia" Version="11.0.2"/>
+    <PackageReference Include="TagLibSharp" Version="2.3.0"/>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12"/>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Prevent trimming of the main assembly and key libraries to ensure reflection-based features work -->
+    <TrimmerRootAssembly Include="Osutag"/>
+    <TrimmerRootAssembly Include="TagLibSharp"/>
+    <TrimmerRootAssembly Include="DiscordRPC"/>
+  </ItemGroup>
+
+</Project>

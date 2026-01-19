@@ -11,17 +11,17 @@
             "extra-files": [
                 {
                     "type": "xml",
-                    "path": "src/OsuTag/OsuTag.csproj",
+                    "path": "src/osu!tag/Osutag.csproj",
                     "xpath": "//Version"
                 },
                 {
                     "type": "xml",
-                    "path": "src/OsuTag/Info.plist",
+                    "path": "src/osu!tag/Info.plist",
                     "xpath": "//plist/dict/string[preceding-sibling::key[1]='CFBundleVersion' or preceding-sibling::key[1]='CFBundleShortVersionString']"
                 },
                 {
                     "type": "generic",
-                    "path": "src/OsuTag/version.txt"
+                    "path": "src/osu!tag/version.txt"
                 }
             ]
         }

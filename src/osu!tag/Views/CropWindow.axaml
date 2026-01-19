@@ -1,0 +1,70 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="Osutag.Views.CropWindow"
+        Title="Crop Cover Image"
+        Width="800" Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="#1A1A1A">
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Canvas for Image manipulation -->
+        <Border ClipToBounds="True" Background="#111">
+            <Canvas Name="ImageCanvas" Background="Transparent">
+                <Image Name="TargetImage" Stretch="None" RenderTransformOrigin="0,0">
+                    <Image.RenderTransform>
+                         <TransformGroup>
+                             <ScaleTransform ScaleX="1" ScaleY="1"/>
+                             <TranslateTransform X="0" Y="0"/>
+                         </TransformGroup>
+                    </Image.RenderTransform>
+                </Image>
+            </Canvas>
+        </Border>
+
+        <!-- Overlay with Hole -->
+        <Path Name="HolePath" Fill="#A0000000" IsHitTestVisible="False">
+            <Path.Data>
+                <CombinedGeometry GeometryCombineMode="Exclude">
+                    <CombinedGeometry.Geometry1>
+                        <RectangleGeometry Rect="0,0,2000,2000"/>
+                    </CombinedGeometry.Geometry1>
+                    <CombinedGeometry.Geometry2>
+                         <!-- The 'Hole' - Centered 400x400 roughly, logic will align this exactly -->
+                         <RectangleGeometry Rect="200,100,400,400"/>
+                    </CombinedGeometry.Geometry2>
+                </CombinedGeometry>
+            </Path.Data>
+        </Path>
+        
+        <!-- Guide Border -->
+        <Border BorderBrush="White" BorderThickness="1" Width="400" Height="400" IsHitTestVisible="False" Opacity="0.5"/>
+
+        <!-- Controls -->
+        <Border Grid.Row="1" Background="#202020" Padding="20">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="🖱 Drag to Pan" Foreground="#888"/>
+                    <TextBlock Text="•" Foreground="#444"/>
+                    <TextBlock Text="📜 Scroll to Zoom" Foreground="#888"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,0,20,0">
+                     <TextBlock Text="Zoom:" VerticalAlignment="Center" Foreground="#AAA"/>
+                     <Slider Name="ZoomSlider" Minimum="0.1" Maximum="3.0" Value="1.0" Width="150" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                    <Button Content="Cancel" Click="Cancel_Click" Background="Transparent" Foreground="#AAA"/>
+                    <Button Content="Save Crop" Click="Save_Click" Background="{StaticResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
