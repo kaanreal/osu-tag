@@ -88,15 +88,17 @@ jobs:
                   # Construct full body
                   FULL_BODY="$HEADER\n\n$CLEANED_BODY$CHANGELOG_FOOTER"
 
-                  # Set the output for use in later steps
-                  echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
-                  echo -e "$FULL_BODY" >> $GITHUB_OUTPUT
-                  echo "EOF" >> $GITHUB_OUTPUT
+                  # Use a heredoc for setting the environment variable
+                  {
+                    echo "RELEASE_BODY<<EOF"
+                    echo -e "$FULL_BODY"
+                    echo "EOF"
+                  } >> $GITHUB_ENV
 
             - name: Publish
               shell: bash
               run: |
-                  dotnet publish src/OsuTag/OsuTag.csproj -c Release -r ${{ matrix.rid }} \
+                  dotnet publish src/osu!tag/Osutag.csproj -c Release -r ${{ matrix.rid }} \
                   --self-contained -p:PublishSingleFile=true \
                   -p:IncludeNativeLibrariesForSelfExtract=true \
                   -p:Version=${{ steps.get_version.outputs.VERSION }} -o publish
@@ -106,10 +108,10 @@ jobs:
               run: |
                   mkdir -p "osu!tag.app/Contents/MacOS"
                   mkdir -p "osu!tag.app/Contents/Resources"
-                  cp publish/OsuTag "osu!tag.app/Contents/MacOS/OsuTag"
-                  chmod +x "osu!tag.app/Contents/MacOS/OsuTag"
-                  cp src/OsuTag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns" || true
-                  echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>OsuTag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>' > "osu!tag.app/Contents/Info.plist"
+                  cp publish/Osutag "osu!tag.app/Contents/MacOS/osu!tag"
+                  chmod +x "osu!tag.app/Contents/MacOS/osu!tag"
+                  cp src/osu!tag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns" || true
+                  echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>osu!tag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>' > "osu!tag.app/Contents/Info.plist"
                   ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v${{ steps.get_version.outputs.VERSION }}-macos.zip"
 
             - name: Package Windows
@@ -118,7 +120,7 @@ jobs:
                   if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
                     & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.get_version.outputs.VERSION }} installer.iss
                   }
-                  Copy-Item publish/OsuTag.exe -Destination "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win-portable.exe"
+                  Copy-Item publish/Osutag.exe -Destination "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win-portable.exe"
 
             - name: Package Linux
               if: matrix.os == 'ubuntu-latest'

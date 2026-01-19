@@ -1,7 +1,7 @@
 # osu!tag
 
 <p align="center">
-  <img src="src/OsuTag/Assets/logo.png" alt="osu!tag Logo" width="128">
+  <img src="src/osu!tag/Assets/logo.png" alt="osu!tag Logo" width="128">
 </p>
 
 <p align="center">
@@ -37,15 +37,15 @@
 
 ### Main Interface
 
-![Main Interface](src/OsuTag/Assets/Screenshots/main.png)
+![Main Interface](src/osu!tag/Assets/Screenshots/main.png)
 
 ### Map Selection
 
-![Map Selection](src/OsuTag/Assets/Screenshots/selection.png)
+![Map Selection](src/osu!tag/Assets/Screenshots/selection.png)
 
 ### Settings
 
-![Settings](src/OsuTag/Assets/Screenshots/settings.png)
+![Settings](src/osu!tag/Assets/Screenshots/settings.png)
 
 ## Installation
 
