@@ -32,11 +32,16 @@ namespace Osutag.ViewModels
     public class DifficultyItem : ObservableObject
     {
         private bool _isSelected = false;
+        private string? _coverPath;
+        private Avalonia.Media.Imaging.Bitmap? _coverBitmap;
+
         public bool IsSelected
         {
             get => _isSelected;
             set => SetProperty(ref _isSelected, value);
         }
+
+        private bool _isLoadingCover = false;
 
         public required string DifficultyName { get; set; }
         public required OsuMapDifficulty Difficulty { get; set; }
@@ -44,7 +49,66 @@ namespace Osutag.ViewModels
         // Display properties for Overlay
         public string? Title { get; set; }
         public string? Artist { get; set; }
-        public string? CoverPath { get; set; }
+
+        public string? CoverPath
+        {
+            get => _coverPath;
+            set
+            {
+                if (SetProperty(ref _coverPath, value))
+                {
+                    // Reset bitmap so next access triggers load
+                    _coverBitmap = null;
+                    OnPropertyChanged(nameof(CoverBitmap));
+                    _isLoadingCover = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cached bitmap loaded asynchronously. Bind to this instead of using PathToBitmapConverter.
+        /// </summary>
+        public Avalonia.Media.Imaging.Bitmap? CoverBitmap
+        {
+            get
+            {
+                if (_coverBitmap == null && !_isLoadingCover && !string.IsNullOrEmpty(_coverPath))
+                {
+                    LoadCoverAsync();
+                }
+                return _coverBitmap;
+            }
+            private set => SetProperty(ref _coverBitmap, value);
+        }
+
+        private async void LoadCoverAsync()
+        {
+            var currentPath = _coverPath;
+            if (string.IsNullOrEmpty(currentPath))
+            {
+                return;
+            }
+
+            _isLoadingCover = true;
+
+            try
+            {
+                var bitmap = await Services.ImageCacheService.Instance.GetImageAsync(currentPath);
+                
+                // Must dispatch to UI thread
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (_coverPath == currentPath)
+                    {
+                        CoverBitmap = bitmap;
+                    }
+                });
+            }
+            finally
+            {
+                _isLoadingCover = false;
+            }
+        }
 
         // Randomization for Shuffle Animation
         private static readonly Random _rng = new();
@@ -57,6 +121,8 @@ namespace Osutag.ViewModels
     {
         private bool _isExpanded = false;
         private bool _isSelected = false;
+        private string? _coverPath;
+        private Avalonia.Media.Imaging.Bitmap? _coverBitmap;
 
         public bool IsExpanded
         {
@@ -87,10 +153,70 @@ namespace Osutag.ViewModels
             }
         }
 
+        private bool _isLoadingCover = false;
+
         public required string Artist { get; set; }
         public required string Title { get; set; }
 
-        public string? CoverPath { get; set; }
+        public string? CoverPath
+        {
+            get => _coverPath;
+            set
+            {
+                if (SetProperty(ref _coverPath, value))
+                {
+                    // Reset bitmap so next access triggers load
+                    _coverBitmap = null;
+                    OnPropertyChanged(nameof(CoverBitmap));
+                    _isLoadingCover = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cached bitmap loaded asynchronously. Bind to this instead of using PathToBitmapConverter.
+        /// </summary>
+        public Avalonia.Media.Imaging.Bitmap? CoverBitmap
+        {
+            get
+            {
+                if (_coverBitmap == null && !_isLoadingCover && !string.IsNullOrEmpty(_coverPath))
+                {
+                    LoadCoverAsync();
+                }
+                return _coverBitmap;
+            }
+            private set => SetProperty(ref _coverBitmap, value);
+        }
+
+        private async void LoadCoverAsync()
+        {
+            var currentPath = _coverPath;
+            if (string.IsNullOrEmpty(currentPath))
+            {
+                return;
+            }
+
+            _isLoadingCover = true;
+
+            try
+            {
+                var bitmap = await Services.ImageCacheService.Instance.GetImageAsync(currentPath);
+                
+                // Must dispatch to UI thread
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (_coverPath == currentPath)
+                    {
+                        CoverBitmap = bitmap;
+                    }
+                });
+            }
+            finally
+            {
+                _isLoadingCover = false;
+            }
+        }
         public required string Creator { get; set; }
         public string? Source { get; set; }
         public string? Tags { get; set; }
@@ -219,6 +345,7 @@ namespace Osutag.ViewModels
         private List<MapItemGroup> _filteredMapGroups = new();
         public List<MapItemGroup> FilteredMaps => _filteredMapGroups;
         private int _displayedCount = 0;
+        public int DisplayedCount => _displayedCount;
         private const int ITEMS_PER_PAGE = 50;
         private bool _canLoadMore = false;
         private CancellationTokenSource? _searchDebounceToken;
@@ -570,6 +697,7 @@ namespace Osutag.ViewModels
                 MapGroups = new ObservableCollection<MapItemGroup>(initialItems);
 
                 _displayedCount = initialItems.Count;
+                OnPropertyChanged(nameof(DisplayedCount));
                 CanLoadMore = _displayedCount < _filteredMapGroups.Count;
             }
             finally
@@ -685,6 +813,7 @@ namespace Osutag.ViewModels
             MapGroups = new ObservableCollection<MapItemGroup>(allItems);
 
             _displayedCount += count;
+            OnPropertyChanged(nameof(DisplayedCount));
             CanLoadMore = _displayedCount < _filteredMapGroups.Count;
         }
 

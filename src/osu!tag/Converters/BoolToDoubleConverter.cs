@@ -17,15 +17,13 @@ namespace Osutag.Converters
             else if (value is int i) boolValue = i > 0;
             else if (value is double d) boolValue = d > 0;
 
-            if (parameter is string paramStr)
+            string paramStr = parameter as string ?? "0,1";
+            var parts = paramStr.Split(',');
+            if (parts.Length >= 2)
             {
-                var parts = paramStr.Split(',');
-                if (parts.Length >= 2)
+                if (double.TryParse(boolValue ? parts[1] : parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out double result))
                 {
-                    if (double.TryParse(boolValue ? parts[1] : parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out double result))
-                    {
-                        return result;
-                    }
+                    return result;
                 }
             }
             return 0.0;

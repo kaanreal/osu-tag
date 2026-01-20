@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="50"
+             x:Class="Osutag.Controls.PlayfulTextBox"
+             ClipToBounds="False">
+    
+    <Grid>
+        <!-- The actual input box (Invisible Text) -->
+        <TextBox Name="InputBox"
+                 Foreground="Transparent"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 CaretBrush="{DynamicResource TextPrimaryBrush}"
+                 FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                 HorizontalContentAlignment="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                 VerticalContentAlignment="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                 Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                 AcceptsReturn="False"
+                 TextWrapping="NoWrap">
+             <TextBox.Styles>
+                 <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+                     <Setter Property="Background" Value="Transparent"/>
+                     <Setter Property="BorderThickness" Value="0"/>
+                 </Style>
+                 <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+                     <Setter Property="Background" Value="Transparent"/>
+                     <Setter Property="BorderThickness" Value="0"/>
+                 </Style>
+             </TextBox.Styles>
+        </TextBox>
+
+        <!-- Overlay for animated characters -->
+        <Canvas Name="TextCanvas" IsHitTestVisible="False" ClipToBounds="False"/>
+    </Grid>
+</UserControl>
