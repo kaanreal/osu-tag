@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
+        xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
+        x:Class="Osutag.Views.UpdateWindow"
+        Title="New Update Available"
+        Width="650" Height="450"
+        WindowStartupLocation="CenterScreen"
+        Background="#1C212B"
+        TransparencyLevelHint="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        CanResize="False">
+    
+    <Panel>
+         <!-- Background -->
+        <Border Background="#1C212B" CornerRadius="8"/>
+        
+        <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
+            
+            <!-- Header -->
+            <Border Grid.Row="0" Padding="32,24,32,16" Background="Transparent" PointerPressed="Header_PointerPressed">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                             <TextBlock Text="New Update Available" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                             <Border Background="#2052C565" CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                                 <TextBlock Name="VersionText" Text="v1.5.0" FontWeight="SemiBold" Foreground="#52C565" FontSize="12"/>
+                             </Border>
+                        </StackPanel>
+                        <TextBlock Text="A newer version of osu!tag is ready to install." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Content Area (Changelog) -->
+            <Border Grid.Row="1" Padding="32,0,32,16">
+                <Border Background="#0D1117" CornerRadius="6" BorderBrush="#30363D" BorderThickness="1">
+                    <ScrollViewer>
+                        <Border Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Release Notes" FontWeight="Bold" Margin="0,0,0,12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <md:MarkdownScrollViewer Name="ChangelogViewer"
+                                                         Markdown="{Binding}" 
+                                                         Height="250">
+                                   <md:MarkdownScrollViewer.Styles>
+                                       <Style Selector="ctxt|CTextBlock">
+                                           <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                           <Setter Property="FontSize" Value="14"/>
+                                       </Style>
+                                       <Style Selector="ctxt|CTextBlock.Heading1">
+                                           <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                           <Setter Property="FontSize" Value="18"/>
+                                           <Setter Property="FontWeight" Value="Bold"/>
+                                       </Style>
+                                       <Style Selector="ctxt|CTextBlock.Heading2">
+                                           <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                           <Setter Property="FontSize" Value="16"/>
+                                           <Setter Property="FontWeight" Value="SemiBold"/>
+                                       </Style>
+                                   </md:MarkdownScrollViewer.Styles>
+                                </md:MarkdownScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </ScrollViewer>
+                </Border>
+            </Border>
+
+            <!-- Footer / Actions -->
+            <Border Grid.Row="2" Padding="32,24" Background="#0D1117" BorderBrush="#30363D" BorderThickness="0,1,0,0">
+                <Grid>
+                    <!-- Buttons -->
+                    <Grid Name="ButtonsGrid" ColumnDefinitions="Auto,*,Auto,Auto">
+                        <Button Name="SkipButton" Content="Skip this version" Classes="Secondary" Foreground="{StaticResource TextTertiaryBrush}" Click="SkipButton_Click"/>
+                        
+                        <Button Grid.Column="2" Content="Cancel" Click="CancelButton_Click" Classes="Secondary" Margin="0,0,12,0" Width="100" Height="40"/>
+                        <Button Grid.Column="3" Name="UpdateBtn" Content="Download &amp; Install" Click="UpdateButton_Click" Classes="Primary" Width="180" Height="40"/>
+                    </Grid>
+                    
+                    <!-- Progress Bar (Hidden by default) -->
+                    <StackPanel Name="ProgressPanel" IsVisible="False" VerticalAlignment="Center" Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Downloading update..." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Name="ProgressText" Text="0%" FontSize="13" FontWeight="Bold" Grid.Column="1" Foreground="{StaticResource AccentBrush}"/>
+                        </Grid>
+                        <ProgressBar Name="DownloadProgressBar" Minimum="0" Maximum="100" Value="0" Height="6"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Panel>
+</Window>
