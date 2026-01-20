@@ -6,6 +6,9 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Rendering.Composition;
 using Avalonia.Media;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
+using Avalonia.Styling;
 
 namespace OsuTag.Services
 {
@@ -94,7 +97,7 @@ namespace OsuTag.Services
 
         #endregion
 
-        #region Hover Animation (Foreshortening Safe 3D)
+        #region Hover Animation (Presenting & Smoothed)
 
         public static readonly AttachedProperty<bool> EnableHoverAnimationProperty =
             AvaloniaProperty.RegisterAttached<Control, bool>("EnableHoverAnimation", typeof(AnimationHelper));
@@ -109,14 +112,35 @@ namespace OsuTag.Services
                 control.PointerEntered += OnPointerEntered;
                 control.PointerMoved += OnPointerMoved;
                 control.PointerExited += OnPointerExited;
+                control.SizeChanged += OnControlSizeChanged;
                 
-                control.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
-                
-                // Initialize RenderTransform Group (Scale + Translate)
-                // NO SKEW (Bulges)
+                // Define Transform Group
                 var group = new TransformGroup();
-                group.Children.Add(new ScaleTransform());     // Index 0
-                group.Children.Add(new TranslateTransform()); // Index 1
+                
+                // 1. Scale Transform (for "Presenting" Pop)
+                var scale = new ScaleTransform();
+                scale.Transitions = new Transitions
+                {
+                    new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new CubicEaseOut() },
+                    new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new CubicEaseOut() }
+                };
+                group.Children.Add(scale);
+                
+                // 2. Rotate3D Transform (Perspective Tilt)
+                var rot3D = new Rotate3DTransform 
+                { 
+                    Depth = 800,
+                    CenterX = control.Bounds.Width / 2,
+                    CenterY = control.Bounds.Height / 2
+                };
+                // Transitions provide the "Smoothness" / Physics feel automatically
+                rot3D.Transitions = new Transitions
+                {
+                    new DoubleTransition { Property = Rotate3DTransform.AngleXProperty, Duration = TimeSpan.FromMilliseconds(200), Easing = new CubicEaseOut() },
+                    new DoubleTransition { Property = Rotate3DTransform.AngleYProperty, Duration = TimeSpan.FromMilliseconds(200), Easing = new CubicEaseOut() }
+                };
+                group.Children.Add(rot3D);
+                
                 control.RenderTransform = group;
             }
             else
@@ -124,17 +148,28 @@ namespace OsuTag.Services
                 control.PointerEntered -= OnPointerEntered;
                 control.PointerMoved -= OnPointerMoved;
                 control.PointerExited -= OnPointerExited;
+                control.SizeChanged -= OnControlSizeChanged;
+            }
+        }
+
+        private static void OnControlSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (sender is Control control && control.RenderTransform is TransformGroup group 
+                && group.Children.Count > 1 && group.Children[1] is Rotate3DTransform rot3D)
+            {
+                rot3D.CenterX = control.Bounds.Width / 2;
+                rot3D.CenterY = control.Bounds.Height / 2;
             }
         }
 
         private static void OnPointerEntered(object? sender, PointerEventArgs e)
         {
             if (sender is not Control control) return;
-            control.Opacity = 1; // Ensure visible
-
+            
             if (control.RenderTransform is TransformGroup group && group.Children[0] is ScaleTransform scale)
             {
-                 // Hover ENTER Scale
+                 // "Presenting" Pop (Subtle 1.05x)
+                 // Just setting the property triggers the smooth Transition defined above.
                  scale.ScaleX = 1.05;
                  scale.ScaleY = 1.05;
             }
@@ -143,39 +178,24 @@ namespace OsuTag.Services
         private static void OnPointerMoved(object? sender, PointerEventArgs e)
         {
             if (sender is not Control control) return;
-
-            var bounds = control.Bounds;
-            var point = e.GetPosition(control);
+            var p = e.GetPosition(control);
             
-            // Normalize -1 to 1
-            var x = (point.X / bounds.Width) * 2 - 1;
-            var y = (point.Y / bounds.Height) * 2 - 1;
-
-            if (control.RenderTransform is TransformGroup group)
+            if (control.RenderTransform is TransformGroup group && group.Children.Count > 1 && group.Children[1] is Rotate3DTransform rot3D)
             {
-                var scale = group.Children[0] as ScaleTransform;
-                var trans = group.Children[1] as TranslateTransform;
-
-                if (scale != null && trans != null)
-                {
-                    // FORESHORTENING SIMULATION (Safe UI Thread)
-                    // Reduce Scale as we move away from center to simulate depth
-                    // "Turning away" -> smaller
-                    
-                    var dist = Math.Sqrt(x * x + y * y);
-                    var factor = 0.03; // Max reduction
-                    
-                    // Maintain base hover scale of 1.05
-                    var newScale = 1.05 - (dist * factor);
-                    
-                    scale.ScaleX = newScale;
-                    scale.ScaleY = newScale;
-
-                    // Counter-Movement (Parallax)
-                    // Move slightly towards input to fake 3D pivot
-                    trans.X = x * 2;
-                    trans.Y = y * 2;
-                }
+                var w = control.Bounds.Width;
+                var h = control.Bounds.Height;
+                
+                // Normalize -1 to 1
+                var nx = (p.X / w) * 2.0 - 1.0;
+                var ny = (p.Y / h) * 2.0 - 1.0;
+                
+                // Max Angle (Degrees) - Reduced intensity
+                double maxAngle = 8.0;
+                
+                // Set Target Angle
+                // The Transition (200ms CubicEaseOut) will smooth this value change automatically.
+                rot3D.AngleY = -nx * maxAngle; // Yaw
+                rot3D.AngleX = ny * maxAngle;  // Pitch
             }
         }
 
@@ -183,22 +203,21 @@ namespace OsuTag.Services
         {
             if (sender is not Control control) return;
 
-            if (control.RenderTransform is TransformGroup group)
-            {
-                var scale = group.Children[0] as ScaleTransform;
-                var trans = group.Children[1] as TranslateTransform;
-                
-                if (scale != null)
-                {
+             if (control.RenderTransform is TransformGroup group)
+             {
+                 var scale = group.Children[0] as ScaleTransform;
+                 var rot3D = group.Children[1] as Rotate3DTransform;
+                 
+                 // Return to rest (Smoothly animated by Transitions)
+                 if (scale != null) {
                     scale.ScaleX = 1.0;
                     scale.ScaleY = 1.0;
-                }
-                if (trans != null)
-                {
-                    trans.X = 0;
-                    trans.Y = 0;
-                }
-            }
+                 }
+                 if (rot3D != null) {
+                    rot3D.AngleX = 0.0;
+                    rot3D.AngleY = 0.0;
+                 }
+             }
         }
 
         #endregion

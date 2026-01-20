@@ -345,6 +345,7 @@ namespace Osutag.ViewModels
         private List<MapItemGroup> _filteredMapGroups = new();
         public List<MapItemGroup> FilteredMaps => _filteredMapGroups;
         private int _displayedCount = 0;
+        public int DisplayedCount => _displayedCount;
         private const int ITEMS_PER_PAGE = 50;
         private bool _canLoadMore = false;
         private CancellationTokenSource? _searchDebounceToken;
@@ -696,6 +697,7 @@ namespace Osutag.ViewModels
                 MapGroups = new ObservableCollection<MapItemGroup>(initialItems);
 
                 _displayedCount = initialItems.Count;
+                OnPropertyChanged(nameof(DisplayedCount));
                 CanLoadMore = _displayedCount < _filteredMapGroups.Count;
             }
             finally
@@ -811,6 +813,7 @@ namespace Osutag.ViewModels
             MapGroups = new ObservableCollection<MapItemGroup>(allItems);
 
             _displayedCount += count;
+            OnPropertyChanged(nameof(DisplayedCount));
             CanLoadMore = _displayedCount < _filteredMapGroups.Count;
         }
 
