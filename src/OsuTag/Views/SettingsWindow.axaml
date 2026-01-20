@@ -4,44 +4,94 @@
         Title="Settings"
         Width="600" Height="750"
         WindowStartupLocation="CenterOwner"
-        Background="#E6121620"
+        Background="Transparent"
         TransparencyLevelHint="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         CanResize="False">
-    
+
+    <Window.Styles>
+        <Style Selector="Grid.WindowEntrance">
+            <Style.Animations>
+                <Animation Duration="0:0:0.6" Easing="CubicEaseOut" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="30"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- Modern Setting Card Style -->
+        <Style Selector="Border.SettingCard">
+            <Setter Property="Background" Value="#1C212B"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.SettingCard:pointerover">
+            <Setter Property="Background" Value="#242B38"/>
+            <Setter Property="BoxShadow" Value="0 8 24 0 #40000000"/>
+            <Setter Property="RenderTransform" Value="scale(1.01)"/>
+        </Style>
+
+        <!-- Custom Slider Style for Premium Feel -->
+        <Style Selector="Slider /template/ RepeatButton#PART_SelectionRange">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+    </Window.Styles>
+
     <Panel>
-        <!-- Acrylic background with slight transparency -->
-        <Border Background="Transparent" CornerRadius="0"/>
+        <!-- Background Blur Effect -->
+        <Border Background="#E60D1117" CornerRadius="0">
+            <Border.Effect>
+                <BlurEffect Radius="10"/>
+            </Border.Effect>
+        </Border>
         
         <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
+            <Grid.RenderTransform>
+                <TranslateTransform/>
+            </Grid.RenderTransform>
+
             <!-- Title Bar / Header -->
-            <Border Grid.Row="0" Padding="32,24,32,16" Background="Transparent">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="Settings" FontSize="32" FontWeight="ExtraBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Configure your personal osu!tag experience" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}"/>
+            <Border Grid.Row="0" Padding="40,32,40,20" Background="Transparent">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Settings" FontSize="36" FontWeight="Black" Foreground="{StaticResource TextPrimaryBrush}" LetterSpacing="-1"/>
+                    <TextBlock Text="Personalize your audio processing experience" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}" Opacity="0.8"/>
                 </StackPanel>
             </Border>
 
-            <ScrollViewer Grid.Row="1" Padding="32,8">
+            <ScrollViewer Grid.Row="1" Padding="40,8">
                 <StackPanel Spacing="32" Margin="0,0,0,32">
                     
+                    <!-- Section Component Helper -->
                     <!-- Section: Appearance -->
                     <StackPanel Spacing="16">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
-                            <TextBlock Text="🎨" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="Appearance" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="APPEARANCE" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
                         
-                        <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
+                        <Border Classes="SettingCard">
                             <StackPanel Spacing="24">
                                 <!-- Theme Color -->
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="Theme Color" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Primary accent color for the app" FontSize="12" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                        <TextBlock Text="Theme Color" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Pick your signature accent color" FontSize="12" Foreground="{StaticResource TextTertiaryBrush}"/>
                                     </StackPanel>
-                                    <ComboBox Grid.Column="1" Width="180" Name="ThemeComboBox" SelectionChanged="ThemeComboBox_SelectionChanged">
+                                    <ComboBox Grid.Column="1" Width="200" Name="ThemeComboBox" SelectionChanged="ThemeComboBox_SelectionChanged"
+                                              Background="#0D1117" BorderThickness="1" CornerRadius="8">
                                         <ComboBoxItem Content="osu! Pink" Tag="#FF66AA"/>
                                         <ComboBoxItem Content="Vivid Blue" Tag="#5B9FED"/>
                                         <ComboBoxItem Content="Emerald Green" Tag="#52C565"/>
@@ -49,15 +99,16 @@
                                     </ComboBox>
                                 </Grid>
 
-                                <Rectangle Height="1" Fill="#24292F"/>
+                                <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
                                 <!-- Preview Volume -->
-                                <StackPanel Spacing="12">
+                                <StackPanel Spacing="14">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Text="Preview Volume" FontWeight="SemiBold"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding PreviewVolume, StringFormat='{}{0:0}%'}" FontSize="12" Foreground="{StaticResource AccentBrush}"/>
+                                        <TextBlock Text="Preview Volume" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding PreviewVolume, StringFormat='{}{0:0}%'}" 
+                                                   FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
                                     </Grid>
-                                    <Slider Minimum="0" Maximum="100" Value="{Binding PreviewVolume}"/>
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding PreviewVolume}" Margin="0,-4"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -65,12 +116,9 @@
 
                     <!-- Section: General -->
                     <StackPanel Spacing="16">
-                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
-                            <TextBlock Text="⚙" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="General" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="GENERAL" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
 
-                        <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
+                        <Border Classes="SettingCard">
                             <StackPanel Spacing="20">
                                 <CheckBox Content="Process cover images (Embed in MP3)" IsChecked="{Binding ProcessCovers}"/>
                                 <CheckBox Content="Create backups of original .osu files" IsChecked="{Binding CreateBackups}"/>
@@ -82,14 +130,10 @@
 
                     <!-- Section: Integrations -->
                     <StackPanel Spacing="16">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
-                            <TextBlock Text="🔗" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="Integrations" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="INTEGRATIONS" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
 
-                        <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
+                        <Border Classes="SettingCard">
                             <StackPanel Spacing="24">
-                                <!-- Companella -->
                                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsCompanellaSupported}">
                                     <StackPanel Spacing="4">
                                         <CheckBox Content="Sort by play count (Companella)" IsChecked="{Binding SortByMostPlayed}"/>
@@ -97,7 +141,7 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <Rectangle Height="1" Fill="#24292F"/>
+                                <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
                                 <CheckBox Content="Enable Discord Rich Presence" IsChecked="{Binding DiscordRpcEnabled}"/>
                                 <CheckBox Content="Share anonymous usage statistics" IsChecked="{Binding TelemetryEnabled}"/>
@@ -105,31 +149,28 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- Section: Advanced -->
+                    <!-- Section: Maintenance & Advanced -->
                     <StackPanel Spacing="16">
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
-                            <TextBlock Text="🛠" FontSize="18" VerticalAlignment="Center"/>
-                            <TextBlock Text="Advanced" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="MAINTENANCE" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
 
-                        <Border Background="#1C212B" CornerRadius="20" Padding="24" BorderBrush="#30363D" BorderThickness="1">
+                        <Border Classes="SettingCard">
                             <StackPanel Spacing="24">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Spacing="4">
                                         <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckForUpdates}"/>
-                                        <TextBlock Text="Ensure you always have the latest improvements" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" Margin="32,0,0,0"/>
+                                        <TextBlock Text="Stay up to date with new features" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" Margin="32,0,0,0"/>
                                     </StackPanel>
-                                    <Button Grid.Column="1" Content="Check Now" Click="CheckForUpdates_Click" Classes="Secondary"/>
+                                    <Button Grid.Column="1" Content="Check Now" Click="CheckForUpdates_Click" Classes="Secondary" Padding="16,8" CornerRadius="8"/>
                                 </Grid>
 
-                                <Rectangle Height="1" Fill="#24292F"/>
+                                <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="Clear Map Cache" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Clear Map Cache" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                         <TextBlock Text="Forces a full rescan on next launch" FontSize="12" Foreground="{StaticResource TextTertiaryBrush}"/>
                                     </StackPanel>
-                                    <Button Grid.Column="1" Content="Clear Cache" Click="ClearCache_Click" Classes="Secondary" Foreground="#FF6666"/>
+                                    <Button Grid.Column="1" Content="Clear Cache" Click="ClearCache_Click" Classes="Secondary" Foreground="#FF6666" Padding="16,8" CornerRadius="8"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -139,11 +180,13 @@
             </ScrollViewer>
 
             <!-- Footer -->
-            <Border Grid.Row="2" Padding="32,20" Background="#161B22" BorderBrush="#30363D" BorderThickness="0,1,0,0">
+            <Border Grid.Row="2" Padding="40,24" Background="#161B22" BorderBrush="#30363D" BorderThickness="0,1,0,0" CornerRadius="0,0,0,0">
                 <Grid ColumnDefinitions="*,Auto,Auto">
-                     <TextBlock Text="{Binding AppVersion, StringFormat='{}{0} Stable'}" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
-                     <Button Grid.Column="1" Content="Cancel" Click="Cancel_Click" Classes="Secondary" Width="100" Height="40" Margin="0,0,12,0"/>
-                     <Button Grid.Column="2" Content="Save Changes" Click="Save_Click" Classes="Primary" Width="140" Height="40"/>
+                     <TextBlock Text="{Binding AppVersion, StringFormat='{}{0} Stable'}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                     <Button Grid.Column="1" Content="Cancel" Click="Cancel_Click" Classes="Secondary" Width="100" Height="42" Margin="0,0,16,0" CornerRadius="10"/>
+                     <Button Grid.Column="2" Click="Save_Click" Classes="Primary" Width="160" Height="42" CornerRadius="10">
+                         <TextBlock Text="SAVE CHANGES" FontWeight="Black" FontSize="12" LetterSpacing="1"/>
+                     </Button>
                 </Grid>
             </Border>
         </Grid>

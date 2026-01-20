@@ -119,6 +119,56 @@ namespace OsuTag.Views
             lock (_hoverLock) { _hoverDelayCancellation?.Cancel(); }
             Services.AudioService.Instance.Stop();
         }
+
+        // Queue Bar Hover Logic
+        private CancellationTokenSource? _queueBarCancellation;
+        private readonly object _queueBarLock = new object();
+
+        private async void BottomBar_PointerEntered(object? sender, PointerEventArgs e)
+        {
+            if (_viewModel == null) return;
+            
+            lock (_queueBarLock)
+            {
+                _queueBarCancellation?.Cancel();
+                _queueBarCancellation = new CancellationTokenSource();
+            }
+            
+            var token = _queueBarCancellation.Token;
+            
+            try
+            {
+                // Quick expand
+                await Task.Delay(50, token); 
+                if (token.IsCancellationRequested) return;
+                
+                _viewModel.IsBottomBarExpanded = true;
+            }
+            catch (TaskCanceledException) { }
+        }
+
+        private async void BottomBar_PointerExited(object? sender, PointerEventArgs e)
+        {
+             if (_viewModel == null) return;
+            
+            lock (_queueBarLock)
+            {
+                _queueBarCancellation?.Cancel();
+                _queueBarCancellation = new CancellationTokenSource();
+            }
+            
+            var token = _queueBarCancellation.Token;
+            
+            try
+            {
+                // Delayed collapse (for forgiving UI)
+                await Task.Delay(300, token); 
+                if (token.IsCancellationRequested) return;
+                
+                _viewModel.IsBottomBarExpanded = false;
+            }
+            catch (TaskCanceledException) { }
+        }
     }
 }
 

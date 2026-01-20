@@ -120,6 +120,20 @@ public partial class App : Application
                 Application.Current.Resources["AccentHoverShadow"] = hoverShadow;
             }
             catch { }
+
+            // Update SelectionGlow
+            try
+            {
+                var glowColor = Avalonia.Media.Color.FromUInt32((0x90000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
+                var glow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow 
+                { 
+                    Blur = 35,
+                    Spread = 8,
+                    Color = glowColor 
+                });
+                Application.Current.Resources["SelectionGlow"] = glow;
+            }
+            catch { }
         }
         catch { }
     }
