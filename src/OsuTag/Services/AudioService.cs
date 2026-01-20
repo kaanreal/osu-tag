@@ -244,26 +244,16 @@ namespace OsuTag.Services
         {
             if (!_isInitialized) Initialize();
 
-            // Debouncing: Cancel any pending playback
-            lock (_playbackLock)
+            // Move all audio operations to background thread to prevent UI stutter
+            Task.Run(() =>
             {
-                _playbackCancellation?.Cancel();
-                _playbackCancellation = new CancellationTokenSource();
-            }
-
-            var currentToken = _playbackCancellation;
-
-            try
-            {
-                // Check if this playback was cancelled
-                if (currentToken.Token.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                // Prevent playing the same file if already playing
+                // Debouncing: Cancel any pending playback
                 lock (_playbackLock)
                 {
+                    _playbackCancellation?.Cancel();
+                    _playbackCancellation = new CancellationTokenSource();
+
+                    // Prevent playing the same file if already playing
                     if (_currentPlayingPath == path)
                     {
                         return;
@@ -273,24 +263,28 @@ namespace OsuTag.Services
 
                 int finalVolume = volume ?? _volume;
 
-                if (_useWindowsNative)
+                try
                 {
+                    if (_useWindowsNative)
+                    {
 #if WINDOWS
-                    WindowsNativePlayer.Play(path, startTimeMs, finalVolume);
+                        WindowsNativePlayer.Play(path, startTimeMs, finalVolume);
 #endif
-                    return;
-                }
+                        return;
+                    }
 
-                if (_useMacNative)
-                {
+                    if (_useMacNative)
+                    {
 #if !WINDOWS
-                    MacNativePlayer.Play(path, startTimeMs, finalVolume);
+                        MacNativePlayer.Play(path, startTimeMs, finalVolume);
 #endif
-                    return;
+                    }
                 }
-            }
-            catch (TaskCanceledException) { }
-            catch (Exception) { }
+                catch
+                {
+                    // Swallow exceptions from background thread
+                }
+            });
         }
 
         public void Stop()
