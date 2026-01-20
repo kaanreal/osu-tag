@@ -10,7 +10,7 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Styling;
 
-namespace OsuTag.Services
+namespace Osutag.Services
 {
     public static class AnimationHelper
     {

@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 
-namespace OsuTag.Services
+namespace Osutag.Services
 {
     /// <summary>
     /// High-performance async image cache service.

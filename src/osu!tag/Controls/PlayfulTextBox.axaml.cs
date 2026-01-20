@@ -15,7 +15,7 @@ using System.Linq;
 
 using Avalonia.Media.TextFormatting;
 
-namespace OsuTag.Controls
+namespace Osutag.Controls
 {
     public partial class PlayfulTextBox : UserControl
     {
