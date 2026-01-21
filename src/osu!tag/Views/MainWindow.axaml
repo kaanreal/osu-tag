@@ -79,8 +79,7 @@
                 <!-- Left: App Branding -->
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Orientation="Horizontal">
                     <Border Width="40" Height="40" Background="{DynamicResource AccentBrush}" 
-                            CornerRadius="10" Margin="0,0,16,0"
-                            BorderBrush="#FF57A0" BorderThickness="1.5">
+                            CornerRadius="10" Margin="0,0,16,0">
                         <Image Source="/Assets/app.ico" Width="28" Height="28" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
@@ -108,7 +107,7 @@
                                 </TextBlock>
                             </Button>
                         </StackPanel>
-                        <TextBlock Text="by kaanreal" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                        <TextBlock Text="by Kaan and AI" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
  
@@ -247,9 +246,9 @@
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Width="180" Height="260" Margin="0,0,20,20" x:Name="MapCard" ClipToBounds="False"
+                                    <Border Width="180" Height="260" Margin="10,0,20,20" x:Name="MapCard" ClipToBounds="False"
                                             services:AnimationHelper.EnableEntranceAnimation="True">
-                                        
+
                                         <!-- Main Interactive Wrapper utilizing Button for correct Input handling -->
                                         <!-- Main Interactive Wrapper utilizing Button for correct Input handling -->
                                         <!-- ClipToBounds=False serves to allow Stacks to peek out -->
@@ -325,7 +324,11 @@
                                                                 <!-- Info -->
                                                                 <StackPanel Grid.Row="1" Margin="12,8,12,12">
                                                                     <TextBlock Text="{Binding Title}" Foreground="#333" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
+                                                                        <TextBlock.Effect>
+                                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" Opacity="0.5" OffsetX="0" OffsetY="0"/>
+                                                                        </TextBlock.Effect>
+                                                                    </TextBlock>
                                                                     <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" Foreground="#999" FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
                                                                 </StackPanel>
                                                             </Grid>
