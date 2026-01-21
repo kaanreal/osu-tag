@@ -56,7 +56,7 @@ jobs:
                   COMPARE_URL=$(echo "$RP_BODY" | grep -oE "https://github.com/[^/]+/[^/]+/compare/[v0-9.]+...[v0-9.]+" | head -n 1)
 
                   if [ -n "$COMPARE_URL" ]; then
-                    FOOTER="\n\n**Full Changelog**: [View Changes]($COMPARE_URL)"
+                    FOOTER="\n\n**Full Changelog**: ($COMPARE_URL)"
                   else
                     FOOTER=""
                   fi
@@ -109,7 +109,7 @@ jobs:
                       ${{ steps.release_notes.outputs.RELEASE_BODY }}
 
                       ---
-                      Thank you for using **osu!tag** by **kaancat**!
+                      Thank you for using **osu!tag** **<3**!
                   files: |
                       *.exe
                       *.zip
