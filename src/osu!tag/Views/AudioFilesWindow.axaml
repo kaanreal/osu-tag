@@ -9,7 +9,7 @@
         Foreground="{StaticResource TextPrimaryBrush}"
         CanResize="False">
     
-    <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+    <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance" Margin="32">
         <StackPanel Spacing="12">
             <TextBlock Text="Select Audio File" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
             <TextBlock Text="This beatmap has multiple audio files. Select which one to use."

@@ -13,7 +13,8 @@
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        CanResize="True">
     
     <Design.DataContext>
         <vm:MainViewModel/>

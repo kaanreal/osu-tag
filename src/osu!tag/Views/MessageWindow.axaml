@@ -11,7 +11,7 @@
         TransparencyLevelHint="None">
     
     <Border BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Background="#1C212B">
-        <Grid RowDefinitions="Auto,*,Auto">
+            <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
              <!-- Header -->
              <TextBlock Name="TitleText" Text="Title" Margin="24,24,24,12" FontWeight="Bold" FontSize="18" Foreground="#E6EDF3"/>
              
