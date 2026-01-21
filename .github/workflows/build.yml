@@ -17,11 +17,6 @@ jobs:
             tag_name: ${{ steps.release.outputs.tag_name }}
             body: ${{ steps.release.outputs.body }}
         steps:
-            - uses: actions/checkout@v4
-              with:
-                  token: ${{ secrets.MY_RELEASE_TOKEN }}
-                  fetch-depth: 0
-
             - uses: googleapis/release-please-action@v4
               id: release
               with:
@@ -48,52 +43,30 @@ jobs:
               with:
                   dotnet-version: "8.0"
 
-            - name: Extract Version
-              id: get_version
-              shell: bash
-              run: |
-                  RAW_TAG="${{ needs.release-please.outputs.tag_name }}"
-                  VERSION="${RAW_TAG#v}"
-                  echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
             - name: Prepare Release Notes
               id: release_notes
               shell: bash
+              env:
+                  RP_BODY: ${{ needs.release-please.outputs.body }}
+                  TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
               run: |
-                  # Extract the version from the tag (e.g., v1.1.1 -> 1.1.1)
-                  TAG_NAME="${{ needs.release-please.outputs.tag_name }}"
                   VERSION="${TAG_NAME#v}"
-
-                  # Create the header (using – which is an en dash, matching user request)
                   HEADER="# osu!tag v$VERSION – Release Notes"
+                  CLEANED_BODY=$(echo "$RP_BODY" | sed '1d' | sed 's/^### /## /g')
+                  COMPARE_URL=$(echo "$RP_BODY" | grep -oE "https://github.com/[^/]+/[^/]+/compare/[v0-9.]+...[v0-9.]+" | head -n 1)
 
-                  # Get the changelog from release-please
-                  BODY=$(cat << 'EOF'
-                  ${{ needs.release-please.outputs.body }}
-                  EOF
-                  )
-
-                  # Remove the default version header from release-please body and all lines before first section
-                  # Then convert H3 (###) to H2 (##) as requested. Using portable sed syntax.
-                  CLEANED_BODY=$(echo "$BODY" | sed -n '/^### /,$p' | sed 's/^### /## /g')
-
-                  # Extract comparison link (e.g., v1.1.1...v2.0.0) from the header
-                  COMPARE_TAGS=$(echo "$BODY" | grep -oE "compare/[v0-9.]+...[v0-9.]+" | cut -d'/' -f2)
-                  if [ -n "$COMPARE_TAGS" ]; then
-                    CHANGELOG_FOOTER="\n\n**Full Changelog**: $COMPARE_TAGS"
+                  if [ -n "$COMPARE_URL" ]; then
+                    FOOTER="\n\n**Full Changelog**: [View Changes]($COMPARE_URL)"
                   else
-                    CHANGELOG_FOOTER=""
+                    FOOTER=""
                   fi
 
-                  # Construct full body
-                  FULL_BODY="$HEADER\n\n$CLEANED_BODY$CHANGELOG_FOOTER"
-
-                  # Use a heredoc for setting the environment variable
                   {
                     echo "RELEASE_BODY<<EOF"
-                    echo -e "$FULL_BODY"
+                    echo -e "$HEADER\n\n$CLEANED_BODY$FOOTER"
                     echo "EOF"
-                  } >> $GITHUB_ENV
+                    echo "VERSION=$VERSION"
+                  } >> $GITHUB_OUTPUT
 
             - name: Publish
               shell: bash
@@ -101,7 +74,7 @@ jobs:
                   dotnet publish src/osu!tag/Osutag.csproj -c Release -r ${{ matrix.rid }} \
                   --self-contained -p:PublishSingleFile=true \
                   -p:IncludeNativeLibrariesForSelfExtract=true \
-                  -p:Version=${{ steps.get_version.outputs.VERSION }} -o publish
+                  -p:Version=${{ steps.release_notes.outputs.VERSION }} -o publish
 
             - name: Package macOS
               if: matrix.os == 'macos-latest'
@@ -112,30 +85,31 @@ jobs:
                   chmod +x "osu!tag.app/Contents/MacOS/osu!tag"
                   cp src/osu!tag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns" || true
                   echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>osu!tag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>' > "osu!tag.app/Contents/Info.plist"
-                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v${{ steps.get_version.outputs.VERSION }}-macos.zip"
+                  ditto -c -k --sequesterRsrc --keepParent "osu!tag.app" "osu-tag-v${{ steps.release_notes.outputs.VERSION }}-macos.zip"
 
             - name: Package Windows
               if: matrix.os == 'windows-latest'
               run: |
                   if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
-                    & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.get_version.outputs.VERSION }} installer.iss
+                    & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.release_notes.outputs.VERSION }} installer.iss
                   }
-                  Copy-Item publish/Osutag.exe -Destination "osu-tag-v${{ steps.get_version.outputs.VERSION }}-win-portable.exe"
+                  Copy-Item publish/Osutag.exe -Destination "osu-tag-v${{ steps.release_notes.outputs.VERSION }}-win-portable.exe"
 
             - name: Package Linux
               if: matrix.os == 'ubuntu-latest'
               run: |
-                  cd publish && zip -r ../osu-tag-v${{ steps.get_version.outputs.VERSION }}-linux.zip .
+                  cd publish && zip -r ../osu-tag-v${{ steps.release_notes.outputs.VERSION }}-linux.zip .
 
             - name: Upload to Release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ needs.release-please.outputs.tag_name }}
-                  name: Release v.${{ steps.get_version.outputs.VERSION }}
+                  name: Release v${{ steps.release_notes.outputs.VERSION }}
                   body: |
                       ${{ steps.release_notes.outputs.RELEASE_BODY }}
 
-                      Thank you for using **osu!tag** by **kaancat**! Download the new version and enjoy a smoother experience and easier installation.
+                      ---
+                      Thank you for using **osu!tag** by **kaancat**!
                   files: |
                       *.exe
                       *.zip
