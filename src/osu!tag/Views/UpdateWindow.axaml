@@ -14,7 +14,7 @@
     
     <Panel>
          <!-- Background -->
-        <Border Background="#1C212B" CornerRadius="8"/>
+        <Border CornerRadius="15" Background="#1C212B"/>
         
         <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance">
             
@@ -35,7 +35,7 @@
 
             <!-- Content Area (Changelog) -->
             <Border Grid.Row="1" Padding="32,0,32,16">
-                <Border Background="#0D1117" CornerRadius="6" BorderBrush="#30363D" BorderThickness="1">
+                <Border Background="#0D1117" CornerRadius="15" BorderBrush="#30363D" BorderThickness="1">
                     <ScrollViewer>
                         <Border Padding="16">
                             <StackPanel>

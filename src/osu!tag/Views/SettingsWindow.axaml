@@ -11,21 +11,6 @@
         CanResize="False">
 
     <Window.Styles>
-        <Style Selector="Grid.WindowEntrance">
-            <Style.Animations>
-                <Animation Duration="0:0:0.6" Easing="CubicEaseOut" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-
         <!-- Modern Setting Card Style -->
         <Style Selector="Border.SettingCard">
             <Setter Property="Background" Value="#1C212B"/>
