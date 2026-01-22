@@ -11,8 +11,8 @@
     <AssemblyName>Osutag</AssemblyName>
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
     <Version>2.0.1</Version>
-    <Authors>kaancat</Authors>
-    <Company>kaancat</Company>
+    <Authors>kaanreal</Authors>
+    <Company>kaanreal</Company>
     <Product>osu!tag</Product>
     <!-- Optimization: Production Stability -->
     <PublishTrimmed>true</PublishTrimmed>
@@ -62,6 +62,11 @@
     <PackageReference Include="TagLibSharp" Version="2.3.0"/>
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12"/>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0"/>
+    
+    <!-- Audio Engine: LibVLCSharp -->
+    <PackageReference Include="LibVLCSharp" Version="3.9.0" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
+    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.0.21" />
   </ItemGroup>
 
   <ItemGroup>
@@ -69,6 +74,7 @@
     <TrimmerRootAssembly Include="Osutag"/>
     <TrimmerRootAssembly Include="TagLibSharp"/>
     <TrimmerRootAssembly Include="DiscordRPC"/>
+    <TrimmerRootAssembly Include="LibVLCSharp"/>
   </ItemGroup>
 
 </Project>
