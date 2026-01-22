@@ -1,15 +1,14 @@
 using System;
 using System.IO;
-using System.Text;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using LibVLCSharp.Shared;
 
 namespace Osutag.Services
 {
     /// <summary>
-    /// Singleton service for cross-platform audio playback using native platform APIs.
-    /// This implementation avoids heavy dependencies like LibVLC to keep the application size minimal.
+    /// Singleton service for cross-platform audio playback using LibVLCSharp.
+    /// This implementation provides consistent behavior across Windows, macOS, and Linux.
     /// </summary>
     public class AudioService : IDisposable
     {
@@ -17,207 +16,31 @@ namespace Osutag.Services
         public static AudioService Instance => _instance.Value;
 
         private bool _isInitialized = false;
-        private bool _useWindowsNative = false;
-        private bool _useMacNative = false;
-        private int _volume = (int)SettingsService.Settings.PreviewVolume;
+        private LibVLC? _libVLC;
+        private MediaPlayer? _mediaPlayer;
+        
+        // Debouncing
         private CancellationTokenSource? _playbackCancellation;
         private string? _currentPlayingPath;
         private readonly object _playbackLock = new object();
+        private readonly object _vlcLock = new object();
 
+        private int _volume = (int)SettingsService.Settings.PreviewVolume;
         public int Volume
         {
             get => _volume;
             set
             {
                 _volume = value;
-                // Update volume in settings
                 SettingsService.Settings.PreviewVolume = value;
+                
+                // Update live if playing
+                if (_mediaPlayer != null)
+                {
+                    _mediaPlayer.Volume = value;
+                }
             }
         }
-
-#if WINDOWS
-        // Windows Native Player using winmm.dll (mciSendString)
-        // This is lightweight and avoids COM threading issues associated with WMP/OCX
-        internal static class WindowsNativePlayer
-        {
-            [DllImport("winmm.dll")]
-            private static extern long mciSendString(string strCommand, StringBuilder? strReturn, int iReturnLength, IntPtr hwndCallback);
-
-            [DllImport("winmm.dll")]
-            private static extern int mciGetErrorString(int errCode, StringBuilder strReturn, int iReturnLength);
-
-            [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-            private static extern uint GetShortPathName([MarshalAs(UnmanagedType.LPTStr)] string lpszLongPath, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszShortPath, uint cchBuffer);
-
-            public static void Play(string path, int startTimeMs, float volume)
-            {
-                // Stop any previous playback first to be safe
-                Stop();
-
-                try
-                {
-                    // Convert to short path to avoid quote/space issues in MCI commands
-                    StringBuilder shortPath = new StringBuilder(255);
-                    GetShortPathName(path, shortPath, (uint)shortPath.Capacity);
-                    string playPath = shortPath.ToString();
-
-                    if (string.IsNullOrEmpty(playPath))
-                    {
-                        // Fallback to manual quoting if short path fails
-                        playPath = $"\"{path}\"";
-                    }
-
-                    // Open the file
-                    string alias = "osutag_preview";
-                    
-                    // Close just in case
-                    mciSendString($"close {alias}", null, 0, IntPtr.Zero);
-
-                    string openCommand = $"open {playPath} type mpegvideo alias {alias}";
-                    int result = (int)mciSendString(openCommand, null, 0, IntPtr.Zero);
-
-                    if (result != 0)
-                    {
-                        StringBuilder sb = new StringBuilder(128);
-                        mciGetErrorString(result, sb, 128);
-                        return;
-                    }
-
-                    // Set volume (0-1000)
-                    int mciVolume = (int)(volume * 10);
-                    mciSendString($"setaudio {alias} volume to {mciVolume}", null, 0, IntPtr.Zero);
-
-                    // Seek if needed
-                    if (startTimeMs > 0)
-                    {
-                        mciSendString($"seek {alias} to {startTimeMs}", null, 0, IntPtr.Zero);
-                    }
-
-                    // Play
-                    mciSendString($"play {alias}", null, 0, IntPtr.Zero);
-                }
-                catch (Exception)
-                {
-                }
-            }
-
-            public static void Stop()
-            {
-                try
-                {
-                    string alias = "osutag_preview";
-                    mciSendString($"stop {alias}", null, 0, IntPtr.Zero);
-                    mciSendString($"close {alias}", null, 0, IntPtr.Zero);
-                }
-                catch { }
-            }
-
-            public static void Dispose()
-            {
-                Stop();
-            }
-        }
-#endif
-
-#if !WINDOWS
-        // macOS Native Player using P/Invoke to NSSound
-        internal static class MacNativePlayer
-        {
-            [DllImport("/usr/lib/libobjc.A.dylib")]
-            private static extern IntPtr objc_getClass(string name);
-
-            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-            private static extern IntPtr objc_msgSend_IntPtr(IntPtr receiver, IntPtr selector);
-
-            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-            private static extern IntPtr objc_msgSend_IntPtr_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg);
-
-            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-            private static extern IntPtr objc_msgSend_IntPtr_IntPtr_byte(IntPtr receiver, IntPtr selector, IntPtr arg1, byte arg2);
-
-            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-            private static extern void objc_msgSend_void_double(IntPtr receiver, IntPtr selector, double arg);
-
-            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-            private static extern void objc_msgSend_void_float(IntPtr receiver, IntPtr selector, float arg);
-
-            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-            private static extern double objc_msgSend_double(IntPtr receiver, IntPtr selector);
-
-            [DllImport("/usr/lib/libobjc.A.dylib")]
-            private static extern IntPtr sel_registerName(string name);
-
-            private static IntPtr _nsSoundClass = objc_getClass("NSSound");
-            private static IntPtr _allocSel = sel_registerName("alloc");
-            private static IntPtr _initWithFileSel = sel_registerName("initWithContentsOfFile:byReference:");
-            private static IntPtr _playSel = sel_registerName("play");
-            private static IntPtr _stopSel = sel_registerName("stop");
-            private static IntPtr _setCurrentTimeSel = sel_registerName("setCurrentTime:");
-            private static IntPtr _setVolumeSel = sel_registerName("setVolume:");
-            private static IntPtr _releaseSel = sel_registerName("release");
-            private static IntPtr _durationSel = sel_registerName("duration");
-
-            private static IntPtr _currentSound = IntPtr.Zero;
-
-            public static void Play(string path, int startTimeMs, float volume)
-            {
-                Stop();
-
-                try
-                {
-                    IntPtr nsPath = CreateNSString(path);
-                    IntPtr soundAlloc = objc_msgSend_IntPtr(_nsSoundClass, _allocSel);
-                    _currentSound = objc_msgSend_IntPtr_IntPtr_byte(soundAlloc, _initWithFileSel, nsPath, (byte)0);
-                    
-                    if (_currentSound != IntPtr.Zero)
-                    {
-                        double duration = objc_msgSend_double(_currentSound, _durationSel);
-                        float volToSet = (float)(volume / 100.0);
-                        objc_msgSend_void_float(_currentSound, _setVolumeSel, volToSet);
-                        
-                        double targetTime = startTimeMs / 1000.0;
-                        if (targetTime < duration)
-                        {
-                            objc_msgSend_void_double(_currentSound, _setCurrentTimeSel, targetTime);
-                        }
-                        
-                        objc_msgSend_IntPtr(_currentSound, _playSel);
-                    }
-                }
-                catch { }
-            }
-
-            public static void Stop()
-            {
-                if (_currentSound != IntPtr.Zero)
-                {
-                    objc_msgSend_IntPtr(_currentSound, _stopSel);
-                    objc_msgSend_IntPtr(_currentSound, _releaseSel);
-                    _currentSound = IntPtr.Zero;
-                }
-            }
-
-            private static IntPtr CreateNSString(string str)
-            {
-                IntPtr nsStringClass = objc_getClass("NSString");
-                IntPtr sel = sel_registerName("stringWithUTF8String:");
-                IntPtr utf8String = Marshal.StringToHGlobalAnsi(str);
-                try
-                {
-                    return objc_msgSend_IntPtr_IntPtr(nsStringClass, sel, utf8String);
-                }
-                finally
-                {
-                    Marshal.FreeHGlobal(utf8String);
-                }
-            }
-
-            internal static void Dispose()
-            {
-                throw new NotImplementedException();
-            }
-        }
-#endif
 
         private AudioService()
         {
@@ -228,104 +51,127 @@ namespace Osutag.Services
         {
             if (_isInitialized) return;
 
-            if (PlatformService.IsWindows)
+            try
             {
-                _useWindowsNative = true; 
+                // Initialize Core. native libraries must be deployed.
+                Core.Initialize();
+
+                // Create LibVLC with default options
+                _libVLC = new LibVLC();
+                
+                // Create MediaPlayer
+                _mediaPlayer = new MediaPlayer(_libVLC);
+                
+                _isInitialized = true;
+                Console.WriteLine("[Audio] LibVLC Initialized successfully.");
             }
-            else if (PlatformService.IsMacOS)
+            catch (Exception ex)
             {
-                _useMacNative = true;
+                Console.WriteLine($"[Audio] Failed to initialize LibVLC: {ex.Message}");
             }
-            
-            _isInitialized = true;
         }
 
         public void PlayPreview(string path, int startTimeMs, int? volume = null)
         {
             if (!_isInitialized) Initialize();
+            if (_libVLC == null || _mediaPlayer == null) return;
 
-            // Move all audio operations to background thread to prevent UI stutter
+            // Offload to thread to keep UI snappy, though LibVLC is async-friendly.
             Task.Run(() =>
             {
-                // Debouncing: Cancel any pending playback
+                CancellationToken token;
+                
                 lock (_playbackLock)
                 {
                     _playbackCancellation?.Cancel();
                     _playbackCancellation = new CancellationTokenSource();
+                    token = _playbackCancellation.Token;
 
-                    // Prevent playing the same file if already playing
-                    if (_currentPlayingPath == path)
+                    if (_currentPlayingPath == path && _mediaPlayer.IsPlaying) 
                     {
-                        return;
+                        // Already playing this track, maybe just seek?
+                        // For now, simpler to just restart to ensure preview point is hit.
                     }
                     _currentPlayingPath = path;
                 }
 
-                int finalVolume = volume ?? _volume;
+                if (token.IsCancellationRequested) return;
 
-                try
-                {
-                    if (_useWindowsNative)
-                    {
-#if WINDOWS
-                        WindowsNativePlayer.Play(path, startTimeMs, finalVolume);
-#endif
-                        return;
-                    }
+                int finalVolume = volume ?? (int)SettingsService.Settings.PreviewVolume;
+                if (finalVolume <= 0) return;
 
-                    if (_useMacNative)
-                    {
-#if !WINDOWS
-                        MacNativePlayer.Play(path, startTimeMs, finalVolume);
-#endif
-                    }
-                }
-                catch
+                lock (_vlcLock)
                 {
-                    // Swallow exceptions from background thread
+                    try
+                    {
+                        // Local path handling
+                        string mediaPath = path;
+                        if (!path.Contains("://") && File.Exists(path))
+                        {
+                            // LibVLC sometimes prefers file:// URI for local files to handle chars better
+                            mediaPath = new Uri(path).AbsoluteUri;
+                        }
+
+                        // Create media from path
+                        using var media = new Media(_libVLC, mediaPath, FromType.FromLocation);
+
+                        // Optimizations for faster seek/start
+                        media.AddOption(":no-video"); 
+                        
+                        _mediaPlayer.Media = media;
+                        _mediaPlayer.Volume = finalVolume;
+                        
+                        // Play immediately
+                        bool playResult = _mediaPlayer.Play();
+                        
+                        if (!playResult)
+                        {
+                            Console.WriteLine($"[Audio] LibVLC Play() returned false for {path}");
+                            return;
+                        }
+
+                        // Handle Seeking
+                        if (startTimeMs > 0)
+                        {
+                            // LibVLC expects time in milliseconds directly.
+                            _mediaPlayer.Time = startTimeMs;
+                            Console.WriteLine($"[Audio] Playing {Path.GetFileName(path)} from {startTimeMs}ms");
+                        }
+                        else
+                        {
+                             Console.WriteLine($"[Audio] Playing {Path.GetFileName(path)} from start");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                         Console.WriteLine($"[Audio] LibVLC Error: {ex.Message}");
+                    }
                 }
             });
         }
 
         public void Stop()
         {
-            // Cancel any pending playback
             lock (_playbackLock)
             {
                 _playbackCancellation?.Cancel();
                 _currentPlayingPath = null;
             }
 
-            if (_useWindowsNative)
+            lock (_vlcLock)
             {
-#if WINDOWS
-                WindowsNativePlayer.Stop();
-#endif
-            }
-            else if (_useMacNative)
-            {
-#if !WINDOWS
-                MacNativePlayer.Stop();
-#endif
+                if (_mediaPlayer != null && _mediaPlayer.IsPlaying)
+                {
+                    _mediaPlayer.Stop();
+                }
             }
         }
 
         public void Dispose()
         {
             Stop();
-            
-            if (_useWindowsNative)
-            {
-#if WINDOWS
-                WindowsNativePlayer.Dispose();
-#endif
-            }
-            else if (_useMacNative)
-            {
-#if !WINDOWS
-                MacNativePlayer.Dispose();
-#endif
-            }
+            _mediaPlayer?.Dispose();
+            _libVLC?.Dispose();
         }
     }
 }

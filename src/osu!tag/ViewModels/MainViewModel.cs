@@ -679,7 +679,10 @@ namespace Osutag.ViewModels
                     // Sort by most played if enabled
                     if (sortByMostPlayed && playCounts.Count > 0)
                     {
-                        result = result.OrderByDescending(map => GetPlayCount(map, playCounts)).ToList();
+                        result = result
+                            .OrderByDescending(map => GetPlayCount(map, playCounts) > 0)
+                            .ThenByDescending(map => GetPlayCount(map, playCounts))
+                            .ToList();
                     }
 
                     return result;
