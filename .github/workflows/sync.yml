@@ -18,15 +18,12 @@ jobs:
                   fetch-depth: 0
                   token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Push changes to testing
+            - name: Merge main into testing
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
 
-                  git fetch origin main
-                  git fetch origin testing
-
+                  git fetch origin
                   git checkout testing
-                  # Force testing to match main exactly
-                  git reset --hard origin/main
-                  git push origin testing --force
+                  git merge origin/main --no-edit
+                  git push origin testing
