@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:Osutag.Converters"
+             xmlns:services="using:Osutag.Services"
              x:Class="Osutag.App"
              RequestedThemeVariant="Dark">
 <Application.Resources>
@@ -23,9 +24,9 @@
         <Color x:Key="BorderColor">#242936</Color>
         <Color x:Key="AccentColor">#5B9FED</Color>
         <Color x:Key="AccentHoverColor">#78B2F2</Color>
-        <BoxShadows x:Key="AccentShadow">0 0 16 0 #405B9FED</BoxShadows>
-        <BoxShadows x:Key="AccentHoverShadow">0 0 16 0 #805B9FED</BoxShadows>
-        <BoxShadows x:Key="SelectionGlow">0 0 35 8 #D0FF57A0</BoxShadows>
+        <BoxShadows x:Key="AccentShadow">0 0 10 0 #405B9FED</BoxShadows>
+        <BoxShadows x:Key="AccentHoverShadow">0 0 12 0 #805B9FED</BoxShadows>
+        <BoxShadows x:Key="SelectionGlow">0 0 20 4 #D0FF57A0</BoxShadows>
         <Color x:Key="AccentSubtleColor">#2D4A6B</Color>
         <Color x:Key="SuccessColor">#52C565</Color>
         <Color x:Key="TextPrimaryColor">#E6E6E8</Color>
@@ -421,6 +422,11 @@
         </Style>
         <Style Selector="Button.TitleBarButton.Close:pointerover">
             <Setter Property="Background" Value="#E81123"/>
+        </Style>
+
+        <!-- Global ScrollViewer Style for Smooth Scrolling -->
+        <Style Selector="ScrollViewer">
+            <Setter Property="services:AnimationHelper.EnableSmoothScrolling" Value="True" />
         </Style>
 
     </Application.Styles>

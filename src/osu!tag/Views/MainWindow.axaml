@@ -241,9 +241,9 @@
 
 
                 <!-- Map List (Virtualized for 240Hz Performance) -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,20,16,24" ClipToBounds="False">
-                    <Grid RowDefinitions="*,Auto" ClipToBounds="False">
-                        <ItemsRepeater ItemsSource="{Binding MapGroups}" ClipToBounds="False">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,20,16,24" ClipToBounds="True">
+                    <Grid RowDefinitions="*,Auto" ClipToBounds="True">
+                        <ItemsRepeater ItemsSource="{Binding MapGroups}" ClipToBounds="True">
                             <ItemsRepeater.Layout>
                                 <UniformGridLayout ItemsStretch="None" 
                                                  MinItemWidth="200" 
@@ -317,7 +317,7 @@
                                                 <!-- Moved Hover Animation here so only the top card tilts, leaving stack behind -->
                                                 <!-- Main Card Visuals -->
                                                 <!-- Unclipped parent so hover animation + selection glow work together -->
-                                                <Border Width="180" Height="260" CornerRadius="4" ClipToBounds="False" BoxShadow="0 4 12 0 #20000000"
+                                                <Border Width="180" Height="260" CornerRadius="4" ClipToBounds="False"
                                                         services:AnimationHelper.EnableHoverAnimation="True">
                                                     <Grid>
                                                         <!-- Content (Clipped for Image/Corners) -->
@@ -331,11 +331,7 @@
                                                                 <!-- Info -->
                                                                 <StackPanel Grid.Row="1" Margin="12,8,12,12">
                                                                     <TextBlock Text="{Binding Title}" Foreground="#333" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
-                                                                        <TextBlock.Effect>
-                                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" Opacity="0.5" OffsetX="0" OffsetY="0"/>
-                                                                        </TextBlock.Effect>
-                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                                                                     <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" Foreground="#999" FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
                                                                 </StackPanel>
                                                             </Grid>
@@ -360,16 +356,7 @@
                                                                        StrokeJoin="Round">
                                                                 <Rectangle.Styles>
                                                                     <Style Selector="Rectangle">
-                                                                        <Style.Animations>
-                                                                            <Animation Duration="0:0:1" IterationCount="Infinite" Easing="LinearEasing">
-                                                                                <KeyFrame Cue="0%">
-                                                                                    <Setter Property="StrokeDashOffset" Value="0"/>
-                                                                                </KeyFrame>
-                                                                                <KeyFrame Cue="100%">
-                                                                                    <Setter Property="StrokeDashOffset" Value="12"/>
-                                                                                </KeyFrame>
-                                                                            </Animation>
-                                                                        </Style.Animations>
+                                                                        <!-- Dash animation removed for performance at high Hz scrolling -->
                                                                     </Style>
                                                                 </Rectangle.Styles>
                                                             </Rectangle>
