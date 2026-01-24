@@ -66,7 +66,7 @@
     <!-- Audio Engine: LibVLCSharp -->
     <PackageReference Include="LibVLCSharp" Version="3.9.0" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
-    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.0.21" />
+    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.2" />
   </ItemGroup>
 
   <ItemGroup>

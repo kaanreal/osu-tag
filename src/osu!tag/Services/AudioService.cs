@@ -8,7 +8,7 @@ namespace Osutag.Services
 {
     /// <summary>
     /// Singleton service for cross-platform audio playback using LibVLCSharp.
-    /// This implementation provides consistent behavior across Windows, macOS, and Linux.
+    /// Uses lazy initialization - VLC only loads on first audio play.
     /// </summary>
     public class AudioService : IDisposable
     {
@@ -18,6 +18,22 @@ namespace Osutag.Services
         private bool _isInitialized = false;
         private LibVLC? _libVLC;
         private MediaPlayer? _mediaPlayer;
+        
+        // Loading state for UI
+        private bool _isLoading = false;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            private set
+            {
+                if (_isLoading != value)
+                {
+                    _isLoading = value;
+                    IsLoadingChanged?.Invoke(this, value);
+                }
+            }
+        }
+        public event EventHandler<bool>? IsLoadingChanged;
         
         // Debouncing
         private CancellationTokenSource? _playbackCancellation;
@@ -34,7 +50,6 @@ namespace Osutag.Services
                 _volume = value;
                 SettingsService.Settings.PreviewVolume = value;
                 
-                // Update live if playing
                 if (_mediaPlayer != null)
                 {
                     _mediaPlayer.Volume = value;
@@ -44,39 +59,42 @@ namespace Osutag.Services
 
         private AudioService()
         {
-            Initialize();
+            // Don't initialize here - lazy init on first play
         }
 
         public void Initialize()
         {
             if (_isInitialized) return;
 
-            try
+            lock (_vlcLock)
             {
-                // Initialize Core. native libraries must be deployed.
-                Core.Initialize();
+                if (_isInitialized) return;
 
-                // Create LibVLC with default options
-                _libVLC = new LibVLC();
-                
-                // Create MediaPlayer
-                _mediaPlayer = new MediaPlayer(_libVLC);
-                
-                _isInitialized = true;
-                Console.WriteLine("[Audio] LibVLC Initialized successfully.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Audio] Failed to initialize LibVLC: {ex.Message}");
+                try
+                {
+                    IsLoading = true;
+                    
+                    Core.Initialize();
+
+                    // Suppress VLC warnings/logs with --quiet
+                    _libVLC = new LibVLC("--quiet", "--no-video");
+                    _mediaPlayer = new MediaPlayer(_libVLC);
+                    
+                    _isInitialized = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Audio] Failed to initialize: {ex.Message}");
+                }
+                finally
+                {
+                    IsLoading = false;
+                }
             }
         }
 
         public void PlayPreview(string path, int startTimeMs, int? volume = null)
         {
-            if (!_isInitialized) Initialize();
-            if (_libVLC == null || _mediaPlayer == null) return;
-
-            // Offload to thread to keep UI snappy, though LibVLC is async-friendly.
             Task.Run(() =>
             {
                 CancellationToken token;
@@ -86,12 +104,6 @@ namespace Osutag.Services
                     _playbackCancellation?.Cancel();
                     _playbackCancellation = new CancellationTokenSource();
                     token = _playbackCancellation.Token;
-
-                    if (_currentPlayingPath == path && _mediaPlayer.IsPlaying) 
-                    {
-                        // Already playing this track, maybe just seek?
-                        // For now, simpler to just restart to ensure preview point is hit.
-                    }
                     _currentPlayingPath = path;
                 }
 
@@ -100,52 +112,36 @@ namespace Osutag.Services
                 int finalVolume = volume ?? (int)SettingsService.Settings.PreviewVolume;
                 if (finalVolume <= 0) return;
 
+                // Lazy init - only loads VLC on first play
+                Initialize();
+                if (_libVLC == null || _mediaPlayer == null) return;
+
                 lock (_vlcLock)
                 {
                     try
                     {
-                        // Local path handling
+                        if (token.IsCancellationRequested) return;
+
                         string mediaPath = path;
                         if (!path.Contains("://") && File.Exists(path))
                         {
-                            // LibVLC sometimes prefers file:// URI for local files to handle chars better
                             mediaPath = new Uri(path).AbsoluteUri;
                         }
 
-                        // Create media from path
                         using var media = new Media(_libVLC, mediaPath, FromType.FromLocation);
-
-                        // Optimizations for faster seek/start
-                        media.AddOption(":no-video"); 
+                        media.AddOption(":no-video");
                         
                         _mediaPlayer.Media = media;
                         _mediaPlayer.Volume = finalVolume;
                         
-                        // Play immediately
-                        bool playResult = _mediaPlayer.Play();
-                        
-                        if (!playResult)
-                        {
-                            Console.WriteLine($"[Audio] LibVLC Play() returned false for {path}");
-                            return;
-                        }
+                        if (!_mediaPlayer.Play()) return;
 
-                        // Handle Seeking
                         if (startTimeMs > 0)
                         {
-                            // LibVLC expects time in milliseconds directly.
                             _mediaPlayer.Time = startTimeMs;
-                            Console.WriteLine($"[Audio] Playing {Path.GetFileName(path)} from {startTimeMs}ms");
-                        }
-                        else
-                        {
-                             Console.WriteLine($"[Audio] Playing {Path.GetFileName(path)} from start");
                         }
                     }
-                    catch (Exception ex)
-                    {
-                         Console.WriteLine($"[Audio] LibVLC Error: {ex.Message}");
-                    }
+                    catch { }
                 }
             });
         }
@@ -160,7 +156,7 @@ namespace Osutag.Services
 
             lock (_vlcLock)
             {
-                if (_mediaPlayer != null && _mediaPlayer.IsPlaying)
+                if (_mediaPlayer?.IsPlaying == true)
                 {
                     _mediaPlayer.Stop();
                 }

@@ -356,6 +356,13 @@ namespace Osutag.ViewModels
         private bool _isLoadingMore = false;
         private bool _isOverlayOpen = false;
         private MapItemGroup? _overlayMapGroup;
+        private bool _isAudioLoading = false;
+
+        public bool IsAudioLoading
+        {
+            get => _isAudioLoading;
+            set => SetProperty(ref _isAudioLoading, value);
+        }
 
         public bool IsOverlayOpen
         {
@@ -956,6 +963,12 @@ namespace Osutag.ViewModels
             // Check for updates on startup
             _ = CheckUpdatesOnStartup();
 
+            // Subscribe to audio loading state for UI indicator
+            AudioService.Instance.IsLoadingChanged += (_, isLoading) =>
+            {
+                Dispatcher.UIThread.Post(() => IsAudioLoading = isLoading);
+            };
+
             // Auto-load saved path if enabled - load from cache then smart scan for new
             if (SettingsService.Settings.RememberSongsPath &&
                 !string.IsNullOrEmpty(SettingsService.Settings.LastSongsPath) &&
@@ -1406,6 +1419,9 @@ namespace Osutag.ViewModels
                 SettingsService.Settings.LastSongsPath = path;
                 SettingsService.Save();
             }
+
+            // Initialize Audio Engine in background (parallel to map loading)
+            _ = Task.Run(() => AudioService.Instance.Initialize());
 
             // Only clear if not using smart scan, or if smart scan is disabled in settings
             bool smartScanEnabled = useSmartScan && SettingsService.Settings.SmartScan;
