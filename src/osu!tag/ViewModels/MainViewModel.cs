@@ -787,20 +787,25 @@ namespace Osutag.ViewModels
         {
             try
             {
+                // Force UI clear to prevent "one stack" layout glitch
+                // This ensures ItemsRepeater resets its state before the new sorted list arrives
+                IsSearching = true; // Shows loading state if bound
+                MapGroups = new ObservableCollection<MapItemGroup>(); 
+                await Task.Delay(1); // Yield to UI thread to allow layout update
+                
                 await LoadCompanellaPlayCounts();
-                FilterMaps();
+                await FilterMapsAsync();
             }
             catch (Exception)
             {
                 // Silent failure
             }
+            finally
+            {
+                IsSearching = false;
+            }
         }
 
-        private void FilterMaps()
-        {
-            // Sync version for initial load
-            _ = FilterMapsAsync();
-        }
 
         public async void LoadMoreItems()
         {
@@ -1512,7 +1517,7 @@ namespace Osutag.ViewModels
                     if (MapsLoaded)
                     {
                         await LoadCompanellaPlayCounts();
-                        FilterMaps();
+                    await FilterMapsAsync();
                     }
                     IsScanning = false;
                     return;
@@ -1616,7 +1621,7 @@ namespace Osutag.ViewModels
                     // Smart scan found no new maps but we have existing ones
                     PathStatusMessage = $"✓ No new maps - {_allMapGroups.Count} map sets loaded";
                     await LoadCompanellaPlayCounts();
-                    FilterMaps();
+                    await FilterMapsAsync();
                     MapsLoaded = true;
                     IsScanning = false;
                     return;
@@ -1726,7 +1731,7 @@ namespace Osutag.ViewModels
                 await LoadCompanellaPlayCounts();
 
                 // Apply filter - this only loads first 50 items to UI
-                FilterMaps();
+                await FilterMapsAsync();
 
                 if (smartScanEnabled && maps.Count > 0)
                 {
