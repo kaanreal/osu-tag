@@ -1,9 +1,16 @@
 using System;
+using Avalonia;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
+using Avalonia.Rendering.Composition;
+using Avalonia.Styling;
+using System.Diagnostics;
 using Osutag.ViewModels;
 
 namespace Osutag.Views
@@ -169,6 +176,20 @@ namespace Osutag.Views
             }
             catch (TaskCanceledException) { }
         }
+
+        private void MapCard_Click(object? sender, RoutedEventArgs e)
+        {
+            if (sender is not Control control || control.DataContext is not MapItemGroup group || !group.IsStack)
+                return;
+
+            // Open Overlay (ViewModel)
+            if (_viewModel != null)
+            {
+                 _viewModel.OverlayMapGroup = group;
+                 _viewModel.IsOverlayOpen = true;
+            }
+        }
+
     }
 }
 

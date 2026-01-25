@@ -258,8 +258,10 @@
                                         <!-- Main Interactive Wrapper utilizing Button for correct Input handling -->
                                         <!-- Main Interactive Wrapper utilizing Button for correct Input handling -->
                                         <!-- ClipToBounds=False serves to allow Stacks to peek out -->
-                                        <Button Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        <Button x:Name="CardButton"
+                                                Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}"
+                                                Click="MapCard_Click"
                                                 Background="Transparent" BorderThickness="0" Padding="0"
                                                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                 ClipToBounds="False"
@@ -587,7 +589,7 @@
             </Button>
 
             <!-- Menu Card -->
-            <Border Width="900" Height="700" CornerRadius="24"
+            <Border x:Name="OverlayCard" Width="900" Height="700" CornerRadius="24"
                     Background="{StaticResource SurfaceElevatedBrush}"
                     BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                     BoxShadow="0 20 50 0 #66000000">

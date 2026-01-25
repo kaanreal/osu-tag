@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -23,8 +24,15 @@ namespace Osutag.Services
         public static readonly AttachedProperty<bool> EnableEntranceAnimationProperty =
             AvaloniaProperty.RegisterAttached<Control, bool>("EnableEntranceAnimation", typeof(AnimationHelper));
 
-        public static bool GetEnableEntranceAnimation(Control element) => element.GetValue(EnableEntranceAnimationProperty);
+
+
         public static void SetEnableEntranceAnimation(Control element, bool value) => element.SetValue(EnableEntranceAnimationProperty, value);
+
+        public static readonly AttachedProperty<long> LastEntranceTimeProperty =
+            AvaloniaProperty.RegisterAttached<Control, long>("LastEntranceTime", typeof(AnimationHelper));
+
+        public static long GetLastEntranceTime(Control element) => element.GetValue(LastEntranceTimeProperty);
+        public static void SetLastEntranceTime(Control element, long value) => element.SetValue(LastEntranceTimeProperty, value);
 
         static AnimationHelper()
         {
@@ -33,44 +41,129 @@ namespace Osutag.Services
             EnableSmoothScrollingProperty.Changed.AddClassHandler<ScrollViewer>(OnEnableSmoothScrollingChanged);
         }
 
+        private static long _lastStaggerTick;
+        private static int _staggerCount;
+        private const int MaxStagger = 15;
+        private const int StaggerDelayMs = 30;
+
         private static void OnEnableEntranceAnimationChanged(Control control, AvaloniaPropertyChangedEventArgs args)
         {
             if (args.NewValue is true)
             {
                 control.AttachedToVisualTree -= OnControlAttached;
                 control.AttachedToVisualTree += OnControlAttached;
+                control.DataContextChanged -= OnDataContextChanged;
+                control.DataContextChanged += OnDataContextChanged;
+            }
+            else
+            {
+                control.AttachedToVisualTree -= OnControlAttached;
+                control.DataContextChanged -= OnDataContextChanged;
             }
         }
 
         private static void OnControlAttached(object? sender, VisualTreeAttachmentEventArgs e) => RunEntranceAnimation(sender as Control);
+        
+        private static void OnDataContextChanged(object? sender, EventArgs e)
+        {
+             // When DataContext changes (recycling), we treat it as a new entrance
+             RunEntranceAnimation(sender as Control);
+        }
+
+        public static readonly AttachedProperty<System.Threading.CancellationTokenSource?> AnimationTokenProperty =
+            AvaloniaProperty.RegisterAttached<Control, System.Threading.CancellationTokenSource?>("AnimationToken", typeof(AnimationHelper));
+
+        public static System.Threading.CancellationTokenSource? GetAnimationToken(Control element) => element.GetValue(AnimationTokenProperty);
+        public static void SetAnimationToken(Control element, System.Threading.CancellationTokenSource? value) => element.SetValue(AnimationTokenProperty, value);
 
         private static void RunEntranceAnimation(Control? control)
         {
             if (control == null) return;
-            var visual = ElementComposition.GetElementVisual(control);
-            if (visual == null) return;
             
-            var compositor = visual.Compositor;
-            visual.Opacity = 0.01f; 
-            visual.Offset = new System.Numerics.Vector3(0, -40, 0); 
+            // DEBOUNCE
+            var now = Stopwatch.GetTimestamp();
+            var lastTime = GetLastEntranceTime(control);
+            if ((now - lastTime) / (double)Stopwatch.Frequency < 0.2) return;
+            SetLastEntranceTime(control, now);
 
-            var animationGroup = compositor.CreateAnimationGroup();
+            // Staggering Logic
+            var dt = (now - _lastStaggerTick) / (double)Stopwatch.Frequency;
             
-            var opacityAnim = compositor.CreateScalarKeyFrameAnimation();
-            opacityAnim.Target = "Opacity";
-            opacityAnim.InsertKeyFrame(0f, 0f); 
-            opacityAnim.InsertKeyFrame(0.5f, 1f); 
-            opacityAnim.Duration = TimeSpan.FromMilliseconds(400);
+            if (dt > 0.15) _staggerCount = 0;
+            _lastStaggerTick = now;
+            var delayMs = Math.Min(_staggerCount * 20, 300); 
+            _staggerCount++;
+
+            // Ensure RenderTransform exists and is compatible
+            if (control.RenderTransform is not TransformGroup)
+            {
+                var group = new TransformGroup();
+                group.Children.Add(new ScaleTransform());
+                group.Children.Add(new TranslateTransform());
+                control.RenderTransform = group;
+            }
             
-            var offsetAnim = compositor.CreateVector3KeyFrameAnimation();
-            offsetAnim.Target = "Offset";
-            offsetAnim.InsertKeyFrame(0f, new System.Numerics.Vector3(0, -40, 0));
-            offsetAnim.InsertKeyFrame(1f, System.Numerics.Vector3.Zero);
-            offsetAnim.Duration = TimeSpan.FromMilliseconds(400);
-            
-            animationGroup.Add(opacityAnim);
-            animationGroup.Add(offsetAnim);
-            visual.StartAnimationGroup(animationGroup);
+            var groupTransform = control.RenderTransform as TransformGroup;
+            var scaleTransform = groupTransform?.Children[0] as ScaleTransform;
+            var translateTransform = groupTransform?.Children[1] as TranslateTransform;
+
+            if (scaleTransform == null || translateTransform == null) return;
+
+            // 1. DISABLE TRANSITIONS & RESET STATE
+            // We must clear transitions to snap instantly to the start position without animating backward.
+            control.Transitions = null;
+            if (scaleTransform.Transitions != null) scaleTransform.Transitions = null;
+            if (translateTransform.Transitions != null) translateTransform.Transitions = null;
+
+            // Snap to Start (Hidden/Offset)
+            control.Opacity = 0;
+            translateTransform.Y = 20; 
+            scaleTransform.ScaleX = 0.92;
+            scaleTransform.ScaleY = 0.92;
+
+            // 2. TRIGGER ANIMATION (NEXT FRAME)
+            // Post to UI thread to allow the layout engine to process the "Snap" above.
+            // Then re-enable transitions and set the target.
+            Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                // Wait for Stagger
+                if (delayMs > 0) await Task.Delay(delayMs);
+
+                // Re-validate control is still stuck to the tree/valid? 
+                // Implicitly handled by Transitions (if detached, it won't render).
+
+                var duration = TimeSpan.FromMilliseconds(500);
+                var easing = new BackEaseOut(); 
+
+                // Setup Transitions
+                // Using object transitions on Transform properties creates independent composable animations.
+                
+                var transTrans = new Transitions
+                {
+                    new DoubleTransition { Property = TranslateTransform.YProperty, Duration = duration, Easing = easing }
+                };
+                translateTransform.Transitions = transTrans;
+
+                var scaleTrans = new Transitions
+                {
+                    new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = duration, Easing = easing },
+                    new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = duration, Easing = easing }
+                };
+                scaleTransform.Transitions = scaleTrans;
+
+                var controlTrans = new Transitions
+                {
+                    new DoubleTransition { Property = Visual.OpacityProperty, Duration = TimeSpan.FromMilliseconds(400), Easing = new LinearEasing() }
+                };
+                control.Transitions = controlTrans;
+
+                // Set Targets (Triggers the transition)
+                control.Opacity = 1;
+                translateTransform.Y = 0;
+                scaleTransform.ScaleX = 1;
+                scaleTransform.ScaleY = 1;
+
+            }, DispatcherPriority.Render); // Use Render priority
         }
 
         #endregion
