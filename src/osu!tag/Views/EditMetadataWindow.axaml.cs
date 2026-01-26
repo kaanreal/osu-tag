@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+using Osutag.Services;
+
 namespace Osutag.Views
 {
     public partial class EditMetadataWindow : Window
@@ -15,6 +17,26 @@ namespace Osutag.Views
         public EditMetadataWindow()
         {
             InitializeComponent();
+            this.DataContextChanged += EditMetadataWindow_DataContextChanged;
+        }
+
+        private void EditMetadataWindow_DataContextChanged(object? sender, EventArgs e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+            }
+        }
+
+        private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (ViewModel == null) return;
+
+            if (e.PropertyName == nameof(EditMetadataViewModel.PlaybackRate) || 
+                e.PropertyName == nameof(EditMetadataViewModel.MaintainPitch))
+            {
+                AudioService.Instance.UpdatePlaybackState((float)ViewModel.PlaybackRate, ViewModel.MaintainPitch);
+            }
         }
 
         private void InitializeComponent()
@@ -22,7 +44,35 @@ namespace Osutag.Views
             AvaloniaXamlLoader.Load(this);
         }
 
+        private void OnPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                this.BeginMoveDrag(e);
+            }
+        }
+
         private EditMetadataViewModel? ViewModel => DataContext as EditMetadataViewModel;
+
+        private void PreviewRate_Click(object? sender, RoutedEventArgs e)
+        {
+            if (ViewModel == null || string.IsNullOrEmpty(ViewModel.SongPath)) return;
+
+            // Stop current playback
+            AudioService.Instance.Stop();
+
+            // Play with rate and pitch
+            int previewTime = ViewModel.OriginalItem.MapGroup?.PreviewTime ?? 0;
+            if (previewTime <= 0) previewTime = 45000; // Default to 45s if unknown
+
+            AudioService.Instance.PlayPreview(ViewModel.SongPath, previewTime, null, (float)ViewModel.PlaybackRate, ViewModel.MaintainPitch, (float)ViewModel.PitchSemitones);
+        }
+
+        private void ResetPitch_Click(object? sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+                ViewModel.PitchSemitones = 0;
+        }
 
         private async void Browse_Click(object? sender, RoutedEventArgs e)
         {
@@ -86,6 +136,9 @@ namespace Osutag.Views
              var item = ViewModel.OriginalItem;
              item.OverrideTitle = string.IsNullOrWhiteSpace(ViewModel.OverrideTitle) ? null : ViewModel.OverrideTitle;
              item.OverrideArtist = string.IsNullOrWhiteSpace(ViewModel.OverrideArtist) ? null : ViewModel.OverrideArtist;
+             item.PlaybackRate = (float)ViewModel.PlaybackRate;
+             item.PitchSemitones = (float)ViewModel.PitchSemitones;
+             item.MaintainPitch = ViewModel.MaintainPitch;
              
              // If cover path changed from original, set it
              // Simple check: if active path is different from what would be default
@@ -94,11 +147,16 @@ namespace Osutag.Views
                  item.OverrideCoverPath = ViewModel.ActiveCoverPath;
              }
 
+             // Stop preview on save
+             AudioService.Instance.Stop();
+
              Close();
         }
 
         private void Cancel_Click(object? sender, RoutedEventArgs e)
         {
+            // Stop preview on cancel
+            AudioService.Instance.Stop();
             Close();
         }
     }

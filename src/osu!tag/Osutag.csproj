@@ -63,10 +63,9 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12"/>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0"/>
     
-    <!-- Audio Engine: LibVLCSharp -->
-    <PackageReference Include="LibVLCSharp" Version="3.9.0" />
-    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
-    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.2" />
+    <!-- Audio Engine: NAudio -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="SoundTouch.Net" Version="2.4.0-beta.9" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,7 +73,7 @@
     <TrimmerRootAssembly Include="Osutag"/>
     <TrimmerRootAssembly Include="TagLibSharp"/>
     <TrimmerRootAssembly Include="DiscordRPC"/>
-    <TrimmerRootAssembly Include="LibVLCSharp"/>
+    <TrimmerRootAssembly Include="NAudio"/>
   </ItemGroup>
 
 </Project>

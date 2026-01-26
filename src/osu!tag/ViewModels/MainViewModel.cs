@@ -298,6 +298,10 @@ namespace Osutag.ViewModels
         public string? OverrideTitle { get; set; }
         public string? OverrideArtist { get; set; }
         public string? OverrideCoverPath { get; set; }
+        public float PlaybackRate { get; set; } = 1.0f;
+        public float PitchSemitones { get; set; } = 0.0f;
+        public bool MaintainPitch { get; set; } = true;
+
     }
 
     public class RelayCommand : ICommand
@@ -471,15 +475,15 @@ namespace Osutag.ViewModels
 
         public bool ShowMainOverlay => IsStartingUp || IsFolderSelectionVisible || IsScanning || IsAudioLoading || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
 
-        public string CurrentLoadingTitle
-        {
-            get
-            {
-                if (IsScanning) return "Scanning Maps...";
+        public string CurrentLoadingTitle {
+            get {
+                if (IsStartingUp) return "Starting Up...";
+                if (IsFolderSelectionVisible) return "Welcome to osu!tag";
                 if (IsAudioLoading) return "Initializing Audio Engine...";
-                if (IsProcessing) return "Processing MP3s...";
-                if (IsLoadingMore) return "Loading More Maps...";
-                return "Loading...";
+                if (IsScanning) return "Scanning Songs...";
+                if (IsLoadingMore) return "Loading Library...";
+                if (IsProcessing) return "Processing Maps...";
+                return "Please Wait...";
             }
         }
 

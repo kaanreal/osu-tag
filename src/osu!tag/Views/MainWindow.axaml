@@ -412,7 +412,12 @@
                                                                        StrokeJoin="Round">
                                                                 <Rectangle.Styles>
                                                                     <Style Selector="Rectangle">
-                                                                        <!-- Dash animation removed for performance at high Hz scrolling -->
+                                                                        <Style.Animations>
+                                                                            <Animation Duration="0:0:1" IterationCount="Infinite" Easing="LinearEasing">
+                                                                                <KeyFrame Cue="0%"><Setter Property="StrokeDashOffset" Value="0"/></KeyFrame>
+                                                                                <KeyFrame Cue="100%"><Setter Property="StrokeDashOffset" Value="12"/></KeyFrame>
+                                                                            </Animation>
+                                                                        </Style.Animations>
                                                                     </Style>
                                                                 </Rectangle.Styles>
                                                             </Rectangle>
@@ -872,11 +877,6 @@
                                      <TextBlock Text="Fetching more maps from your library..." FontSize="14" Foreground="#AAA" HorizontalAlignment="Center"
                                                 IsVisible="{Binding IsLoadingMore}"/>
 
-                                     <!-- Audio Init (Small indicator if also scanning) -->
-                                     <StackPanel IsVisible="{Binding IsAudioLoading}" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                          <ProgressBar Classes="Circular" IsIndeterminate="True" Width="16" Height="16" Foreground="{StaticResource AccentBrush}"/>
-                                          <TextBlock Text="Initializing Audio Engine..." FontSize="12" Foreground="{StaticResource AccentBrush}"/>
-                                     </StackPanel>
                                  </StackPanel>
                              </Border>
                          </StackPanel>
