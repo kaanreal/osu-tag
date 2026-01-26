@@ -1446,11 +1446,57 @@ namespace Osutag.ViewModels
                         OpenDirectoryCommand = OpenDirectoryCommand,
                         ExportBackgroundCommand = ExportBackgroundCommand
                     };
+                    
+                    // Smart Check: Check if all difficulties share the same metadata
+                    var distinctTitles = cached.Difficulties.Select(d => d.Title).Where(t => !string.IsNullOrEmpty(t)).Distinct().ToList();
+                    var distinctArtists = cached.Difficulties.Select(d => d.Artist).Where(a => !string.IsNullOrEmpty(a)).Distinct().ToList();
+                    var distinctMp3s = cached.Difficulties.Select(d => d.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+                    
+                    // Logic:
+                    // 1. If Metadata varies -> Mixed Pack (Compilation)
+                    // 2. If Metadata is constant BUT Audio varies AND Artist is "Various Artists" -> Mixed Pack (Lazy Compilation)
+                    // (We check for "Various Artists" to avoid flagging "Rate Packs" like Quadraphinix as Mixed Packs, since they have multiple MP3s but same Artist)
+                    
+                    bool metadataVaries = distinctTitles.Count > 1 || distinctArtists.Count > 1;
+                    bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+                    
+                    bool isMixedPack = metadataVaries || isVariousArtistsPack;
+
+                    if (isMixedPack)
+                    {
+                        // Only overwrite Group Title if the titles themselves aren't consistent
+                        // (e.g. A real compilation with different songs).
+                        // If it's a "Chordjack Pack" where every map is named "Chordjack Pack", keep that title.
+                        if (distinctTitles.Count > 1)
+                        {
+                            if (!string.IsNullOrEmpty(cached.DirectoryPath))
+                            {
+                                 var dirName = Path.GetFileName(cached.DirectoryPath);
+                                 // Clean up leading ID if present (e.g. "12345 Artist - Title")
+                                 var cleanName = Regex.Replace(dirName, @"^\d+\s+", "");
+                                 
+                                 // User wants to remove the Artist from the title string (Format: "Artist - Title")
+                                 // Split by " - " and take the rest
+                                 var parts = cleanName.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                                 if (parts.Length > 1)
+                                 {
+                                     cleanName = parts[1];
+                                 }
+
+                                 mapGroup.Title = cleanName;
+                                 mapGroup.Artist = "Various Artists"; 
+                            }
+                        }
+                    }
 
                     foreach (var diff in cached.Difficulties)
                     {
                         if (!File.Exists(diff.OsuFilePath))
                             continue;
+
+                        // FOR CHILDREN: If it's a mixed pack, the "Title" metadata is often generic (e.g. "Pack Name")
+                        // The user wants to see the "Version" (Song Name) instead.
+                        var displayTitle = isMixedPack ? diff.DifficultyName : (diff.Title ?? cached.Title);
 
                         mapGroup.Difficulties.Add(new DifficultyItem
                         {
@@ -1467,7 +1513,7 @@ namespace Osutag.ViewModels
                                 PreviewTime = diff.PreviewTime
                             },
                             // IsSelected = false by default to prevent "select all" behavior for stacks
-                            Title = diff.Title ?? cached.Title, 
+                            Title = displayTitle, 
                             Artist = diff.Artist ?? cached.Artist, 
                             CoverPath = diff.CoverPath ?? cached.CoverPath
                         });
@@ -1795,43 +1841,73 @@ namespace Osutag.ViewModels
                             ExportBackgroundCommand = ExportBackgroundCommand
                         };
 
+                        // Smart Check (Fresh Scan): Check if all difficulties share metadata
+                        var allDiffsInGroup = group.SelectMany(g => g.Difficulties).ToList();
+                        var distinctTitles2 = allDiffsInGroup.Select(d => d.Title).Where(t => !string.IsNullOrEmpty(t)).Distinct().ToList();
+                        var distinctArtists2 = allDiffsInGroup.Select(d => d.Artist).Where(a => !string.IsNullOrEmpty(a)).Distinct().ToList();
+                        var distinctMp3s2 = allDiffsInGroup.Select(d => d.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+                        
+                        bool metadataVaries2 = distinctTitles2.Count > 1 || distinctArtists2.Count > 1;
+                        bool isVariousArtistsPack2 = distinctMp3s2.Count > 1 && distinctArtists2.Any(a => a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+
+                        bool isMixedPack2 = metadataVaries2 || isVariousArtistsPack2;
+
+                        if (isMixedPack2)
+                        {
+                            if (distinctTitles2.Count > 1)
+                            {
+                                if (!string.IsNullOrEmpty(mapGroup.DirectoryPath))
+                                {
+                                     var dirName = Path.GetFileName(mapGroup.DirectoryPath);
+                                     var cleanName = Regex.Replace(dirName, @"^\d+\s+", "");
+                                     
+                                     // Strip Artist ("Artist - Title")
+                                     var parts = cleanName.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                                     if (parts.Length > 1)
+                                     {
+                                         cleanName = parts[1];
+                                     }
+
+                                     mapGroup.Title = cleanName;
+                                     mapGroup.Artist = "Various Artists";
+                                }
+                            }
+                        }
+
                         // Add all difficulties for this map
                         foreach (var map in group)
                         {
                             foreach (var diff in map.Difficulties)
                             {
-                                mapGroup.Difficulties.Add(new DifficultyItem
-                                {
-                                    DifficultyName = diff.DifficultyName,
-                                    Difficulty = diff,
-                                    // IsSelected = false by default
-                                    Title = diff.Title ?? map.Title,
-                                    Artist = diff.Artist ?? map.Artist,
-                                    CoverPath = diff.CoverPath ?? map.CoverPath
-                                });
+                                 var displayTitle = isMixedPack2 ? diff.DifficultyName : map.Title;
+
+                                 mapGroup.Difficulties.Add(new DifficultyItem
+                                 {
+                                     DifficultyName = diff.DifficultyName,
+                                     Difficulty = diff,
+                                     Title = displayTitle,
+                                     Artist = map.Artist,
+                                     CoverPath = map.CoverPath
+                                 });
                             }
-                        }
-
-                        // Create unique audio files list
-                        var uniqueMp3s = mapGroup.Difficulties
-                            .Select(d => d.Difficulty.Mp3Path)
-                            .Distinct()
-                            .ToList();
-
-                        foreach (var mp3Path in uniqueMp3s)
-                        {
-                            var fileName = Path.GetFileName(mp3Path);
-                            mapGroup.UniqueAudioFiles.Add(new AudioFileItem
+                            
+                            // Also add unique MP3s to the separate tracking set
+                            foreach (var diff in map.Difficulties)
                             {
-                                Mp3Path = mp3Path,
-                                DisplayName = fileName,
-                                PreviewTime = firstMap.PreviewTime
-                            });
+                                if (!string.IsNullOrEmpty(diff.Mp3Path) && !mapGroup.UniqueAudioFiles.Any(a => a.Mp3Path == diff.Mp3Path))
+                                {
+                                    mapGroup.UniqueAudioFiles.Add(new AudioFileItem 
+                                    { 
+                                        Mp3Path = diff.Mp3Path,
+                                        DisplayName = isMixedPack2 ? diff.DifficultyName : Path.GetFileName(diff.Mp3Path), 
+                                        PreviewTime = diff.PreviewTime
+                                    });
+                                }
+                            }
                         }
 
                         groups.Add(mapGroup);
                     }
-                    
                     // Finalize metadata for all groups (e.g. override titles for stacks)
                     foreach (var group in groups)
                     {
