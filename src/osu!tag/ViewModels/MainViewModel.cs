@@ -2202,15 +2202,21 @@ namespace Osutag.ViewModels
                 string effArtist = !string.IsNullOrEmpty(diff.Artist) ? diff.Artist : group.Artist;
                 string diffTitle = !string.IsNullOrEmpty(diff.Title) ? diff.Title : group.Title; // The raw title from .osu (often the song name)
                 
-                // Detection: Is this specific difficulty part of a "Compilation Pack"?
-                // We consider it a compilation if the group has difficulties with different song titles.
-                bool isCompilation = group.Difficulties.Select(d => d.Difficulty.Title).Distinct().Count() > 1;
-                bool isMultiArtist = group.Difficulties.Select(d => d.Artist).Distinct().Count() > 1;
+                // Detection: Is this specific difficulty part of a "Mixed Pack"?
+                // Match the logic from ScanMapsAsync exactly:
+                var distinctTitles = group.Difficulties.Select(d => d.Difficulty.Title).Where(t => !string.IsNullOrEmpty(t)).Distinct().ToList();
+                var distinctArtists = group.Difficulties.Select(d => d.Artist).Where(a => !string.IsNullOrEmpty(a)).Distinct().ToList();
+                var distinctMp3s = group.Difficulties.Select(d => d.Difficulty.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+
+                bool metadataVaries = distinctTitles.Count > 1 || distinctArtists.Count > 1;
+                bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a != null && a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+                
+                bool isMixedPack = metadataVaries || isVariousArtistsPack;
                 
                 string effTitle = diffTitle; 
-                if ((isCompilation || isMultiArtist) && !string.IsNullOrEmpty(diffName))
+                if (isMixedPack && !string.IsNullOrEmpty(diffName))
                 {
-                    // For compilations, the "Version" (diffName) is usually the actual song title in Mappacks
+                    // For mixed packs, use the Version (diffName) as the Title
                     effTitle = diffName;
                 }
 
