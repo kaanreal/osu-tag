@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Osutag.Services;
 using Osutag.Views;
@@ -287,6 +288,11 @@ namespace Osutag.Views
             {
                 if (btn != null) btn.IsEnabled = true;
             }
+        }
+
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            BeginMoveDrag(e);
         }
     }
 }

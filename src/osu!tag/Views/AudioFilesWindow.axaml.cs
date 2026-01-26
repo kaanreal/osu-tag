@@ -63,5 +63,10 @@ namespace Osutag.Views
         {
             Services.AudioService.Instance.Stop();
         }
+
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            BeginMoveDrag(e);
+        }
     }
 }

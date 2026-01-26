@@ -10,6 +10,7 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Rendering.Composition;
 using Avalonia.Styling;
+using Avalonia.Media.Transformation;
 using System.Diagnostics;
 using Osutag.ViewModels;
 
@@ -43,13 +44,67 @@ namespace Osutag.Views
             Close();
         }
 
-        protected override void OnLoaded(RoutedEventArgs e)
+        protected override async void OnLoaded(RoutedEventArgs e)
         {
             base.OnLoaded(e);
             
             // Initialize Discord RPC
             Services.DiscordRpcService.Initialize();
+
+            if (_viewModel != null)
+            {
+                // Start both animation and initialization in parallel
+                var animTask = PlayEntranceAnimationAsync();
+                var initTask = _viewModel.InitializeAsync();
+
+                // Wait for both to complete
+                await Task.WhenAll(animTask, initTask);
+
+                // Now that both work and animation are done, signal completion
+                _viewModel.IsInitialLoadDone = true;
+            }
         }
+
+        private async Task PlayEntranceAnimationAsync()
+        {
+            var icon = this.FindControl<Border>("BrandingIcon");
+            var text = this.FindControl<TextBlock>("BrandingText");
+
+            if (icon == null || text == null) return;
+
+            // Wait for window to settle
+            await Task.Delay(200);
+
+            // Trigger XAML Transitions
+            icon.Opacity = 1;
+            icon.RenderTransform = TransformOperations.Parse("scale(1.0)");
+
+            await Task.Delay(250);
+
+            text.Opacity = 1;
+            text.RenderTransform = TransformOperations.Parse("translateY(0px)");
+
+            var loading = this.FindControl<Panel>("LoadingEntrance");
+            if (loading != null)
+            {
+                await Task.Delay(200);
+                loading.Opacity = 1;
+                loading.RenderTransform = TransformOperations.Parse("translateY(0px)");
+            }
+
+
+
+            // Wait for entrance to finish (transitions are 1.0s)
+            await Task.Delay(1200);
+        }
+
+
+
+
+
+
+
+
 
         protected override void OnClosed(EventArgs e)
         {
@@ -189,6 +244,12 @@ namespace Osutag.Views
                  _viewModel.IsOverlayOpen = true;
             }
         }
+
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            BeginMoveDrag(e);
+        }
+
 
     }
 }

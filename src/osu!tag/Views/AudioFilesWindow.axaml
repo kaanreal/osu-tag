@@ -7,7 +7,8 @@
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundBrush}"
         Foreground="{StaticResource TextPrimaryBrush}"
-        CanResize="False">
+        CanResize="False"
+        PointerPressed="OnPointerPressed">
     
     <Grid RowDefinitions="Auto,*,Auto" Classes="WindowEntrance" Margin="32">
         <StackPanel Spacing="12">

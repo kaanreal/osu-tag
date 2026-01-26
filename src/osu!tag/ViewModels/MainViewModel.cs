@@ -415,6 +415,8 @@ namespace Osutag.ViewModels
 
         public string SearchHints => "Search by: Artist, Title, Creator, Difficulty, Tags, or Source";
 
+        public bool ShowLoadMore => CanLoadMore && !IsScanning && !IsLoadingMore && !IsSearching && IsInitialLoadDone;
+
         public bool CanLoadMore
         {
             get => _canLoadMore;
@@ -423,6 +425,7 @@ namespace Osutag.ViewModels
                 if (SetProperty(ref _canLoadMore, value))
                 {
                     ((RelayCommand)LoadMoreCommand).RaiseCanExecuteChanged();
+                    OnPropertyChanged(nameof(ShowLoadMore));
                 }
             }
         }
@@ -439,7 +442,34 @@ namespace Osutag.ViewModels
             }
         }
 
-        public bool ShowMainOverlay => IsFolderSelectionVisible || IsScanning || IsAudioLoading || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
+        private bool _isInitialLoadDone;
+        public bool IsInitialLoadDone
+        {
+            get => _isInitialLoadDone;
+            set 
+            {
+                if (SetProperty(ref _isInitialLoadDone, value))
+                {
+                    OnPropertyChanged(nameof(ShowLoadMore));
+                }
+            }
+        }
+
+        private bool _isStartingUp = true;
+        public bool IsStartingUp
+        {
+            get => _isStartingUp;
+            set 
+            {
+                if (SetProperty(ref _isStartingUp, value))
+                {
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                }
+            }
+        }
+
+
+        public bool ShowMainOverlay => IsStartingUp || IsFolderSelectionVisible || IsScanning || IsAudioLoading || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
 
         public string CurrentLoadingTitle
         {
@@ -452,6 +482,8 @@ namespace Osutag.ViewModels
                 return "Loading...";
             }
         }
+
+        public bool IsProgressBarIndeterminate => IsAudioLoading || (IsScanning && ProgressPercentage == 0);
 
         public bool IsWindows => PlatformService.IsWindows;
         public string AppVersion => "v" + Osutag.Services.AppVersion.Current;
@@ -507,6 +539,9 @@ namespace Osutag.ViewModels
                     ((RelayCommand)StartConversionCommand).RaiseCanExecuteChanged();
                     OnPropertyChanged(nameof(ShowMainOverlay));
                     OnPropertyChanged(nameof(CurrentLoadingTitle));
+                    OnPropertyChanged(nameof(IsProgressBarIndeterminate));
+                    OnPropertyChanged(nameof(ShowLoadMore));
+
                 }
             }
         }
@@ -514,7 +549,13 @@ namespace Osutag.ViewModels
         public bool IsSearching
         {
             get => _isSearching;
-            set => SetProperty(ref _isSearching, value);
+            set 
+            {
+                if (SetProperty(ref _isSearching, value))
+                {
+                    OnPropertyChanged(nameof(ShowLoadMore));
+                }
+            }
         }
 
         public bool IsLoadingMore
@@ -526,6 +567,8 @@ namespace Osutag.ViewModels
                 {
                     OnPropertyChanged(nameof(ShowMainOverlay));
                     OnPropertyChanged(nameof(CurrentLoadingTitle));
+                    OnPropertyChanged(nameof(ShowLoadMore));
+
                 }
             }
         }
@@ -658,7 +701,13 @@ namespace Osutag.ViewModels
         public int ProgressPercentage
         {
             get => _progressPercentage;
-            set => SetProperty(ref _progressPercentage, value);
+            set 
+            {
+                if (SetProperty(ref _progressPercentage, value))
+                {
+                    OnPropertyChanged(nameof(IsProgressBarIndeterminate));
+                }
+            }
         }
 
         public string ProgressMessage
@@ -1004,7 +1053,24 @@ namespace Osutag.ViewModels
             ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
             OpenUpdateWindowCommand = new RelayCommand(_ => OpenUpdateWindow());
 
+            // Subscribe to audio loading state for UI indicator
+            AudioService.Instance.IsLoadingChanged += (_, isLoading) =>
+            {
+                Dispatcher.UIThread.Post(() => IsAudioLoading = isLoading);
+            };
+        }
+
+        // InitializeAsync will be called from View OnLoaded
+
+        public async Task InitializeAsync()
+        {
+            // Give the UI thread a moment to start the entrance animation smoothly
+            await Task.Delay(50);
+            
+            await Task.CompletedTask;
             // Auto-scan for Companella on Windows
+
+
             if (IsCompanellaSupported)
             {
                 _ = AutoDiscoverCompanellaAsync();
@@ -1012,12 +1078,6 @@ namespace Osutag.ViewModels
 
             // Check for updates on startup
             _ = CheckUpdatesOnStartup();
-
-            // Subscribe to audio loading state for UI indicator
-            AudioService.Instance.IsLoadingChanged += (_, isLoading) =>
-            {
-                Dispatcher.UIThread.Post(() => IsAudioLoading = isLoading);
-            };
 
             // Auto-load saved path if enabled - load from cache then smart scan for new
             if (SettingsService.Settings.RememberSongsPath &&
@@ -1030,7 +1090,12 @@ namespace Osutag.ViewModels
             {
                 IsFolderSelectionVisible = true;
             }
+
+            IsStartingUp = false;
         }
+
+
+
 
         // ... existing methods ...
 
@@ -1198,6 +1263,9 @@ namespace Osutag.ViewModels
 
         private void Rescan()
         {
+            CanLoadMore = false;
+            OnPropertyChanged(nameof(ShowLoadMore));
+
             if (!string.IsNullOrEmpty(SelectedPath) && Directory.Exists(SelectedPath))
             {
                 // Clear cache to force full rescan
@@ -1205,6 +1273,7 @@ namespace Osutag.ViewModels
                 _ = SetPathAsync(SelectedPath, useSmartScan: false);
             }
         }
+
 
         private void ClearCache()
         {
@@ -1441,6 +1510,9 @@ namespace Osutag.ViewModels
             ScanProgress = 0;
             PathStatusMessage = "Loading cached maps...";
 
+            // Yield once to let UI update state (loading bar text) before heavy I/O
+            await Task.Yield();
+
             // Load from cache first
             var cachedGroups = await Task.Run(() => LoadMapCache());
 
@@ -1562,9 +1634,11 @@ namespace Osutag.ViewModels
                     if (MapsLoaded)
                     {
                         await LoadCompanellaPlayCounts();
-                    await FilterMapsAsync();
+                        await FilterMapsAsync();
                     }
                     IsScanning = false;
+                    await Task.Delay(200); // Allow UI to layout
+                    IsInitialLoadDone = true;
                     return;
                 }
 
@@ -1625,10 +1699,9 @@ namespace Osutag.ViewModels
                     {
                         lastUpdate = now;
                         int progress = (int)((currentProcessed / (double)totalFolders) * 100);
-                        ProgressPercentage = progress;
-
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
+                            ProgressPercentage = progress;
                             ScanProgress = progress;
                             ScanStatusMessage = $"Scanning... {currentProcessed}/{totalFolders} folders ({mapsBag.Count} maps found)";
                         });
@@ -1793,6 +1866,9 @@ namespace Osutag.ViewModels
                 {
                     await Task.Run(() => SaveMapCache());
                 }
+                
+                await Task.Delay(300); // Allow initial cards to render
+                IsInitialLoadDone = true;
             }
             catch (Exception ex)
             {
