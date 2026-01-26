@@ -41,6 +41,39 @@
                 </Animation>
             </Style.Animations>
         </Style>
+
+        <Style Selector="Panel#MainOverlay">
+            <Style.Animations>
+                <Animation Duration="0:0:0.5" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <Style Selector="Panel#MainOverlay Border.ContentCard">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.6" Easing="CubicEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.4"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Panel#MainOverlay[IsVisible=True] Border.ContentCard">
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+        <Style Selector="Panel#MainOverlay[IsVisible=False] Border.ContentCard">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*" Name="RootGrid">
@@ -107,11 +140,7 @@
                                 </TextBlock>
                             </Button>
 
-                            <!-- Audio Loading Indicator -->
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,0,3" VerticalAlignment="Bottom" IsVisible="{Binding IsAudioLoading}">
-                                <ProgressBar IsIndeterminate="True" Width="60" Height="2" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
-                                <TextBlock Text="Initializing Audio Engine..." FontSize="10" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <!-- Audio loading moved to footer -->
                         </StackPanel>
                         <TextBlock Text="by Kaan and AI" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                     </StackPanel>
@@ -372,21 +401,8 @@
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
     
-                        <!-- Load More Section (Minimalist) -->
-                        <Panel Grid.Row="1" Margin="0,24,16,64">
-                            <Button Content="LOAD MORE MAPS" 
-                                    Classes="Primary" 
-                                    HorizontalAlignment="Center" 
-                                    Padding="64,14" 
-                                    FontSize="14" FontWeight="Black"
-                                    Command="{Binding LoadMoreCommand}" 
-                                    IsVisible="{Binding CanLoadMore}"/>
-                            
-                            <!-- Loading indicator -->
-                            <ProgressBar IsIndeterminate="True" Width="120" Height="4" 
-                                         HorizontalAlignment="Center"
-                                         IsVisible="{Binding IsLoadingMore}"/>
-                        </Panel>
+                        <!-- Load More & Loading Section -->
+                        <cc:LoadingFooter Grid.Row="1" IsVisible="{Binding !IsSearching}"/>
                     </Grid>
                 </ScrollViewer>
 
@@ -725,25 +741,14 @@
                  </Grid>
             </Border>
         </Grid>
-        <!-- Welcome / Onboarding - Full Window Experience -->
-        <Panel Grid.RowSpan="2" IsVisible="{Binding IsFolderSelectionVisible}" ZIndex="500">
-            <!-- Background with blur -->
-            <Panel Background="#0D1117" Opacity="0.85"/>
+        <!-- Unified Main Overlay (Welcome, Scanning, Audio) -->
+        <Panel Grid.RowSpan="2" IsVisible="{Binding ShowMainOverlay}" ZIndex="500" Name="MainOverlay" ClipToBounds="True">
+
+            <!-- Background with blur and animation -->
+            <Panel Background="#0D1117" Opacity="0.95"/>
             
             <Grid>
-                <!-- Animated Background Elements -->
-                <Canvas IsHitTestVisible="False">
-                    <Ellipse Width="600" Height="600" Fill="#20FF66AA" Margin="-100,-100,0,0">
-                        <Ellipse.Effect>
-                            <BlurEffect Radius="100"/>
-                        </Ellipse.Effect>
-                    </Ellipse>
-                    <Ellipse Width="500" Height="500" Fill="#155B9FED" Margin="800,400,0,0">
-                        <Ellipse.Effect>
-                            <BlurEffect Radius="100"/>
-                        </Ellipse.Effect>
-                    </Ellipse>
-                </Canvas>
+
 
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="40" Width="600">
                      <!-- Branding -->
@@ -751,10 +756,7 @@
                         <Border Width="100" Height="100" Background="{StaticResource AccentBrush}" CornerRadius="24">
                             <Image Source="/Assets/app.ico" Width="72" Height="72" RenderOptions.BitmapInterpolationMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Welcome to osu!tag" 
-                                   FontSize="48" 
-                                   FontWeight="ExtraBold" 
-                                   HorizontalAlignment="Center">
+                        <TextBlock Text="osu!tag" FontSize="48" FontWeight="ExtraBold" HorizontalAlignment="Center">
                             <TextBlock.Foreground>
                                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                                     <GradientStop Offset="0" Color="#5B9FED"/>
@@ -762,138 +764,72 @@
                                 </LinearGradientBrush>
                             </TextBlock.Foreground>
                         </TextBlock>
-                        <TextBlock Text="The ultimate tool to organize and supercharge your music library." 
-                                   Foreground="#AAA" 
-                                   FontSize="18" 
-                                   TextAlignment="Center"
-                                   TextWrapping="Wrap"/>
                      </StackPanel>
 
-                     <!-- Main Action -->
-                     <Border Background="#1C212B" 
-                             CornerRadius="24" 
-                             Padding="32" 
-                             BorderBrush="#30363D" 
-                             BorderThickness="1"
-                             BoxShadow="0 10 40 0 #80000000">
-                         <StackPanel Spacing="24">
-                             <TextBlock Text="Get Started" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-                             
-                             <Button Command="{Binding BrowseCommand}" 
-                                     Classes="Primary"
-                                     Height="60"
-                                     HorizontalAlignment="Stretch">
-                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                     <PathIcon Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
-                                     <TextBlock Text="Select osu! Songs Folder" FontWeight="Bold" FontSize="16"/>
+                     <!-- Content View Switching -->
+                     <Panel>
+                         <!-- 1. Folder Selection / Welcome State -->
+                         <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="32" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000"
+                                 IsVisible="{Binding IsFolderSelectionVisible}">
+                             <StackPanel Spacing="24">
+                                 <TextBlock Text="Welcome! Please select your Songs folder." Foreground="#AAA" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
+                                 <Button Command="{Binding BrowseCommand}" Classes="Primary" Height="60" HorizontalAlignment="Stretch">
+                                     <StackPanel Orientation="Horizontal" Spacing="12">
+                                         <PathIcon Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
+                                         <TextBlock Text="Select osu! Songs Folder" FontWeight="Bold" FontSize="16"/>
+                                     </StackPanel>
+                                 </Button>
+                                 <Button Command="{Binding UseDefaultPathCommand}" Classes="Secondary" Height="50" HorizontalAlignment="Stretch">
+                                     <TextBlock Text="Use Default Path" FontWeight="Medium"/>
+                                 </Button>
+                             </StackPanel>
+                         </Border>
+
+                         <!-- 2. Scanning / Processing / Audio Loading State -->
+                         <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="40" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000"
+                                 IsVisible="{Binding !IsFolderSelectionVisible}">
+                             <StackPanel Spacing="32">
+                                 <!-- Dynamic Title -->
+                                 <TextBlock FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"
+                                            Text="{Binding CurrentLoadingTitle}"/>
+
+                                 <!-- Unified Progress Bar -->
+                                 <Grid RowDefinitions="Auto,Auto">
+                                     <ProgressBar Value="{Binding ProgressPercentage}" Height="10" CornerRadius="5" Foreground="{StaticResource AccentBrush}" Background="#30363D"
+                                                  IsIndeterminate="{Binding IsAudioLoading}"/>
+                                     <TextBlock Grid.Row="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Right" Margin="0,8,0,0"
+                                                IsVisible="{Binding !IsAudioLoading}"/>
+                                 </Grid>
+
+                                 <!-- Status Message -->
+                                 <TextBlock FontSize="14" Foreground="#AAA" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                                            IsVisible="{Binding !IsLoadingMore}">
+                                     <TextBlock.Text>
+                                         <MultiBinding StringFormat="{}{0}">
+                                             <Binding Path="ScanStatusMessage"/>
+                                             <Binding Path="ProgressMessage"/>
+                                         </MultiBinding>
+                                     </TextBlock.Text>
+                                 </TextBlock>
+
+                                 <!-- Load More State (Simpler) -->
+                                 <TextBlock Text="Fetching more maps from your library..." FontSize="14" Foreground="#AAA" HorizontalAlignment="Center"
+                                            IsVisible="{Binding IsLoadingMore}"/>
+
+                                 <!-- Audio Init (Small indicator if also scanning) -->
+                                 <StackPanel IsVisible="{Binding IsAudioLoading}" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                      <ProgressBar Classes="Circular" IsIndeterminate="True" Width="16" Height="16" Foreground="{StaticResource AccentBrush}"/>
+                                      <TextBlock Text="Initializing Audio Engine..." FontSize="12" Foreground="{StaticResource AccentBrush}"/>
                                  </StackPanel>
-                             </Button>
-
-                             <Button Command="{Binding UseDefaultPathCommand}" 
-                                     Classes="Secondary"
-                                     Height="50"
-                                     HorizontalAlignment="Stretch">
-                                 <TextBlock Text="Use Default Path" FontWeight="Medium"/>
-                             </Button>
-                         </StackPanel>
-                     </Border>
-
-                     <TextBlock Text="osu!tag scans your beatmaps and tags your audio files for you." 
-                                Foreground="#666" 
-                                FontSize="13" 
-                                TextAlignment="Center"/>
+                             </StackPanel>
+                         </Border>
+                     </Panel>
                 </StackPanel>
             </Grid>
         </Panel>
-        <!-- Loading Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="2" 
-                IsVisible="{Binding IsScanning}" 
-                Background="#990A0E14" 
-                ZIndex="200"
-                Classes="AnimatedOpacity">
-            <Border Background="{StaticResource SurfaceElevatedBrush}"
-                    CornerRadius="24"
-                    Padding="40"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    BoxShadow="0 10 40 0 #66000000"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1">
-                <StackPanel Spacing="24" Width="400">
-                    <TextBlock Text="Scanning Beatmaps" 
-                               FontSize="20" FontWeight="Bold" 
-                               Foreground="{StaticResource TextPrimaryBrush}"
-                               HorizontalAlignment="Center"/>
-                    
-                    <Grid RowDefinitions="Auto,Auto">
-                        <ProgressBar Value="{Binding ProgressPercentage}" 
-                                     Height="8" 
-                                     CornerRadius="4"
-                                     Foreground="{StaticResource AccentBrush}"
-                                     Background="{StaticResource SurfaceBrush}"/>
-                        
-                        <TextBlock Grid.Row="1" 
-                                   Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" 
-                                   FontSize="12" FontWeight="Bold" 
-                                   Foreground="{StaticResource AccentBrush}"
-                                   HorizontalAlignment="Right"
-                                   Margin="0,8,0,0"/>
-                    </Grid>
-                    
-                    <TextBlock Text="{Binding ScanStatusMessage}" 
-                               FontSize="13" 
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-        </Border>
 
-        <!-- Processing Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="2" 
-                IsVisible="{Binding IsProcessing}" 
-                Background="#990A0E14" 
-                ZIndex="201"
-                Classes="AnimatedOpacity">
-            <Border Background="{StaticResource SurfaceElevatedBrush}"
-                    CornerRadius="24"
-                    Padding="40"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    BoxShadow="0 10 40 0 #66000000"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1">
-                <StackPanel Spacing="24" Width="400">
-                    <TextBlock Text="Processing MP3s" 
-                               FontSize="20" FontWeight="Bold" 
-                               Foreground="{StaticResource TextPrimaryBrush}"
-                               HorizontalAlignment="Center"/>
-                    
-                    <Grid RowDefinitions="Auto,Auto">
-                        <ProgressBar Value="{Binding ProgressPercentage}" 
-                                     Height="8" 
-                                     CornerRadius="4"
-                                     Foreground="{StaticResource AccentBrush}"
-                                     Background="{StaticResource SurfaceBrush}"/>
-                        
-                        <TextBlock Grid.Row="1" 
-                                   Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" 
-                                   FontSize="12" FontWeight="Bold" 
-                                   Foreground="{StaticResource AccentBrush}"
-                                   HorizontalAlignment="Right"
-                                   Margin="0,8,0,0"/>
-                    </Grid>
-                    
-                    <TextBlock Text="{Binding ProgressMessage}" 
-                               FontSize="13" 
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-        </Border>
+
+
         
     </Grid>
 </Window>

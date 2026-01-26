@@ -361,7 +361,14 @@ namespace Osutag.ViewModels
         public bool IsAudioLoading
         {
             get => _isAudioLoading;
-            set => SetProperty(ref _isAudioLoading, value);
+            set
+            {
+                if (SetProperty(ref _isAudioLoading, value))
+                {
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                    OnPropertyChanged(nameof(CurrentLoadingTitle));
+                }
+            }
         }
 
         public bool IsOverlayOpen
@@ -423,7 +430,27 @@ namespace Osutag.ViewModels
         public bool IsFolderSelectionVisible
         {
             get => _isFolderSelectionVisible;
-            set => SetProperty(ref _isFolderSelectionVisible, value);
+            set 
+            {
+                if (SetProperty(ref _isFolderSelectionVisible, value))
+                {
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                }
+            }
+        }
+
+        public bool ShowMainOverlay => IsFolderSelectionVisible || IsScanning || IsAudioLoading || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
+
+        public string CurrentLoadingTitle
+        {
+            get
+            {
+                if (IsScanning) return "Scanning Maps...";
+                if (IsAudioLoading) return "Initializing Audio Engine...";
+                if (IsProcessing) return "Processing MP3s...";
+                if (IsLoadingMore) return "Loading More Maps...";
+                return "Loading...";
+            }
         }
 
         public bool IsWindows => PlatformService.IsWindows;
@@ -478,6 +505,8 @@ namespace Osutag.ViewModels
                 {
                     ((RelayCommand)RescanCommand).RaiseCanExecuteChanged();
                     ((RelayCommand)StartConversionCommand).RaiseCanExecuteChanged();
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                    OnPropertyChanged(nameof(CurrentLoadingTitle));
                 }
             }
         }
@@ -491,7 +520,14 @@ namespace Osutag.ViewModels
         public bool IsLoadingMore
         {
             get => _isLoadingMore;
-            set => SetProperty(ref _isLoadingMore, value);
+            set
+            {
+                if (SetProperty(ref _isLoadingMore, value))
+                {
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                    OnPropertyChanged(nameof(CurrentLoadingTitle));
+                }
+            }
         }
 
         public double PreviewVolume
@@ -607,6 +643,8 @@ namespace Osutag.ViewModels
                 if (SetProperty(ref _isProcessing, value))
                 {
                     ((RelayCommand)StartConversionCommand).RaiseCanExecuteChanged();
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                    OnPropertyChanged(nameof(CurrentLoadingTitle));
                 }
             }
         }
@@ -817,19 +855,26 @@ namespace Osutag.ViewModels
 
             IsLoadingMore = true;
             
-            // Brief delay for smooth transition
-            await Task.Delay(400);
+            try
+            {
+                // Brief delay for smooth transition
+                await Task.Delay(400);
 
-            // Get items to add
-            var count = Math.Min(ITEMS_PER_PAGE, _filteredMapGroups.Count - _displayedCount);
-            var allItems = _filteredMapGroups.Take(_displayedCount + count).ToList();
+                // Get items to add
+                var count = Math.Min(ITEMS_PER_PAGE, _filteredMapGroups.Count - _displayedCount);
+                var allItems = _filteredMapGroups.Take(_displayedCount + count).ToList();
 
-            // Replace entire collection (single UI update instead of many)
-            MapGroups = new ObservableCollection<MapItemGroup>(allItems);
+                // Replace entire collection (single UI update instead of many)
+                MapGroups = new ObservableCollection<MapItemGroup>(allItems);
 
-            _displayedCount += count;
-            OnPropertyChanged(nameof(DisplayedCount));
-            CanLoadMore = _displayedCount < _filteredMapGroups.Count;
+                _displayedCount += count;
+                OnPropertyChanged(nameof(DisplayedCount));
+                CanLoadMore = _displayedCount < _filteredMapGroups.Count;
+            }
+            finally
+            {
+                IsLoadingMore = false;
+            }
         }
 
         private void RemoveItem(SelectedItemInfo? info)

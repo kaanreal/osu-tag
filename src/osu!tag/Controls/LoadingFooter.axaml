@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="100"
+             x:Class="Osutag.Controls.LoadingFooter">
+
+    <Panel Margin="0,24,16,64">
+        <!-- Load More Button Container -->
+        <!-- Only visible if audio is NOT loading (prioritize audio loop init msg) OR if we want them stacked? 
+             User said "make it a seperate thing if its the best way". 
+             Let's stack them or show audio init as priority. Audio init usually happens at startup.
+             Load more happens later. They might overlap if user scans big folder.
+             Let's use a StackPanel to allow both if necessary, or just centered overlay.
+        -->
+        <StackPanel Spacing="20" VerticalAlignment="Center">
+            
+            <!-- Load More Button -->
+            <Button Name="LoadMoreButton"
+                    Command="{Binding LoadMoreCommand}"
+                    Classes="Primary"
+                    Padding="0"
+                    Width="240" Height="48"
+                    HorizontalAlignment="Center"
+                    IsEnabled="{Binding !IsLoadingMore}"
+                    IsVisible="{Binding CanLoadMore}"
+                    ClipToBounds="True"
+                    CornerRadius="24">
+                
+                <Button.Styles>
+                    <Style Selector="Button:disabled /template/ ContentPresenter">
+                         <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                         <Setter Property="Opacity" Value="0.8"/>
+                    </Style>
+                </Button.Styles>
+
+                <Grid>
+                    <!-- Background Loading Progress (Fill effect) -->
+                    <!-- We can do a cool fill effect or just a bottom bar. User asked for "loading bar is in the button" -->
+                    
+                    <!-- Text Content -->
+                    <Panel>
+                        <TextBlock Text="LOAD MORE MAPS" 
+                                   FontSize="13" FontWeight="Bold" LetterSpacing="1"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Panel>
+                </Grid>
+            </Button>
+            
+        </StackPanel>
+    </Panel>
+</UserControl>
