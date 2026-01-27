@@ -360,25 +360,33 @@ namespace Osutag.ViewModels
         private bool _isLoadingMore = false;
         private bool _isOverlayOpen = false;
         private MapItemGroup? _overlayMapGroup;
-        private bool _isAudioLoading = false;
+        private string _githubStars = "0";
 
-        public bool IsAudioLoading
+        public string GithubStars
         {
-            get => _isAudioLoading;
-            set
-            {
-                if (SetProperty(ref _isAudioLoading, value))
-                {
-                    OnPropertyChanged(nameof(ShowMainOverlay));
-                    OnPropertyChanged(nameof(CurrentLoadingTitle));
-                }
-            }
+            get => _githubStars;
+            set => SetProperty(ref _githubStars, value);
         }
 
         public bool IsOverlayOpen
         {
             get => _isOverlayOpen;
             set => SetProperty(ref _isOverlayOpen, value);
+        }
+
+        public bool IsLoadingMore
+        {
+            get => _isLoadingMore;
+            set
+            {
+                if (SetProperty(ref _isLoadingMore, value))
+                {
+                    OnPropertyChanged(nameof(ShowMainOverlay));
+                    OnPropertyChanged(nameof(CurrentLoadingTitle));
+                    OnPropertyChanged(nameof(ShowLoadMore));
+
+                }
+            }
         }
 
         public MapItemGroup? OverlayMapGroup
@@ -473,13 +481,12 @@ namespace Osutag.ViewModels
         }
 
 
-        public bool ShowMainOverlay => IsStartingUp || IsFolderSelectionVisible || IsScanning || IsAudioLoading || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
+        public bool ShowMainOverlay => IsStartingUp || IsFolderSelectionVisible || IsScanning || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
 
         public string CurrentLoadingTitle {
             get {
                 if (IsStartingUp) return "Starting Up...";
                 if (IsFolderSelectionVisible) return "Welcome to osu!tag";
-                if (IsAudioLoading) return "Initializing Audio Engine...";
                 if (IsScanning) return "Scanning Songs...";
                 if (IsLoadingMore) return "Loading Library...";
                 if (IsProcessing) return "Processing Maps...";
@@ -487,7 +494,7 @@ namespace Osutag.ViewModels
             }
         }
 
-        public bool IsProgressBarIndeterminate => IsAudioLoading || (IsScanning && ProgressPercentage == 0);
+        public bool IsProgressBarIndeterminate => (IsScanning && ProgressPercentage == 0);
 
         public bool IsWindows => PlatformService.IsWindows;
         public string AppVersion => "v" + Osutag.Services.AppVersion.Current;
@@ -558,21 +565,6 @@ namespace Osutag.ViewModels
                 if (SetProperty(ref _isSearching, value))
                 {
                     OnPropertyChanged(nameof(ShowLoadMore));
-                }
-            }
-        }
-
-        public bool IsLoadingMore
-        {
-            get => _isLoadingMore;
-            set
-            {
-                if (SetProperty(ref _isLoadingMore, value))
-                {
-                    OnPropertyChanged(nameof(ShowMainOverlay));
-                    OnPropertyChanged(nameof(CurrentLoadingTitle));
-                    OnPropertyChanged(nameof(ShowLoadMore));
-
                 }
             }
         }
@@ -1016,6 +1008,7 @@ namespace Osutag.ViewModels
         public ICommand CloseOverlayCommand { get; }
         public ICommand SelectDifficultyCommand { get; }
         public ICommand RemoveItemCommand { get; }
+        public ICommand OpenGithubCommand { get; }
         public ICommand EditItemCommand { get; }
         // Duplicates removed
         public ICommand ClearCacheCommand { get; }
@@ -1056,12 +1049,8 @@ namespace Osutag.ViewModels
             OpenDirectoryCommand = new RelayCommand(param => OpenDirectory(param as MapItemGroup));
             ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
             OpenUpdateWindowCommand = new RelayCommand(_ => OpenUpdateWindow());
+            OpenGithubCommand = new RelayCommand(_ => OpenGithub());
 
-            // Subscribe to audio loading state for UI indicator
-            AudioService.Instance.IsLoadingChanged += (_, isLoading) =>
-            {
-                Dispatcher.UIThread.Post(() => IsAudioLoading = isLoading);
-            };
         }
 
         // InitializeAsync will be called from View OnLoaded
@@ -1096,6 +1085,9 @@ namespace Osutag.ViewModels
             }
 
             IsStartingUp = false;
+            
+            // Fetch GitHub stars after startup
+            _ = FetchGithubStarsAsync();
         }
 
 
@@ -1334,6 +1326,31 @@ namespace Osutag.ViewModels
         {
             var dict = folders.ToDictionary(f => f, f => 0L);
             SaveScannedFoldersInfo(dict);
+        }
+
+        private async Task FetchGithubStarsAsync()
+        {
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("osu-tag");
+                var response = await client.GetAsync("https://api.github.com/repos/kaanreal/osu-tag");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("stargazers_count", out var stars))
+                    {
+                        GithubStars = stars.GetInt32().ToString();
+                    }
+                }
+            }
+            catch { /* Silent fail */ }
+        }
+
+        private void OpenGithub()
+        {
+            PlatformService.OpenUrl("https://github.com/kaanreal/osu-tag");
         }
 
         private string GetCacheFilePath()
@@ -2031,19 +2048,24 @@ namespace Osutag.ViewModels
                             MapGroup = group,
                             AudioFile = null,
                             DisplayName = $"{group.Artist} - {group.Title}",
-                            SubDisplayName = diff.DifficultyName
+                            SubDisplayName = diff.DifficultyName,
+                            PlaybackRate = ParseRateMultiplier(diff.Difficulty.Rate)
                         };
                         newSelection.Add(info);
                     }
                 }
                 else if (group.IsSelected)
                 {
+                    // For single maps, try to find a selected difficulty or at least one with a rate
+                    var selectedDiff = group.Difficulties.FirstOrDefault(d => d.IsSelected) ?? group.Difficulties.FirstOrDefault();
+                    
                     newSelection.Add(new SelectedItemInfo
                     {
                         MapGroup = group,
                         AudioFile = null,
                         DisplayName = $"{group.Artist} - {group.Title}",
-                        SubDisplayName = null
+                        SubDisplayName = null,
+                        PlaybackRate = selectedDiff != null ? ParseRateMultiplier(selectedDiff.Difficulty.Rate) : 1.0f
                     });
                 }
             }
@@ -2091,6 +2113,15 @@ namespace Osutag.ViewModels
                 item.MapGroup.IsSelected = false;
             }
             RefreshSelectedItems();
+        }
+
+        private float ParseRateMultiplier(string? rateStr)
+        {
+            if (string.IsNullOrEmpty(rateStr)) return 1.0f;
+            var clean = rateStr.Replace("x", "", StringComparison.OrdinalIgnoreCase).Trim();
+            if (float.TryParse(clean, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float result))
+                return result;
+            return 1.0f;
         }
 
         /// <summary>

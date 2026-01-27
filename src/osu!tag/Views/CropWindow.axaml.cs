@@ -72,8 +72,8 @@ namespace Osutag.Views
                 _imageTranslate = group.Children[1] as TranslateTransform;
             }
 
-            var path = this.FindControl<Path>("HolePath");
-            if (path != null && path.Data is CombinedGeometry combined && combined.Geometry2 is RectangleGeometry rectGeo)
+            var pathControl = this.FindControl<Avalonia.Controls.Shapes.Path>("HolePath");
+            if (pathControl != null && pathControl.Data is CombinedGeometry combined && combined.Geometry2 is RectangleGeometry rectGeo)
             {
                 _holeGeometry = rectGeo;
             }

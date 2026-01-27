@@ -20,12 +20,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "publish\Osutag.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "publish\osu!tag.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\osu!tag"; Filename: "{app}\Osutag.exe"
-Name: "{commondesktop}\osu!tag"; Filename: "{app}\Osutag.exe"; Tasks: desktopicon
+Name: "{group}\osu!tag"; Filename: "{app}\osu!tag.exe"
+Name: "{commondesktop}\osu!tag"; Filename: "{app}\osu!tag.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\Osutag.exe"; Description: "{cm:LaunchProgram,osu!tag}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\osu!tag.exe"; Description: "{cm:LaunchProgram,osu!tag}"; Flags: nowait postinstall skipifsilent

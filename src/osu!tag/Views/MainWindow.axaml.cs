@@ -132,7 +132,7 @@ namespace Osutag.Views
 
                 try
                 {
-                    await Task.Delay(100, currentToken.Token);
+                    await Task.Delay(300, currentToken.Token);
                     if (currentToken.Token.IsCancellationRequested) return;
 
                     if (!string.IsNullOrEmpty(group.PreviewMp3Path))

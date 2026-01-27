@@ -77,7 +77,7 @@
 - **Framework**: Avalonia UI (.NET 8.0)
 - **Image Processing**: SixLabors.ImageSharp
 - **Audio Tagging**: TagLibSharp
-- **Audio Playback**: LibVLCSharp / NSSound
+- **Audio Playback**: MiniAudio
 
 ## License
 

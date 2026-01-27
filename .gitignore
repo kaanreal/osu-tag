@@ -95,7 +95,6 @@ _ReSharper*/
 
 # Packaging outputs
 build/dist/
-build\dist\
 
 # NuGet local cache
 project.lock.json

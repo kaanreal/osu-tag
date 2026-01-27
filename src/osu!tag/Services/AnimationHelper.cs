@@ -52,23 +52,14 @@ namespace Osutag.Services
             {
                 control.AttachedToVisualTree -= OnControlAttached;
                 control.AttachedToVisualTree += OnControlAttached;
-                control.DataContextChanged -= OnDataContextChanged;
-                control.DataContextChanged += OnDataContextChanged;
             }
             else
             {
                 control.AttachedToVisualTree -= OnControlAttached;
-                control.DataContextChanged -= OnDataContextChanged;
             }
         }
 
         private static void OnControlAttached(object? sender, VisualTreeAttachmentEventArgs e) => RunEntranceAnimation(sender as Control);
-        
-        private static void OnDataContextChanged(object? sender, EventArgs e)
-        {
-             // When DataContext changes (recycling), we treat it as a new entrance
-             RunEntranceAnimation(sender as Control);
-        }
 
         public static readonly AttachedProperty<System.Threading.CancellationTokenSource?> AnimationTokenProperty =
             AvaloniaProperty.RegisterAttached<Control, System.Threading.CancellationTokenSource?>("AnimationToken", typeof(AnimationHelper));

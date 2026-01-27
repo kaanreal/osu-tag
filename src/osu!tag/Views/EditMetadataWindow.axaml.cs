@@ -65,7 +65,7 @@ namespace Osutag.Views
             int previewTime = ViewModel.OriginalItem.MapGroup?.PreviewTime ?? 0;
             if (previewTime <= 0) previewTime = 45000; // Default to 45s if unknown
 
-            AudioService.Instance.PlayPreview(ViewModel.SongPath, previewTime, null, (float)ViewModel.PlaybackRate, ViewModel.MaintainPitch, (float)ViewModel.PitchSemitones);
+            AudioService.Instance.PlayPreview(ViewModel.SongPath, previewTime, null, (float)ViewModel.PlaybackRate, ViewModel.MaintainPitch);
         }
 
         private void ResetPitch_Click(object? sender, RoutedEventArgs e)

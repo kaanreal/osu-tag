@@ -159,7 +159,36 @@
                                 </TextBlock>
                             </Button>
 
-                            <!-- Audio loading moved to footer -->
+                            <!-- GitHub Link (Pill Shape) -->
+                            <!-- GitHub Link (Pill Badge) -->
+                            <Border BorderBrush="White" 
+                                    BorderThickness="1.2" 
+                                    CornerRadius="14" 
+                                    Background="Black"
+                                    Margin="12,0,0,1" 
+                                    VerticalAlignment="Bottom"
+                                    BoxShadow="0 1 4 0 #40000000">
+                                <Button Command="{Binding OpenGithubCommand}" 
+                                        Background="Transparent" 
+                                        BorderThickness="0"
+                                        CornerRadius="14"
+                                        Padding="8,3" 
+                                        Cursor="Hand">
+                                    <Button.Styles>
+                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                            <Setter Property="Background" Value="#1A1A1A"/>
+                                            <Setter Property="BorderBrush" Value="White"/>
+                                        </Style>
+                                    </Button.Styles>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <Viewbox Width="12" Height="12" VerticalAlignment="Center">
+                                            <Path Data="M12 2A10 10 0 0 0 2 12C2 16.42 4.87 20.17 8.84 21.5C9.34 21.58 9.5 21.27 9.5 21.03C9.5 20.82 9.5 20.24 9.5 19.5C6.71 20.11 6.12 18.15 6.12 18.15C5.67 16.97 5.03 16.66 5.03 16.66C4.12 16.03 5.1 16.05 5.1 16.05C6.1 16.12 6.63 17.08 6.63 17.08C7.5 18.61 8.96 18.17 9.54 17.91C9.62 17.27 9.87 16.84 10.15 16.59C7.92 16.34 5.58 15.47 5.58 11.63C5.58 10.53 5.97 9.63 6.61 8.92C6.5 8.67 6.16 7.64 6.71 6.27C6.71 6.27 7.56 6 9.5 7.31C10.3 7.09 11.15 6.98 12 6.97C12.85 6.98 13.7 7.09 14.5 7.31C16.44 6 17.29 6.27 17.29 6.27C17.84 7.64 17.5 8.67 17.39 8.92C18.04 9.63 18.42 10.53 18.42 11.63C18.42 15.48 16.07 16.34 13.84 16.59C14.2 16.9 14.5 17.53 14.5 18.48C14.5 19.86 14.5,20.97 14.5,21.03C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10 10 0 0 0 12 2Z" 
+                                                  Fill="White"/>
+                                        </Viewbox>
+                                        <TextBlock Text="{Binding GithubStars}" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
                         </StackPanel>
                         <TextBlock Text="by Kaan and AI" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                     </StackPanel>
@@ -265,7 +294,6 @@
                                              FontSize="16"
                                              HorizontalContentAlignment="Left"
                                              VerticalContentAlignment="Center"
-                                             VerticalAlignment="Center"
                                              HorizontalAlignment="Stretch"
                                              Foreground="{StaticResource TextPrimaryBrush}"
                                              Margin="34,0,10,0"
@@ -397,7 +425,6 @@
                                                                 </StackPanel>
                                                             </Grid>
                                                         </Border>
-
                                                         <!-- Selection Border (Now perfectly aligned via Stretch) -->
                                                         <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                                 CornerRadius="4" IsHitTestVisible="False"

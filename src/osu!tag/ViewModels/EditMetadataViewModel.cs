@@ -51,7 +51,19 @@ namespace Osutag.ViewModels
         public double PlaybackRate
         {
             get => _playbackRate;
-            set => SetProperty(ref _playbackRate, value);
+            set
+            {
+                if (SetProperty(ref _playbackRate, value))
+                {
+                    if (!_maintainPitch)
+                    {
+                        // Coupled: Update semitones to match rate
+                        // semitones = 12 * log2(rate)
+                        _pitchSemitones = 12.0 * Math.Log(_playbackRate) / Math.Log(2.0);
+                        OnPropertyChanged(nameof(PitchSemitones));
+                    }
+                }
+            }
         }
 
         public bool MaintainPitch
@@ -62,6 +74,12 @@ namespace Osutag.ViewModels
                 if (SetProperty(ref _maintainPitch, value))
                 {
                     OnPropertyChanged(nameof(IsPitchShiftEnabled));
+                    if (!_maintainPitch)
+                    {
+                        // Force sync when enabled
+                        _pitchSemitones = 12.0 * Math.Log(_playbackRate) / Math.Log(2.0);
+                        OnPropertyChanged(nameof(PitchSemitones));
+                    }
                 }
             }
         }
@@ -75,7 +93,14 @@ namespace Osutag.ViewModels
         public double PitchSemitones
         {
             get => _pitchSemitones;
-            set => SetProperty(ref _pitchSemitones, value);
+            set
+            {
+                if (SetProperty(ref _pitchSemitones, value))
+                {
+                    // If we MANUALLY change semitones, we keep coupling logic consistent
+                    // But usually user uses the rate slider now.
+                }
+            }
         }
 
         public bool IsPitchEnabled
@@ -114,7 +139,7 @@ namespace Osutag.ViewModels
             _playbackRate = item.PlaybackRate;
             _pitchSemitones = item.PitchSemitones;
             _maintainPitch = item.MaintainPitch;
-            _isPitchEnabled = Math.Abs(item.PitchSemitones) > 0.01;
+            _isPitchEnabled = Math.Abs(_pitchSemitones) > 0.01;
         }
     }
 }

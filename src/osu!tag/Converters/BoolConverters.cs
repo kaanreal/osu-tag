@@ -199,4 +199,34 @@ namespace Osutag.Converters
             throw new NotImplementedException();
         }
     }
+
+    /// <summary>
+    /// Converts a boolean to "Linked" or "Normal" text.
+    /// </summary>
+    public class BoolToLinkedTextConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return (value is bool b && b) ? "Linked" : "Normal";
+        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Converts a boolean to AccentBrush (true) or TextPrimaryBrush (false).
+    /// </summary>
+    public class BoolToLinkedColorConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (Avalonia.Application.Current == null) return null;
+            string resourceKey = (value is bool b && b) ? "AccentBrush" : "TextPrimaryBrush";
+            if (Avalonia.Application.Current.Resources.TryGetResource(resourceKey, Avalonia.Styling.ThemeVariant.Default, out var resource))
+            {
+                return resource;
+            }
+            return null;
+        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
 }
