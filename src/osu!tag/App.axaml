@@ -61,6 +61,11 @@
             <Setter Property="Padding" Value="20,10"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border x:Name="Border" 
@@ -184,6 +189,7 @@
 
         <!-- Modern TextBox -->
         <Style Selector="TextBox.Modern">
+            <Setter Property="Transitions" Value="{x:Null}"/>
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
@@ -272,10 +278,15 @@
         <!-- Premium Slider Style -->
         <Style Selector="Slider">
             <Setter Property="Background" Value="{StaticResource SurfaceElevatedBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.4"/>
+                </Transitions>
+            </Setter>
             <Setter Property="Template">
                 <ControlTemplate>
                     <Grid Name="SliderContainer" Background="Transparent">
@@ -300,7 +311,7 @@
                                     <Thumb Name="thumb" Width="14" Height="14" Cursor="Hand">
                                         <Thumb.Template>
                                             <ControlTemplate>
-                                                <Border Background="{StaticResource AccentBrush}" 
+                                                <Border Background="{DynamicResource AccentBrush}" 
                                                         BorderBrush="#ffffff" 
                                                         BorderThickness="2" 
                                                         CornerRadius="7" 
@@ -381,8 +392,13 @@
         <Style Selector="ProgressBar">
             <Setter Property="Height" Value="6"/>
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.4"/>
+                </Transitions>
+            </Setter>
             <Setter Property="Template">
                 <ControlTemplate>
                     <Grid Name="ProgressBarRoot">

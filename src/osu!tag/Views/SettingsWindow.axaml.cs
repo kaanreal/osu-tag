@@ -60,6 +60,13 @@ namespace Osutag.Views
             set => SetValue(DiscordRpcEnabledProperty, value);
         }
 
+        public static readonly StyledProperty<bool> DynamicBackgroundEnabledProperty = AvaloniaProperty.Register<SettingsWindow, bool>(nameof(DynamicBackgroundEnabled));
+        public bool DynamicBackgroundEnabled
+        {
+            get => GetValue(DynamicBackgroundEnabledProperty);
+            set => SetValue(DynamicBackgroundEnabledProperty, value);
+        }
+
         public static readonly StyledProperty<bool> CheckForUpdatesProperty = AvaloniaProperty.Register<SettingsWindow, bool>(nameof(CheckForUpdates));
         public bool CheckForUpdates
         {
@@ -120,11 +127,19 @@ namespace Osutag.Views
 
         public string AppVersion => "v" + Osutag.Services.AppVersion.Current;
 
+        public static readonly StyledProperty<string> OsuPathProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(OsuPath), "");
+        public string OsuPath
+        {
+            get => GetValue(OsuPathProperty);
+            set => SetValue(OsuPathProperty, value);
+        }
+
         static SettingsWindow()
         {
             PreviewVolumeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnPreviewVolumeChanged(e));
             SelectedThemeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSelectedThemeChanged(e));
             SortByMostPlayedProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSortByMostPlayedChanged(e));
+            DynamicBackgroundEnabledProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnDynamicBackgroundEnabledChanged(e));
         }
 
         private void OnPreviewVolumeChanged(AvaloniaPropertyChangedEventArgs e)
@@ -138,10 +153,18 @@ namespace Osutag.Views
 
         private void OnSelectedThemeChanged(AvaloniaPropertyChangedEventArgs e)
         {
-            if (e.NewValue is string hexColor)
+            if (e.NewValue is string themeTag)
             {
-                App.ApplyTheme(hexColor);
-                SettingsService.Settings.ThemeColor = hexColor;
+                if (themeTag == "Dynamic")
+                {
+                    DynamicBackgroundEnabled = true;
+                }
+                else
+                {
+                    DynamicBackgroundEnabled = false;
+                    App.ApplyTheme(themeTag);
+                }
+                SettingsService.Settings.ThemeColor = themeTag;
                 SettingsService.Save();
             }
         }
@@ -158,6 +181,21 @@ namespace Osutag.Views
                     desktop.MainWindow?.DataContext is MainViewModel mainVm)
                 {
                     await mainVm.RefreshCompanellaSorting();
+                }
+            }
+        }
+
+        private void OnDynamicBackgroundEnabledChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is bool enabled)
+            {
+                SettingsService.Settings.DynamicBackgroundEnabled = enabled;
+                SettingsService.Save();
+
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    mainVm.DynamicBackgroundEnabled = enabled;
                 }
             }
         }
@@ -204,9 +242,9 @@ namespace Osutag.Views
 
         private void ThemeComboBox_SelectionChanged(object? sender, Avalonia.Controls.SelectionChangedEventArgs e)
         {
-            if (ThemeComboBox.SelectedItem is ComboBoxItem item && item.Tag is string hexColor)
+            if (ThemeComboBox.SelectedItem is ComboBoxItem item && item.Tag is string tag)
             {
-                SelectedTheme = hexColor;
+                SelectedTheme = tag;
             }
         }
 
@@ -280,6 +318,30 @@ namespace Osutag.Views
             }
         }
 
+        public async void BrowseOsuPath_Click(object? sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFolderDialog()
+            {
+                Title = "Select osu! Installation Folder",
+                Directory = SettingsService.Settings.OsuPath
+            };
+
+            var result = await dialog.ShowAsync(this);
+            if (!string.IsNullOrEmpty(result))
+            {
+                OsuPath = result;
+                SettingsService.Settings.OsuPath = result;
+                SettingsService.Save();
+                
+                // Notify MainViewModel
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    mainVm.OsuPath = result;
+                }
+            }
+        }
+
         public void DownloadCompanella_Click(object? sender, PointerPressedEventArgs e)
         {
             PlatformService.OpenUrl("https://github.com/Leinadix/companella");
@@ -312,6 +374,8 @@ namespace Osutag.Views
             CheckForUpdates = SettingsService.Settings.CheckForUpdates;
             PreviewVolume = SettingsService.Settings.PreviewVolume;
             SelectedTheme = SettingsService.Settings.ThemeColor;
+            DynamicBackgroundEnabled = SettingsService.Settings.DynamicBackgroundEnabled;
+            OsuPath = SettingsService.Settings.OsuPath;
             SpotifyClientId = SettingsService.Settings.SpotifyClientId;
             SpotifyClientSecret = SettingsService.Settings.SpotifyClientSecret;
         }
@@ -331,6 +395,8 @@ namespace Osutag.Views
                 SettingsService.Settings.CheckForUpdates = CheckForUpdates;
                 SettingsService.Settings.PreviewVolume = PreviewVolume;
                 SettingsService.Settings.ThemeColor = SelectedTheme;
+                SettingsService.Settings.DynamicBackgroundEnabled = (SelectedTheme == "Dynamic");
+                SettingsService.Settings.OsuPath = OsuPath;
                 SettingsService.Settings.SpotifyClientId = SpotifyClientId;
                 SettingsService.Settings.SpotifyClientSecret = SpotifyClientSecret;
                 SettingsService.Save();

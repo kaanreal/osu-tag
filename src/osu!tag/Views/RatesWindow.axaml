@@ -45,8 +45,8 @@
                                      <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
                                  </Style>
                                  <Style Selector="Border.selected">
-                                     <Setter Property="Background" Value="{StaticResource AccentSubtleBrush}"/>
-                                     <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                     <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                                     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                  </Style>
                              </Border.Styles>
 

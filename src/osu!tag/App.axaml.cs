@@ -65,7 +65,10 @@ public partial class App : Application
                 if (Application.Current.Resources.TryGetValue("AccentBrush", out var brushObj) && 
                     brushObj is Avalonia.Media.SolidColorBrush brush)
                 {
-                    // Create a new brush instead of modifying the existing one
+                    brush.Color = color;
+                }
+                else
+                {
                     Application.Current.Resources["AccentBrush"] = new Avalonia.Media.SolidColorBrush(color);
                 }
             }
@@ -76,6 +79,10 @@ public partial class App : Application
             {
                 if (Application.Current.Resources.TryGetValue("AccentHoverBrush", out var hoverObj) && 
                     hoverObj is Avalonia.Media.SolidColorBrush hoverBrush)
+                {
+                    hoverBrush.Color = color;
+                }
+                else
                 {
                     Application.Current.Resources["AccentHoverBrush"] = new Avalonia.Media.SolidColorBrush(color);
                 }
@@ -99,10 +106,14 @@ public partial class App : Application
             // Update AccentSubtleBrush
             try
             {
+                var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
                 if (Application.Current.Resources.TryGetValue("AccentSubtleBrush", out var subtleObj) && 
                     subtleObj is Avalonia.Media.SolidColorBrush subtleBrush)
                 {
-                    var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
+                    subtleBrush.Color = subtleColor;
+                }
+                else
+                {
                     Application.Current.Resources["AccentSubtleBrush"] = new Avalonia.Media.SolidColorBrush(subtleColor);
                 }
             }

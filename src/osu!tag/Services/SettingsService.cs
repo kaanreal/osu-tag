@@ -84,5 +84,7 @@ namespace Osutag.Services
         public string AnonymousUserId { get; set; } = "";
         public string SpotifyClientId { get; set; } = "";
         public string SpotifyClientSecret { get; set; } = "";
+        public bool DynamicBackgroundEnabled { get; set; } = false;
+        public string OsuPath { get; set; } = "";
     }
 }

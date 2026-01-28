@@ -11,6 +11,9 @@ using System.Text.RegularExpressions;
 using Osutag.Models;
 using Osutag.Services;
 using Avalonia.Threading;
+using Avalonia.Media.Imaging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Osutag.ViewModels
 {
@@ -344,6 +347,15 @@ namespace Osutag.ViewModels
 
     public class MainViewModel : ObservableObject
     {
+        private readonly DynamicBackgroundService _bgService = new();
+        private DispatcherTimer? _bgTimer;
+        private Bitmap? _currentBackground;
+        private Bitmap? _nextBackground;
+        private double _backgroundOpacity = 1.0;
+        private double _nextBackgroundOpacity = 0.0;
+        private bool _dynamicBackgroundEnabled;
+        private string _selectedTheme = SettingsService.Settings.ThemeColor;
+        private string _osuPath = SettingsService.Settings.OsuPath;
         private string _selectedPath = "";
         private bool _isFolderSelectionVisible = false;
         private string _outputPath = "";
@@ -568,7 +580,6 @@ namespace Osutag.ViewModels
             set => SetProperty(ref _companellaStatus, value);
         }
 
-        private string _selectedTheme = SettingsService.Settings.ThemeColor;
         public string SelectedTheme
         {
             get => _selectedTheme;
@@ -578,9 +589,62 @@ namespace Osutag.ViewModels
                 {
                     SettingsService.Settings.ThemeColor = value;
                     SettingsService.Save();
-                    App.ApplyTheme(value);
+                    if (value == "Dynamic")
+                    {
+                        DynamicBackgroundEnabled = true;
+                    }
+                    else
+                    {
+                        DynamicBackgroundEnabled = false;
+                        App.ApplyTheme(value);
+                    }
                 }
             }
+        }
+
+        public string OsuPath
+        {
+            get => _osuPath;
+            set => SetProperty(ref _osuPath, value);
+        }
+
+        public bool DynamicBackgroundEnabled
+        {
+            get => _dynamicBackgroundEnabled;
+            set
+            {
+                if (SetProperty(ref _dynamicBackgroundEnabled, value))
+                {
+                    SettingsService.Settings.DynamicBackgroundEnabled = value;
+                    SettingsService.Save();
+                    if (value) StartBackgroundCycle();
+                    else StopBackgroundCycle();
+                }
+            }
+        }
+
+        public Bitmap? CurrentBackground
+        {
+            get => _currentBackground;
+            set => SetProperty(ref _currentBackground, value);
+        }
+
+        public Bitmap? NextBackground
+        {
+            get => _nextBackground;
+            set => SetProperty(ref _nextBackground, value);
+        }
+
+        public double BackgroundOpacity
+        {
+            get => _backgroundOpacity;
+            set => SetProperty(ref _backgroundOpacity, value);
+        }
+
+        public double NextBackgroundOpacity
+        {
+            get => _nextBackgroundOpacity;
+            set => SetProperty(ref _nextBackgroundOpacity, value);
         }
 
         public bool IsScanning
@@ -1100,6 +1164,109 @@ namespace Osutag.ViewModels
             OpenSpotifyUrlCommand = new RelayCommand(OpenSpotifyUrl);
             OpenGithubCommand = new RelayCommand(_ => OpenGithub());
 
+            // Initialize Dynamic Background
+            _dynamicBackgroundEnabled = SettingsService.Settings.DynamicBackgroundEnabled;
+            if (_dynamicBackgroundEnabled)
+            {
+                StartBackgroundCycle();
+            }
+        }
+
+        private void StartBackgroundCycle()
+        {
+            if (_bgTimer != null) return;
+
+            // Immediate first cycle
+            _ = CycleBackground();
+
+            _bgTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30) // Cycle every 30 seconds
+            };
+            _bgTimer.Tick += async (s, e) => await CycleBackground();
+            _bgTimer.Start();
+        }
+
+        private void StopBackgroundCycle()
+        {
+            _bgTimer?.Stop();
+            _bgTimer = null;
+            CurrentBackground = null;
+            NextBackground = null;
+            // Restore static theme
+            App.ApplyTheme(SelectedTheme);
+        }
+
+        private async Task CycleBackground()
+        {
+            string osuPath = OsuPath;
+            if (string.IsNullOrEmpty(osuPath) || !Directory.Exists(osuPath))
+            {
+                // Try to fallback to deriving from songs path if not set
+                string songsPath = SettingsService.Settings.LastSongsPath;
+                if (!string.IsNullOrEmpty(songsPath) && Directory.Exists(songsPath))
+                {
+                    osuPath = Path.GetDirectoryName(songsPath.TrimEnd(Path.DirectorySeparatorChar))!;
+                }
+            }
+
+            if (string.IsNullOrEmpty(osuPath) || !Directory.Exists(osuPath)) return;
+
+            _bgService.ScanBackgrounds(osuPath);
+
+            string? nextPath = _bgService.GetRandomBackground();
+            if (string.IsNullOrEmpty(nextPath)) return;
+
+            // Load blurred bitmap in background
+            try
+            {
+                using var stream = await _bgService.GetBlurredBackgroundStreamAsync(nextPath);
+                if (stream == null) return;
+                
+                var nextBitmap = new Bitmap(stream);
+                string? color;
+
+                if (CurrentBackground == null)
+                {
+                    CurrentBackground = nextBitmap;
+                    BackgroundOpacity = 1.0;
+                    
+                    // Immediate theme apply for first load
+                    color = _bgService.ExtractDominantColor(nextPath);
+                    if (!string.IsNullOrEmpty(color)) App.ApplyTheme(color);
+                }
+                else
+                {
+                    NextBackground = nextBitmap;
+                    
+                    // Start cross-fade: FADE IN NEXT on top of CURRENT
+                    NextBackgroundOpacity = 1.0;
+                    
+                    // Wait half the transition time
+                    await Task.Delay(750);
+                    
+                    // Apply theme color midway
+                    color = _bgService.ExtractDominantColor(nextPath);
+                    if (!string.IsNullOrEmpty(color))
+                    {
+                        App.ApplyTheme(color);
+                    }
+                    
+                    // Wait for the rest of the transition
+                    await Task.Delay(750);
+                    
+                    // Commit swap ATOMICALLY
+                    CurrentBackground = nextBitmap;
+                    
+                    // Crucial: Set opacities to final state instantly to prevent flicker
+                    BackgroundOpacity = 1.0;
+                    NextBackgroundOpacity = 0.0;
+                    
+                    // Clear next only after opacities are set
+                    NextBackground = null;
+                }
+            }
+            catch { }
         }
 
         private void OpenSpotifyUrl(object? parameter)
