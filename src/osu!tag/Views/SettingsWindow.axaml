@@ -136,7 +136,7 @@
 
                                 <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
-                                <StackPanel Spacing="12">
+                                <StackPanel Spacing="12" IsVisible="False">
                                     <TextBlock Text="Spotify Integration" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Add your Spotify API credentials to see which songs are on Spotify." FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                                     
