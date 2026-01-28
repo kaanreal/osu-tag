@@ -30,8 +30,11 @@ namespace Osutag.Services
         /// </summary>
         public bool IsAvailable()
         {
-            return File.Exists(_sessionsDbPath);
+            return File.Exists(_sessionsDbPath) && File.Exists(_mapsDbPath);
         }
+
+        public bool SessionsExists() => File.Exists(_sessionsDbPath);
+        public bool MapsExists() => File.Exists(_mapsDbPath);
 
         /// <summary>
         /// Gets the play counts for all maps from the Companella databases.
@@ -41,17 +44,34 @@ namespace Osutag.Services
         {
             var playCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            if (!IsAvailable())
+            if (!SessionsExists())
                 return playCounts;
 
             try
             {
-                // Use folder-based matching for reliability
-                return GetPlayCountsByFolder();
+                // 1. Get play counts grouped by folder (most reliable for osu! maps)
+                var folderCounts = GetPlayCountsByFolder();
+                foreach (var kvp in folderCounts)
+                {
+                    playCounts[kvp.Key] = kvp.Value;
+                }
+
+                // 2. If maps.db exists, also get metadata-based counts to catch maps that might not match by folder
+                if (MapsExists())
+                {
+                    var metadataCounts = GetPlayCountsWithMetadata();
+                    foreach (var kvp in metadataCounts)
+                    {
+                        if (playCounts.ContainsKey(kvp.Key))
+                            playCounts[kvp.Key] += kvp.Value;
+                        else
+                            playCounts[kvp.Key] = kvp.Value;
+                    }
+                }
             }
             catch (Exception)
             {
-                // Return empty dictionary on any error
+                // Return whatever we gathered on error
             }
 
             return playCounts;

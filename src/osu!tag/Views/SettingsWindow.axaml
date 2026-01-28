@@ -123,10 +123,30 @@
                         <Border Classes="SettingCard">
                             <StackPanel Spacing="24">
                                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsCompanellaSupported}">
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="10">
                                         <CheckBox Content="Sort by play count (Companella)" IsChecked="{Binding SortByMostPlayed}"/>
-                                        <TextBlock Text="{Binding CompanellaStatus}" FontSize="11" Foreground="{StaticResource SuccessBrush}" Margin="32,0,0,0"/>
+                                        
+                                        <StackPanel Margin="32,-4,0,0" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Ellipse Width="6" Height="6" Fill="{Binding SessionsDbColor}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="sessions.db" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding SessionsDbStatus}" FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="2,0,0,0" Opacity="0.7"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Ellipse Width="6" Height="6" Fill="{Binding MapsDbColor}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="maps.db" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding MapsDbStatus}" FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="2,0,0,0" Opacity="0.7"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            
+                                            <TextBlock Text="Get Companella" 
+                                                       FontSize="11" Foreground="{StaticResource AccentBrush}" 
+                                                       Cursor="Hand" PointerPressed="DownloadCompanella_Click"
+                                                       TextDecorations="Underline" Margin="0,2,0,0" Opacity="0.8"/>
+                                        </StackPanel>
                                     </StackPanel>
+                                    <Button Grid.Column="1" Content="Locate..." Classes="Secondary" Click="BrowseCompanella_Click" VerticalAlignment="Top" Padding="12,6"/>
                                 </Grid>
 
                                 <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>

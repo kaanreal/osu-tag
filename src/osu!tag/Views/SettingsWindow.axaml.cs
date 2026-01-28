@@ -5,7 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Osutag.Services;
-using Osutag.Views;
+using Osutag.ViewModels;
 
 namespace Osutag.Views
 {
@@ -90,12 +90,41 @@ namespace Osutag.Views
             set => SetValue(SelectedThemeProperty, value);
         }
 
+        public static readonly StyledProperty<string> SessionsDbStatusProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(SessionsDbStatus), "Not Found");
+        public string SessionsDbStatus
+        {
+            get => GetValue(SessionsDbStatusProperty);
+            set => SetValue(SessionsDbStatusProperty, value);
+        }
+
+        public static readonly StyledProperty<Avalonia.Media.IBrush> SessionsDbColorProperty = AvaloniaProperty.Register<SettingsWindow, Avalonia.Media.IBrush>(nameof(SessionsDbColor), Avalonia.Media.Brushes.Red);
+        public Avalonia.Media.IBrush SessionsDbColor
+        {
+            get => GetValue(SessionsDbColorProperty);
+            set => SetValue(SessionsDbColorProperty, value);
+        }
+
+        public static readonly StyledProperty<string> MapsDbStatusProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(MapsDbStatus), "Not Found");
+        public string MapsDbStatus
+        {
+            get => GetValue(MapsDbStatusProperty);
+            set => SetValue(MapsDbStatusProperty, value);
+        }
+
+        public static readonly StyledProperty<Avalonia.Media.IBrush> MapsDbColorProperty = AvaloniaProperty.Register<SettingsWindow, Avalonia.Media.IBrush>(nameof(MapsDbColor), Avalonia.Media.Brushes.Red);
+        public Avalonia.Media.IBrush MapsDbColor
+        {
+            get => GetValue(MapsDbColorProperty);
+            set => SetValue(MapsDbColorProperty, value);
+        }
+
         public string AppVersion => "v" + Osutag.Services.AppVersion.Current;
 
         static SettingsWindow()
         {
             PreviewVolumeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnPreviewVolumeChanged(e));
             SelectedThemeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSelectedThemeChanged(e));
+            SortByMostPlayedProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSortByMostPlayedChanged(e));
         }
 
         private void OnPreviewVolumeChanged(AvaloniaPropertyChangedEventArgs e)
@@ -112,6 +141,24 @@ namespace Osutag.Views
             if (e.NewValue is string hexColor)
             {
                 App.ApplyTheme(hexColor);
+                SettingsService.Settings.ThemeColor = hexColor;
+                SettingsService.Save();
+            }
+        }
+
+        private async void OnSortByMostPlayedChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is bool enabled)
+            {
+                SettingsService.Settings.SortByMostPlayed = enabled;
+                SettingsService.Save();
+                
+                // Trigger immediate re-sort in MainViewModel if possible
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    await mainVm.RefreshCompanellaSorting();
+                }
             }
         }
 
@@ -165,24 +212,77 @@ namespace Osutag.Views
 
         private void AutoDiscoverCompanella()
         {
+            string? companellaPath = SettingsService.Settings.CompanellaPath;
+
+            if (string.IsNullOrEmpty(companellaPath))
+            {
+                companellaPath = PlatformService.GetDefaultCompanellaPath();
+            }
+            
+            UpdateCompanellaStatus(companellaPath);
+        }
+
+        private void UpdateCompanellaStatus(string path)
+        {
             try
             {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string companellaPath = Path.Combine(localAppData, "Companella");
-                
-                if (Directory.Exists(companellaPath))
+                if (string.IsNullOrEmpty(path))
                 {
-                    CompanellaStatus = $"Found Companella data under settings.";
+                    SessionsDbStatus = "Path not set";
+                    SessionsDbColor = Avalonia.Media.Brushes.Gray;
+                    MapsDbStatus = "Path not set";
+                    MapsDbColor = Avalonia.Media.Brushes.Gray;
+                    CompanellaStatus = "Companella location unknown.";
+                    return;
+                }
+
+                bool sessionsExists = File.Exists(Path.Combine(path, "sessions.db"));
+                bool mapsExists = File.Exists(Path.Combine(path, "maps.db"));
+
+                SessionsDbStatus = sessionsExists ? "Detected" : "Not Found";
+                SessionsDbColor = sessionsExists ? Avalonia.Media.Brushes.LimeGreen : Avalonia.Media.Brushes.Red;
+
+                MapsDbStatus = mapsExists ? "Detected" : "Not Found";
+                MapsDbColor = mapsExists ? Avalonia.Media.Brushes.LimeGreen : Avalonia.Media.Brushes.Red;
+
+                if (sessionsExists && mapsExists)
+                {
+                    CompanellaStatus = "Companella detected.";
+                }
+                else if (sessionsExists || mapsExists)
+                {
+                    CompanellaStatus = "Companella partially detected.";
                 }
                 else
                 {
-                    CompanellaStatus = "Companella not found.";
+                    CompanellaStatus = "Companella not detected.";
                 }
             }
             catch
             {
-                CompanellaStatus = "Error scanning for Companella.";
+                CompanellaStatus = "Error checking Companella status.";
             }
+        }
+
+        public async void BrowseCompanella_Click(object? sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFolderDialog()
+            {
+                Title = "Select Companella Installation Folder",
+                Directory = SettingsService.Settings.CompanellaPath
+            };
+
+            var result = await dialog.ShowAsync(this);
+            if (!string.IsNullOrEmpty(result))
+            {
+                SettingsService.Settings.CompanellaPath = result;
+                UpdateCompanellaStatus(result);
+            }
+        }
+
+        public void DownloadCompanella_Click(object? sender, PointerPressedEventArgs e)
+        {
+            PlatformService.OpenUrl("https://github.com/Leinadix/companella");
         }
 
         public void ClearCache_Click(object? sender, RoutedEventArgs e)

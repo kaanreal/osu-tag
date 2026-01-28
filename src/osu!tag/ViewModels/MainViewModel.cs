@@ -872,7 +872,10 @@ namespace Osutag.ViewModels
         private async Task LoadCompanellaPlayCounts()
         {
             if (!SettingsService.Settings.SortByMostPlayed)
+            {
+                _playCountCache = new Dictionary<string, int>();
                 return;
+            }
 
             var companellaPath = SettingsService.Settings.CompanellaPath;
 
@@ -2579,8 +2582,7 @@ namespace Osutag.ViewModels
         {
             try
             {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string companellaPath = Path.Combine(localAppData, "Companella");
+                string companellaPath = PlatformService.GetDefaultCompanellaPath();
                 
                 if (Directory.Exists(companellaPath))
                 {
