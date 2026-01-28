@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Osutag.Services;
 using Osutag.ViewModels;
+using Avalonia.Platform.Storage;
 
 namespace Osutag.Views
 {
@@ -296,23 +297,33 @@ namespace Osutag.Views
                     CompanellaStatus = "Companella not detected.";
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"UpdateCompanellaStatus failed: {ex.Message}");
                 CompanellaStatus = "Error checking Companella status.";
             }
         }
 
         public async void BrowseCompanella_Click(object? sender, RoutedEventArgs e)
         {
-            var dialog = new OpenFolderDialog()
+            var storage = this.StorageProvider;
+            IStorageFolder? startFolder = null;
+            if (!string.IsNullOrEmpty(SettingsService.Settings.CompanellaPath))
+            {
+                try { startFolder = await storage.TryGetFolderFromPathAsync(SettingsService.Settings.CompanellaPath); }
+                catch { /* Ignore if path is invalid */ }
+            }
+
+            var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = "Select Companella Installation Folder",
-                Directory = SettingsService.Settings.CompanellaPath
-            };
+                SuggestedStartLocation = startFolder,
+                AllowMultiple = false
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (!string.IsNullOrEmpty(result))
+            if (folders.Count > 0)
             {
+                var result = folders[0].Path.LocalPath;
                 SettingsService.Settings.CompanellaPath = result;
                 UpdateCompanellaStatus(result);
             }
@@ -320,15 +331,24 @@ namespace Osutag.Views
 
         public async void BrowseOsuPath_Click(object? sender, RoutedEventArgs e)
         {
-            var dialog = new OpenFolderDialog()
+            var storage = this.StorageProvider;
+            IStorageFolder? startFolder = null;
+            if (!string.IsNullOrEmpty(SettingsService.Settings.OsuPath))
+            {
+                try { startFolder = await storage.TryGetFolderFromPathAsync(SettingsService.Settings.OsuPath); }
+                catch { /* Ignore if path is invalid */ }
+            }
+
+            var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = "Select osu! Installation Folder",
-                Directory = SettingsService.Settings.OsuPath
-            };
+                SuggestedStartLocation = startFolder,
+                AllowMultiple = false
+            });
 
-            var result = await dialog.ShowAsync(this);
-            if (!string.IsNullOrEmpty(result))
+            if (folders.Count > 0)
             {
+                var result = folders[0].Path.LocalPath;
                 OsuPath = result;
                 SettingsService.Settings.OsuPath = result;
                 SettingsService.Save();
@@ -359,7 +379,10 @@ namespace Osutag.Views
                 SettingsService.Settings.ScannedFolders = "";
                 SettingsService.Save();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ClearCache failed: {ex.Message}");
+            }
         }
 
         private void LoadSettings()

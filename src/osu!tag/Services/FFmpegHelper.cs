@@ -280,7 +280,7 @@ namespace Osutag.Services
                         var fullPath = Path.Combine(path.Trim(), executable + ext);
                         if (File.Exists(fullPath)) return fullPath;
                     }
-                    catch { } // Ignore invalid paths in PATH
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Invalid PATH entry check: {ex.Message}"); } // Ignore invalid paths in PATH
                 }
             }
             return null;
@@ -293,7 +293,10 @@ namespace Osutag.Services
                 foreach (var file in Directory.GetFiles(directory, fileName, SearchOption.AllDirectories))
                     return file;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LocateExecutableOnPath failed: {ex.Message}");
+            }
             return null;
         }
     }

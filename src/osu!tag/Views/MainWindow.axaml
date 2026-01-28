@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Osutag.ViewModels"
         xmlns:converters="using:Osutag.Converters"
@@ -41,7 +41,7 @@
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:1.0" Easing="QuinticEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.6" Easing="QuinticEaseInOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -53,8 +53,8 @@
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.5" Easing="QuinticEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.5" Easing="QuinticEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -63,8 +63,8 @@
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.6" Easing="QuinticEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.6" Easing="QuinticEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -615,7 +615,7 @@
                     <!-- Selection Count Breakdown -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12"
                                 IsVisible="{Binding IsBottomBarExpanded}">
-                        <TextBlock Text="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â " FontSize="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                        <PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding SelectedCount, StringFormat='{}{0} items selected'}" 
                                    FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -644,7 +644,7 @@
                                 CornerRadius="12" Padding="12,8" 
                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                                <PathIcon Data="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="14" Height="14" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding OutputPath}" MaxWidth="200" TextTrimming="CharacterEllipsis" 
                                            FontSize="12" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -664,7 +664,7 @@
                             CornerRadius="16" Padding="20" Margin="0,0,0,20"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                          <Grid ColumnDefinitions="Auto,*,Auto">
-                             <TextBlock Text="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" FontSize="24" Foreground="{DynamicResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                             <PathIcon Data="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="24" Height="24" Foreground="{DynamicResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
                              <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                  <TextBlock Text="Conversion Output Path" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
                                  <TextBox Text="{Binding OutputPath}" Classes="Modern" Margin="0,4,0,0"/>
@@ -702,7 +702,7 @@
                                                      <Button Classes="Secondary" Padding="8" Width="32" Height="32" ToolTip.Tip="Remove"
                                                              Command="{Binding #Root.((vm:MainViewModel)DataContext).RemoveItemCommand}"
                                                              CommandParameter="{Binding}">
-                                                         <TextBlock Text="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                         <PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="14" Height="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                                      </Button>
                                                  </StackPanel>
                                              </Grid>
@@ -839,9 +839,18 @@
                                                                           Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
                                                                           TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
                                                                
+                                                               <!-- Added Difficulty Name & Audio Filename -->
+                                                               <TextBlock Text="{Binding DifficultyName}" 
+                                                                          Foreground="#555" FontSize="11" FontWeight="Regular"
+                                                                          TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+
+                                                               <TextBlock Text="{Binding AudioFilename}" 
+                                                                          Foreground="#888" FontSize="10" FontStyle="Italic"
+                                                                          TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                               
                                                                <!-- Audio Indicator Only -->
                                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="4">
-                                                                   <TextBlock Text="ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµ Preview" FontSize="10" VerticalAlignment="Center" Foreground="#999" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/>
+                                                                   <StackPanel Orientation="Horizontal" Spacing="4"><PathIcon Data="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" Width="10" Height="10" Foreground="#999" VerticalAlignment="Center" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/><TextBlock Text="Preview" FontSize="10" VerticalAlignment="Center" Foreground="#999" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/></StackPanel>
                                                                </StackPanel>
                                                            </StackPanel>
                                                        </Grid>

@@ -235,7 +235,10 @@ namespace Osutag.Services
                     {
                         _ffplayProcess.Kill();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"FFplay kill failed: {ex.Message}");
+                    }
                 }
                 _ffplayProcess?.Dispose();
                 _ffplayProcess = null;

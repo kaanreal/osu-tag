@@ -53,6 +53,7 @@ namespace Osutag.ViewModels
         // Display properties for Overlay
         public string? Title { get; set; }
         public string? Artist { get; set; }
+        public string AudioFilename => System.IO.Path.GetFileName(Difficulty.Mp3Path);
 
         public string? CoverPath
         {
@@ -1295,7 +1296,10 @@ namespace Osutag.ViewModels
                     NextBackground = null;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CycleBackground failed: {ex.Message}");
+            }
         }
 
         private void OpenSpotifyUrl(object? parameter)
@@ -1626,7 +1630,10 @@ namespace Osutag.ViewModels
                 SettingsService.Settings.ScannedFolders = "";
                 SettingsService.Save();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ClearCache failed: {ex.Message}");
+            }
         }
 
         // Returns mapping of folder name -> last scanned ticks (UTC). Backwards-compatible with older format which stored only names (ticks=0).

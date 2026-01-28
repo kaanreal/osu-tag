@@ -39,8 +39,9 @@ namespace Osutag.Services
                         _settings = JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings) ?? new AppSettings();
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    System.Diagnostics.Debug.WriteLine($"Settings load failed, using defaults: {ex.Message}");
                     _settings = new AppSettings();
                 }
             }
@@ -55,9 +56,9 @@ namespace Osutag.Services
                     var json = JsonSerializer.Serialize(_settings, AppJsonContext.Default.AppSettings);
                     File.WriteAllText(SettingsFilePath, json);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Silently fail - settings are not critical
+                    System.Diagnostics.Debug.WriteLine($"Settings save failed: {ex.Message}");
                 }
             }
         }

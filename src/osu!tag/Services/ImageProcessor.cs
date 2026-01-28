@@ -55,7 +55,7 @@ namespace Osutag.Services
                  
                  image.SaveAsJpeg(outputPath);
              }
-             catch { }
+             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Image processing failed: {ex.Message}"); }
         }
     }
 }

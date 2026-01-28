@@ -81,7 +81,7 @@ namespace Osutag.Services
             // Wait with timeout (60 seconds should be enough for most audio files)
             if (!process.WaitForExit(60000))
             {
-                try { process.Kill(); } catch { }
+                try { process.Kill(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Process kill failed: {ex.Message}"); }
                 throw new Exception("FFmpeg process timed out after 60 seconds.");
             }
 

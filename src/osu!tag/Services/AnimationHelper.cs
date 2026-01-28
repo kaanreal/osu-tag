@@ -24,11 +24,11 @@ namespace Osutag.Services
         private static readonly BackEaseOut CachedBackEaseOut = new();
         private static readonly LinearEasing CachedLinearEasing = new();
         
-        // ===== CACHED DURATIONS =====
-        private static readonly TimeSpan EntranceDuration = TimeSpan.FromMilliseconds(500);
-        private static readonly TimeSpan OpacityDuration = TimeSpan.FromMilliseconds(400);
-        private static readonly TimeSpan HoverScaleDuration = TimeSpan.FromMilliseconds(200);
-        private static readonly TimeSpan HoverRotateDuration = TimeSpan.FromMilliseconds(150);
+        // ===== CACHED DURATIONS (Tuned for 240Hz+ responsiveness) =====
+        private static readonly TimeSpan EntranceDuration = TimeSpan.FromMilliseconds(350);
+        private static readonly TimeSpan OpacityDuration = TimeSpan.FromMilliseconds(280);
+        private static readonly TimeSpan HoverScaleDuration = TimeSpan.FromMilliseconds(150);
+        private static readonly TimeSpan HoverRotateDuration = TimeSpan.FromMilliseconds(120);
 
         // ===== CACHED TRANSITION TEMPLATES (cloned per-control to avoid shared state issues) =====
         private static Transitions CreateEntranceTranslateTransitions() => new()
@@ -83,8 +83,8 @@ namespace Osutag.Services
 
         private static long _lastStaggerTick;
         private static int _staggerCount;
-        private const int MaxStagger = 15;
-        private const int StaggerDelayMs = 30;
+        private const int MaxStagger = 12; // Reduced for faster batch appearance
+        private const int StaggerDelayMs = 20; // Faster stagger for high-Hz
 
         private static void OnEnableEntranceAnimationChanged(Control control, AvaloniaPropertyChangedEventArgs args)
         {
@@ -122,7 +122,7 @@ namespace Osutag.Services
             
             if (dt > 0.15) _staggerCount = 0;
             _lastStaggerTick = now;
-            var delayMs = Math.Min(_staggerCount * 20, 300); 
+            var delayMs = Math.Min(_staggerCount * 15, 200); // Faster stagger
             _staggerCount++;
 
             // Ensure RenderTransform exists and is compatible
@@ -214,7 +214,7 @@ namespace Osutag.Services
             private bool _isAnimating;
             private TimeSpan _lastTime;
             
-            private const double SmoothSpeed = 15.0; // Higher = Snappier, Lower = Smoother
+            private const double SmoothSpeed = 20.0; // Higher = Snappier (tuned for 240Hz+)
             private const double MaxTilt = 12.0;
 
             public TiltController(Control control) => _control = control;
@@ -259,8 +259,8 @@ namespace Osutag.Services
             {
                 if (!_isAnimating) return;
 
-                double dt = _lastTime == TimeSpan.Zero ? 0.016 : (time - _lastTime).TotalSeconds;
-                if (dt > 0.1) dt = 0.016;
+                double dt = _lastTime == TimeSpan.Zero ? 0.004 : (time - _lastTime).TotalSeconds; // Default to 250Hz
+                if (dt > 0.05) dt = 0.004; // Clamp large deltas (tab switch)
                 _lastTime = time;
 
                 // Exponential smoothing (Lerp)
@@ -384,9 +384,9 @@ namespace Osutag.Services
 
             // Pre-calculated constants to avoid per-frame division
             private const double ScrollStep = 100.0;
-            private const double InterpolationSpeed = 12.0;
-            private const double SnapThreshold = 0.1;
-            private const double MaxDeltaSeconds = 0.1;
+            private const double InterpolationSpeed = 20.0; // Higher = snappier (tuned for 240Hz+)
+            private const double SnapThreshold = 0.05; // Tighter snapping for precision
+            private const double MaxDeltaSeconds = 0.05; // 20fps minimum (prevents lerp overshoot)
 
             public SmoothScrollController(ScrollViewer sv)
             {
@@ -426,12 +426,13 @@ namespace Osutag.Services
                 double dt;
                 if (_lastTime == TimeSpan.Zero)
                 {
-                    dt = 0.016; // Assume ~60fps for first frame
+                    dt = 0.004; // Assume ~250fps for first frame on high-Hz displays
                 }
                 else
                 {
                     dt = (time - _lastTime).TotalSeconds;
-                    if (dt > MaxDeltaSeconds) dt = 0.016; // Clamp large deltas (tab switch, etc.)
+                    if (dt > MaxDeltaSeconds) dt = 0.004; // Clamp large deltas
+                    if (dt < 0.001) dt = 0.001; // Minimum delta to prevent division issues
                 }
                 _lastTime = time;
 
