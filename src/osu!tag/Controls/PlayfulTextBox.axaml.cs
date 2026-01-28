@@ -25,6 +25,13 @@ namespace Osutag.Controls
         private List<VisualCharacter> _activeCharacters = new List<VisualCharacter>();
         private IDisposable? _textSubscription;
 
+        // ===== CACHED INSTANCES (Avoid per-keystroke allocations) =====
+        private static readonly Random SharedRandom = new();
+        private static readonly BackEaseOut CachedBackEaseOut = new();
+        private static readonly CubicEaseIn CachedCubicEaseIn = new();
+        private static readonly TimeSpan PopInDuration = TimeSpan.FromMilliseconds(300);
+        private static readonly TimeSpan FallDuration = TimeSpan.FromMilliseconds(800);
+
         public static readonly StyledProperty<string> TextProperty =
             AvaloniaProperty.Register<PlayfulTextBox, string>(nameof(Text));
 
@@ -216,10 +223,9 @@ namespace Osutag.Controls
              
              var typeface = new Typeface(_inputBox.FontFamily, _inputBox.FontStyle, _inputBox.FontWeight, _inputBox.FontStretch);
 
-             // Center alignment adjustment?
-             // If Box is centered, we need total width.
-             var fullLayout = new TextLayout(text, typeface, this.FontSize, Brushes.Black);
-             double totalWidth = fullLayout.Width;
+             // Single TextLayout for both width calculation and hit testing (was creating 2)
+             var textLayout = new TextLayout(text, typeface, this.FontSize, Brushes.Black);
+             double totalWidth = textLayout.Width;
              double startOffset = 0;
 
              if (HorizontalContentAlignment == HorizontalAlignment.Center)
@@ -227,9 +233,6 @@ namespace Osutag.Controls
                  startOffset = (_inputBox.Bounds.Width - totalWidth) / 2;
                  if (startOffset < 0) startOffset = 0; // Left align if overflow
              }
-             
-             // TextLayout gives us precise positions
-             var textLayout = new TextLayout(text, typeface, this.FontSize, Brushes.Black);
              
              for (int i = 0; i < _activeCharacters.Count; i++)
              {
@@ -258,14 +261,13 @@ namespace Osutag.Controls
 
              if (scaleTransform == null || rotateTransform == null) return;
              
-             // Random slight rotation for playfulness (reduced for cleanliness)
-             var rnd = new Random();
-             double startAngle = rnd.Next(-5, 5);
+             // Random slight rotation for playfulness (using shared Random to avoid allocations)
+             double startAngle = SharedRandom.Next(-5, 5);
 
              var animation = new Animation
              {
-                 Duration = TimeSpan.FromMilliseconds(300),
-                 Easing = new BackEaseOut(), // Cleaner pop
+                 Duration = PopInDuration,
+                 Easing = CachedBackEaseOut, // Cached easing instance
                  Children = 
                  {
                      new KeyFrame
@@ -301,15 +303,14 @@ namespace Osutag.Controls
             // Bring to front
             control.ZIndex = 1000;
 
-            // Randomize fall direction slightly
-            var rnd = new Random();
-            double rotateTo = rnd.Next(-180, 180); // More dramatic rotation
-            double moveX = rnd.Next(-100, 100);    // Scatter more
+            // Randomize fall direction slightly (using shared Random to avoid allocations)
+            double rotateTo = SharedRandom.Next(-180, 180); // More dramatic rotation
+            double moveX = SharedRandom.Next(-100, 100);    // Scatter more
             
             var animation = new Animation
             {
-                Duration = TimeSpan.FromMilliseconds(800), // Longer fall time
-                Easing = new CubicEaseIn(), // Accelerate (Gravity)
+                Duration = FallDuration, // Cached duration
+                Easing = CachedCubicEaseIn, // Cached easing instance
                 FillMode = FillMode.Forward, 
                 Children = 
                 {

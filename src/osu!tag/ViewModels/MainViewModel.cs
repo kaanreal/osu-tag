@@ -1589,7 +1589,7 @@ namespace Osutag.ViewModels
                     // (We check for "Various Artists" to avoid flagging "Rate Packs" like Quadraphinix as Mixed Packs, since they have multiple MP3s but same Artist)
                     
                     bool metadataVaries = distinctTitles.Count > 1 || distinctArtists.Count > 1;
-                    bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+                    bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a?.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) == true);
                     
                     bool isMixedPack = metadataVaries || isVariousArtistsPack;
 
@@ -1984,7 +1984,7 @@ namespace Osutag.ViewModels
                         var distinctMp3s2 = allDiffsInGroup.Select(d => d.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
                         
                         bool metadataVaries2 = distinctTitles2.Count > 1 || distinctArtists2.Count > 1;
-                        bool isVariousArtistsPack2 = distinctMp3s2.Count > 1 && distinctArtists2.Any(a => a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+                        bool isVariousArtistsPack2 = distinctMp3s2.Count > 1 && distinctArtists2.Any(a => a?.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) == true);
 
                         bool isMixedPack2 = metadataVaries2 || isVariousArtistsPack2;
 
