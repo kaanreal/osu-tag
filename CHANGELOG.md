@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.1.0](https://github.com/kaanreal/osu-tag/compare/v2.0.2...v2.1.0) (2026-01-28)
+
+
+### ✨ New Features
+
+* * Add dynamic osu! background and theme support ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+* test ([#119](https://github.com/kaanreal/osu-tag/issues/119)) ([c52d715](https://github.com/kaanreal/osu-tag/commit/c52d71571df55bc8db9d3f459504bb08bad77965))
+
+
+### 🐞 Bug Fixes
+
+* * Improve Companella integration and settings UI ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+* * Improve error handling and UI responsiveness for high refresh rates ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+* * test fix ([6dbd96d](https://github.com/kaanreal/osu-tag/commit/6dbd96d9854dbd03a86088f37659e07e17fba3a1))
+* * test fix ([c52d715](https://github.com/kaanreal/osu-tag/commit/c52d71571df55bc8db9d3f459504bb08bad77965))
+
+
+### 🛠 Improvements
+
+* * Add FFmpeg download progress and status UI feedback ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+* * Improve theme application and window drag handling ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+* * Replace Miniaudio with FFmpeg for audio processing ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+* * test perf ([c52d715](https://github.com/kaanreal/osu-tag/commit/c52d71571df55bc8db9d3f459504bb08bad77965))
+
+
+### 🔧 Under the Hood
+
+* * Hide Spotify integration UI elements ([b0b05ff](https://github.com/kaanreal/osu-tag/commit/b0b05ffd4a151e5ad0923b755f13ab89fcfc2bff))
+
 ## [2.0.2](https://github.com/kaanreal/osu-tag/compare/v2.0.2...v2.0.2) (2026-01-28)
 
 
