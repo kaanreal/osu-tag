@@ -1,29 +1,31 @@
 name: 🔄 Auto-Sync Branches
 
 on:
-    push:
-        branches:
-            - main
+  push:
+    branches:
+      - main
 
 jobs:
-    sync-to-testing:
-        name: Sync Main to Testing
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-                  token: ${{ secrets.GITHUB_TOKEN }}
+  sync-to-testing:
+    name: Sync Main to Testing
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
-            - name: Merge main into testing
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "github-actions[bot]@users.noreply.github.com"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-                  git fetch origin
-                  git checkout testing
-                  git merge origin/main --no-edit
-                  git push origin testing
+      - name: Sync logic
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin testing
+
+          git checkout testing
+
+          git merge origin/main --no-edit -X theirs
+          git push origin testing
