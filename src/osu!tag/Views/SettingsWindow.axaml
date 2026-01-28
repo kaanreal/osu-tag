@@ -11,8 +11,7 @@
         TransparencyLevelHint="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
-        CanResize="False"
-        PointerPressed="OnPointerPressed">
+        CanResize="False">
 
     <Window.Styles>
         <!-- Modern Setting Card Style -->
@@ -56,7 +55,7 @@
             </Grid.RenderTransform>
 
             <!-- Title Bar / Header -->
-            <Border Grid.Row="0" Padding="40,32,40,20" Background="Transparent">
+            <Border Grid.Row="0" Padding="40,32,40,20" Background="Transparent" PointerPressed="OnPointerPressed">
                 <StackPanel Spacing="6">
                     <TextBlock Text="Settings" FontSize="36" FontWeight="Black" Foreground="{StaticResource TextPrimaryBrush}" LetterSpacing="-1"/>
                     <TextBlock Text="Personalize your audio processing experience" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}" Opacity="0.8"/>
@@ -69,7 +68,7 @@
                     <!-- Section Component Helper -->
                     <!-- Section: Appearance -->
                     <StackPanel Spacing="16">
-                        <TextBlock Text="APPEARANCE" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
+                        <TextBlock Text="APPEARANCE" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
                         
                         <Border Classes="SettingCard">
                             <StackPanel Spacing="24">
@@ -85,8 +84,10 @@
                                         <ComboBoxItem Content="Vivid Blue" Tag="#5B9FED"/>
                                         <ComboBoxItem Content="Emerald Green" Tag="#52C565"/>
                                         <ComboBoxItem Content="Deep Purple" Tag="#A37CF0"/>
+                                        <ComboBoxItem Content="osu! Dynamic" Tag="Dynamic"/>
                                     </ComboBox>
                                 </Grid>
+                                
 
                                 <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
@@ -95,7 +96,7 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Text="Preview Volume" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                         <TextBlock Grid.Column="1" Text="{Binding PreviewVolume, StringFormat='{}{0:0}%'}" 
-                                                   FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                                                   FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                                     </Grid>
                                     <Slider Minimum="0" Maximum="100" Value="{Binding PreviewVolume}" Margin="0,-4"/>
                                 </StackPanel>
@@ -105,7 +106,7 @@
 
                     <!-- Section: General -->
                     <StackPanel Spacing="16">
-                        <TextBlock Text="GENERAL" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
+                        <TextBlock Text="GENERAL" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
 
                         <Border Classes="SettingCard">
                             <StackPanel Spacing="20">
@@ -113,21 +114,53 @@
                                 <CheckBox Content="Create backups of original .osu files" IsChecked="{Binding CreateBackups}"/>
                                 <CheckBox Content="Remember last songs directory" IsChecked="{Binding RememberSongsPath}"/>
                                 <CheckBox Content="Smart scan (only process new/modified folders)" IsChecked="{Binding SmartScan}"/>
+
+                                <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
+
+                                <!-- osu! Installation Folder -->
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="osu! Installation Folder" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Required for Dynamic Background (Data/bg)" FontSize="12" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                        <TextBlock Text="{Binding OsuPath}" FontSize="10" Foreground="{DynamicResource AccentBrush}" Opacity="0.8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Locate..." Classes="Secondary" Click="BrowseOsuPath_Click" VerticalAlignment="Top" Padding="12,6"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
 
                     <!-- Section: Integrations -->
                     <StackPanel Spacing="16">
-                        <TextBlock Text="INTEGRATIONS" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
+                        <TextBlock Text="INTEGRATIONS" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
 
                         <Border Classes="SettingCard">
                             <StackPanel Spacing="24">
                                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsCompanellaSupported}">
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="10">
                                         <CheckBox Content="Sort by play count (Companella)" IsChecked="{Binding SortByMostPlayed}"/>
-                                        <TextBlock Text="{Binding CompanellaStatus}" FontSize="11" Foreground="{StaticResource SuccessBrush}" Margin="32,0,0,0"/>
+                                        
+                                        <StackPanel Margin="32,-4,0,0" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Ellipse Width="6" Height="6" Fill="{Binding SessionsDbColor}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="sessions.db" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding SessionsDbStatus}" FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="2,0,0,0" Opacity="0.7"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Ellipse Width="6" Height="6" Fill="{Binding MapsDbColor}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="maps.db" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                    <TextBlock Text="{Binding MapsDbStatus}" FontSize="10" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center" Margin="2,0,0,0" Opacity="0.7"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            
+                                            <TextBlock Text="Get Companella" 
+                                                       FontSize="11" Foreground="{DynamicResource AccentBrush}" 
+                                                       Cursor="Hand" PointerPressed="DownloadCompanella_Click"
+                                                       TextDecorations="Underline" Margin="0,2,0,0" Opacity="0.8"/>
+                                        </StackPanel>
                                     </StackPanel>
+                                    <Button Grid.Column="1" Content="Locate..." Classes="Secondary" Click="BrowseCompanella_Click" VerticalAlignment="Top" Padding="12,6"/>
                                 </Grid>
 
                                 <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
@@ -137,7 +170,7 @@
 
                                 <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
-                                <StackPanel Spacing="12">
+                                <StackPanel Spacing="12" IsVisible="False">
                                     <TextBlock Text="Spotify Integration" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Add your Spotify API credentials to see which songs are on Spotify." FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                                     
@@ -151,7 +184,7 @@
                                         <TextBox Text="{Binding SpotifyClientSecret}" Watermark="Enter Client Secret" PasswordChar="*" Classes="Modern"/>
                                     </StackPanel>
 
-                                    <TextBlock Text="You can get these from the Spotify Developer Dashboard." FontSize="10" Foreground="{StaticResource AccentBrush}" Cursor="Hand" PointerPressed="SpotifyHelp_PointerPressed"/>
+                                    <TextBlock Text="You can get these from the Spotify Developer Dashboard." FontSize="10" Foreground="{DynamicResource AccentBrush}" Cursor="Hand" PointerPressed="SpotifyHelp_PointerPressed"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -159,7 +192,7 @@
 
                     <!-- Section: Maintenance & Advanced -->
                     <StackPanel Spacing="16">
-                        <TextBlock Text="MAINTENANCE" FontSize="11" FontWeight="Heavy" Foreground="{StaticResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
+                        <TextBlock Text="MAINTENANCE" FontSize="11" FontWeight="Heavy" Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" Margin="4,0"/>
 
                         <Border Classes="SettingCard">
                             <StackPanel Spacing="24">

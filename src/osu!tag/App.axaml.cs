@@ -65,11 +65,17 @@ public partial class App : Application
                 if (Application.Current.Resources.TryGetValue("AccentBrush", out var brushObj) && 
                     brushObj is Avalonia.Media.SolidColorBrush brush)
                 {
-                    // Create a new brush instead of modifying the existing one
+                    brush.Color = color;
+                }
+                else
+                {
                     Application.Current.Resources["AccentBrush"] = new Avalonia.Media.SolidColorBrush(color);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AccentBrush update failed: {ex.Message}");
+            }
             
             // Update AccentHoverBrush
             try
@@ -77,10 +83,17 @@ public partial class App : Application
                 if (Application.Current.Resources.TryGetValue("AccentHoverBrush", out var hoverObj) && 
                     hoverObj is Avalonia.Media.SolidColorBrush hoverBrush)
                 {
+                    hoverBrush.Color = color;
+                }
+                else
+                {
                     Application.Current.Resources["AccentHoverBrush"] = new Avalonia.Media.SolidColorBrush(color);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AccentHoverBrush update failed: {ex.Message}");
+            }
 
             // Update AccentShadow
             try
@@ -94,19 +107,29 @@ public partial class App : Application
                 
                 Application.Current.Resources["AccentShadow"] = shadow;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AccentShadow update failed: {ex.Message}");
+            }
             
             // Update AccentSubtleBrush
             try
             {
+                var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
                 if (Application.Current.Resources.TryGetValue("AccentSubtleBrush", out var subtleObj) && 
                     subtleObj is Avalonia.Media.SolidColorBrush subtleBrush)
                 {
-                    var subtleColor = Avalonia.Media.Color.FromUInt32((0x4D000000 | (uint)(color.R << 16) | (uint)(color.G << 8) | color.B));
+                    subtleBrush.Color = subtleColor;
+                }
+                else
+                {
                     Application.Current.Resources["AccentSubtleBrush"] = new Avalonia.Media.SolidColorBrush(subtleColor);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AccentSubtleBrush update failed: {ex.Message}");
+            }
 
             // Update AccentHoverShadow
             try
@@ -119,7 +142,10 @@ public partial class App : Application
                 });
                 Application.Current.Resources["AccentHoverShadow"] = hoverShadow;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"AccentHoverShadow update failed: {ex.Message}");
+            }
 
             // Update SelectionGlow
             try
@@ -133,8 +159,14 @@ public partial class App : Application
                 });
                 Application.Current.Resources["SelectionGlow"] = glow;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SelectionGlow update failed: {ex.Message}");
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ApplyTheme failed: {ex.Message}");
+        }
     }
 }

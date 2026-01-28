@@ -5,7 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Osutag.Services;
-using Osutag.Views;
+using Osutag.ViewModels;
+using Avalonia.Platform.Storage;
 
 namespace Osutag.Views
 {
@@ -60,6 +61,13 @@ namespace Osutag.Views
             set => SetValue(DiscordRpcEnabledProperty, value);
         }
 
+        public static readonly StyledProperty<bool> DynamicBackgroundEnabledProperty = AvaloniaProperty.Register<SettingsWindow, bool>(nameof(DynamicBackgroundEnabled));
+        public bool DynamicBackgroundEnabled
+        {
+            get => GetValue(DynamicBackgroundEnabledProperty);
+            set => SetValue(DynamicBackgroundEnabledProperty, value);
+        }
+
         public static readonly StyledProperty<bool> CheckForUpdatesProperty = AvaloniaProperty.Register<SettingsWindow, bool>(nameof(CheckForUpdates));
         public bool CheckForUpdates
         {
@@ -90,11 +98,49 @@ namespace Osutag.Views
             set => SetValue(SelectedThemeProperty, value);
         }
 
+        public static readonly StyledProperty<string> SessionsDbStatusProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(SessionsDbStatus), "Not Found");
+        public string SessionsDbStatus
+        {
+            get => GetValue(SessionsDbStatusProperty);
+            set => SetValue(SessionsDbStatusProperty, value);
+        }
+
+        public static readonly StyledProperty<Avalonia.Media.IBrush> SessionsDbColorProperty = AvaloniaProperty.Register<SettingsWindow, Avalonia.Media.IBrush>(nameof(SessionsDbColor), Avalonia.Media.Brushes.Red);
+        public Avalonia.Media.IBrush SessionsDbColor
+        {
+            get => GetValue(SessionsDbColorProperty);
+            set => SetValue(SessionsDbColorProperty, value);
+        }
+
+        public static readonly StyledProperty<string> MapsDbStatusProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(MapsDbStatus), "Not Found");
+        public string MapsDbStatus
+        {
+            get => GetValue(MapsDbStatusProperty);
+            set => SetValue(MapsDbStatusProperty, value);
+        }
+
+        public static readonly StyledProperty<Avalonia.Media.IBrush> MapsDbColorProperty = AvaloniaProperty.Register<SettingsWindow, Avalonia.Media.IBrush>(nameof(MapsDbColor), Avalonia.Media.Brushes.Red);
+        public Avalonia.Media.IBrush MapsDbColor
+        {
+            get => GetValue(MapsDbColorProperty);
+            set => SetValue(MapsDbColorProperty, value);
+        }
+
         public string AppVersion => "v" + Osutag.Services.AppVersion.Current;
+
+        public static readonly StyledProperty<string> OsuPathProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(OsuPath), "");
+        public string OsuPath
+        {
+            get => GetValue(OsuPathProperty);
+            set => SetValue(OsuPathProperty, value);
+        }
 
         static SettingsWindow()
         {
             PreviewVolumeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnPreviewVolumeChanged(e));
+            SelectedThemeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSelectedThemeChanged(e));
+            SortByMostPlayedProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSortByMostPlayedChanged(e));
+            DynamicBackgroundEnabledProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnDynamicBackgroundEnabledChanged(e));
         }
 
         private void OnPreviewVolumeChanged(AvaloniaPropertyChangedEventArgs e)
@@ -103,6 +149,55 @@ namespace Osutag.Views
             {
                 AudioService.Instance.Volume = (int)volume;
                 SettingsService.Settings.PreviewVolume = volume;
+            }
+        }
+
+        private void OnSelectedThemeChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is string themeTag)
+            {
+                if (themeTag == "Dynamic")
+                {
+                    DynamicBackgroundEnabled = true;
+                }
+                else
+                {
+                    DynamicBackgroundEnabled = false;
+                    App.ApplyTheme(themeTag);
+                }
+                SettingsService.Settings.ThemeColor = themeTag;
+                SettingsService.Save();
+            }
+        }
+
+        private async void OnSortByMostPlayedChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is bool enabled)
+            {
+                SettingsService.Settings.SortByMostPlayed = enabled;
+                SettingsService.Save();
+                
+                // Trigger immediate re-sort in MainViewModel if possible
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    await mainVm.RefreshCompanellaSorting();
+                }
+            }
+        }
+
+        private void OnDynamicBackgroundEnabledChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is bool enabled)
+            {
+                SettingsService.Settings.DynamicBackgroundEnabled = enabled;
+                SettingsService.Save();
+
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    mainVm.DynamicBackgroundEnabled = enabled;
+                }
             }
         }
 
@@ -148,32 +243,128 @@ namespace Osutag.Views
 
         private void ThemeComboBox_SelectionChanged(object? sender, Avalonia.Controls.SelectionChangedEventArgs e)
         {
-            if (ThemeComboBox.SelectedItem is ComboBoxItem item && item.Tag is string hexColor)
+            if (ThemeComboBox.SelectedItem is ComboBoxItem item && item.Tag is string tag)
             {
-                SelectedTheme = hexColor;
+                SelectedTheme = tag;
             }
         }
 
         private void AutoDiscoverCompanella()
         {
+            string? companellaPath = SettingsService.Settings.CompanellaPath;
+
+            if (string.IsNullOrEmpty(companellaPath))
+            {
+                companellaPath = PlatformService.GetDefaultCompanellaPath();
+            }
+            
+            UpdateCompanellaStatus(companellaPath);
+        }
+
+        private void UpdateCompanellaStatus(string path)
+        {
             try
             {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string companellaPath = Path.Combine(localAppData, "Companella");
-                
-                if (Directory.Exists(companellaPath))
+                if (string.IsNullOrEmpty(path))
                 {
-                    CompanellaStatus = $"Found Companella data under settings.";
+                    SessionsDbStatus = "Path not set";
+                    SessionsDbColor = Avalonia.Media.Brushes.Gray;
+                    MapsDbStatus = "Path not set";
+                    MapsDbColor = Avalonia.Media.Brushes.Gray;
+                    CompanellaStatus = "Companella location unknown.";
+                    return;
+                }
+
+                bool sessionsExists = File.Exists(Path.Combine(path, "sessions.db"));
+                bool mapsExists = File.Exists(Path.Combine(path, "maps.db"));
+
+                SessionsDbStatus = sessionsExists ? "Detected" : "Not Found";
+                SessionsDbColor = sessionsExists ? Avalonia.Media.Brushes.LimeGreen : Avalonia.Media.Brushes.Red;
+
+                MapsDbStatus = mapsExists ? "Detected" : "Not Found";
+                MapsDbColor = mapsExists ? Avalonia.Media.Brushes.LimeGreen : Avalonia.Media.Brushes.Red;
+
+                if (sessionsExists && mapsExists)
+                {
+                    CompanellaStatus = "Companella detected.";
+                }
+                else if (sessionsExists || mapsExists)
+                {
+                    CompanellaStatus = "Companella partially detected.";
                 }
                 else
                 {
-                    CompanellaStatus = "Companella not found.";
+                    CompanellaStatus = "Companella not detected.";
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                CompanellaStatus = "Error scanning for Companella.";
+                System.Diagnostics.Debug.WriteLine($"UpdateCompanellaStatus failed: {ex.Message}");
+                CompanellaStatus = "Error checking Companella status.";
             }
+        }
+
+        public async void BrowseCompanella_Click(object? sender, RoutedEventArgs e)
+        {
+            var storage = this.StorageProvider;
+            IStorageFolder? startFolder = null;
+            if (!string.IsNullOrEmpty(SettingsService.Settings.CompanellaPath))
+            {
+                try { startFolder = await storage.TryGetFolderFromPathAsync(SettingsService.Settings.CompanellaPath); }
+                catch { /* Ignore if path is invalid */ }
+            }
+
+            var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select Companella Installation Folder",
+                SuggestedStartLocation = startFolder,
+                AllowMultiple = false
+            });
+
+            if (folders.Count > 0)
+            {
+                var result = folders[0].Path.LocalPath;
+                SettingsService.Settings.CompanellaPath = result;
+                UpdateCompanellaStatus(result);
+            }
+        }
+
+        public async void BrowseOsuPath_Click(object? sender, RoutedEventArgs e)
+        {
+            var storage = this.StorageProvider;
+            IStorageFolder? startFolder = null;
+            if (!string.IsNullOrEmpty(SettingsService.Settings.OsuPath))
+            {
+                try { startFolder = await storage.TryGetFolderFromPathAsync(SettingsService.Settings.OsuPath); }
+                catch { /* Ignore if path is invalid */ }
+            }
+
+            var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select osu! Installation Folder",
+                SuggestedStartLocation = startFolder,
+                AllowMultiple = false
+            });
+
+            if (folders.Count > 0)
+            {
+                var result = folders[0].Path.LocalPath;
+                OsuPath = result;
+                SettingsService.Settings.OsuPath = result;
+                SettingsService.Save();
+                
+                // Notify MainViewModel
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
+                {
+                    mainVm.OsuPath = result;
+                }
+            }
+        }
+
+        public void DownloadCompanella_Click(object? sender, PointerPressedEventArgs e)
+        {
+            PlatformService.OpenUrl("https://github.com/Leinadix/companella");
         }
 
         public void ClearCache_Click(object? sender, RoutedEventArgs e)
@@ -188,7 +379,10 @@ namespace Osutag.Views
                 SettingsService.Settings.ScannedFolders = "";
                 SettingsService.Save();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ClearCache failed: {ex.Message}");
+            }
         }
 
         private void LoadSettings()
@@ -203,6 +397,8 @@ namespace Osutag.Views
             CheckForUpdates = SettingsService.Settings.CheckForUpdates;
             PreviewVolume = SettingsService.Settings.PreviewVolume;
             SelectedTheme = SettingsService.Settings.ThemeColor;
+            DynamicBackgroundEnabled = SettingsService.Settings.DynamicBackgroundEnabled;
+            OsuPath = SettingsService.Settings.OsuPath;
             SpotifyClientId = SettingsService.Settings.SpotifyClientId;
             SpotifyClientSecret = SettingsService.Settings.SpotifyClientSecret;
         }
@@ -222,6 +418,8 @@ namespace Osutag.Views
                 SettingsService.Settings.CheckForUpdates = CheckForUpdates;
                 SettingsService.Settings.PreviewVolume = PreviewVolume;
                 SettingsService.Settings.ThemeColor = SelectedTheme;
+                SettingsService.Settings.DynamicBackgroundEnabled = (SelectedTheme == "Dynamic");
+                SettingsService.Settings.OsuPath = OsuPath;
                 SettingsService.Settings.SpotifyClientId = SpotifyClientId;
                 SettingsService.Settings.SpotifyClientSecret = SpotifyClientSecret;
                 SettingsService.Save();
@@ -296,7 +494,10 @@ namespace Osutag.Views
 
         private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            BeginMoveDrag(e);
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                BeginMoveDrag(e);
+            }
         }
 
         private void SpotifyHelp_PointerPressed(object? sender, PointerPressedEventArgs e)

@@ -24,11 +24,11 @@ namespace Osutag.Services
         private static readonly BackEaseOut CachedBackEaseOut = new();
         private static readonly LinearEasing CachedLinearEasing = new();
         
-        // ===== CACHED DURATIONS =====
-        private static readonly TimeSpan EntranceDuration = TimeSpan.FromMilliseconds(500);
-        private static readonly TimeSpan OpacityDuration = TimeSpan.FromMilliseconds(400);
-        private static readonly TimeSpan HoverScaleDuration = TimeSpan.FromMilliseconds(200);
-        private static readonly TimeSpan HoverRotateDuration = TimeSpan.FromMilliseconds(150);
+        // ===== CACHED DURATIONS (Tuned for 240Hz+ responsiveness) =====
+        private static readonly TimeSpan EntranceDuration = TimeSpan.FromMilliseconds(350);
+        private static readonly TimeSpan OpacityDuration = TimeSpan.FromMilliseconds(280);
+        private static readonly TimeSpan HoverScaleDuration = TimeSpan.FromMilliseconds(150);
+        private static readonly TimeSpan HoverRotateDuration = TimeSpan.FromMilliseconds(120);
 
         // ===== CACHED TRANSITION TEMPLATES (cloned per-control to avoid shared state issues) =====
         private static Transitions CreateEntranceTranslateTransitions() => new()
@@ -83,8 +83,8 @@ namespace Osutag.Services
 
         private static long _lastStaggerTick;
         private static int _staggerCount;
-        private const int MaxStagger = 15;
-        private const int StaggerDelayMs = 30;
+        private const int MaxStagger = 12; // Reduced for faster batch appearance
+        private const int StaggerDelayMs = 20; // Faster stagger for high-Hz
 
         private static void OnEnableEntranceAnimationChanged(Control control, AvaloniaPropertyChangedEventArgs args)
         {
@@ -122,7 +122,7 @@ namespace Osutag.Services
             
             if (dt > 0.15) _staggerCount = 0;
             _lastStaggerTick = now;
-            var delayMs = Math.Min(_staggerCount * 20, 300); 
+            var delayMs = Math.Min(_staggerCount * 15, 200); // Faster stagger
             _staggerCount++;
 
             // Ensure RenderTransform exists and is compatible
@@ -179,72 +179,179 @@ namespace Osutag.Services
 
         #endregion
 
-        #region Hover Animation
-
         public static readonly AttachedProperty<bool> EnableHoverAnimationProperty =
             AvaloniaProperty.RegisterAttached<Control, bool>("EnableHoverAnimation", typeof(AnimationHelper));
 
         public static bool GetEnableHoverAnimation(Control element) => element.GetValue(EnableHoverAnimationProperty);
         public static void SetEnableHoverAnimation(Control element, bool value) => element.SetValue(EnableHoverAnimationProperty, value);
 
+        private static readonly ConditionalWeakTable<Control, TiltController> _tiltControllers = new();
+
         private static void OnEnableHoverAnimationChanged(Control control, AvaloniaPropertyChangedEventArgs args)
         {
             if (args.NewValue is true)
             {
-                control.PointerEntered += OnPointerEntered;
-                control.PointerMoved += OnPointerMoved;
-                control.PointerExited += OnPointerExited;
+                if (!_tiltControllers.TryGetValue(control, out var controller))
+                {
+                    controller = new TiltController(control);
+                    _tiltControllers.Add(control, controller);
+                }
+                control.PointerEntered += controller.HandlePointerEntered;
+                control.PointerMoved += controller.HandlePointerMoved;
+                control.PointerExited += controller.HandlePointerExited;
             }
         }
 
-        private static void OnPointerEntered(object? sender, PointerEventArgs e)
+        private class TiltController
         {
-            if (sender is Control control)
+            private readonly Control _control;
+            private double _targetAngleX, _targetAngleY;
+            private double _currentAngleX, _currentAngleY;
+            private double _targetScale = 1.0;
+            private double _currentScale = 1.0;
+            private double _glareOpacity;
+            private double _targetGlareOpacity;
+            private bool _isAnimating;
+            private TimeSpan _lastTime;
+            
+            private const double SmoothSpeed = 20.0; // Higher = Snappier (tuned for 240Hz+)
+            private const double MaxTilt = 12.0;
+
+            public TiltController(Control control) => _control = control;
+
+            public void HandlePointerEntered(object? sender, PointerEventArgs e)
             {
-                if (control.RenderTransform is not TransformGroup)
-                {
-                    var group = new TransformGroup();
-                    var scale = new ScaleTransform();
-                    scale.Transitions = CreateHoverScaleTransitions();
-                    group.Children.Add(scale);
-                    var rot3D = new Rotate3DTransform { Depth = 800 };
-                    rot3D.Transitions = CreateHoverRotateTransitions();
-                    group.Children.Add(rot3D);
-                    control.RenderTransform = group;
-                }
+                _targetScale = 1.05;
+                _targetGlareOpacity = 0.6;
+                StartAnimation();
+            }
+
+            public void HandlePointerMoved(object? sender, PointerEventArgs e)
+            {
+                var p = e.GetPosition(_control);
+                var nx = (p.X / _control.Bounds.Width) * 2.0 - 1.0;
+                var ny = (p.Y / _control.Bounds.Height) * 2.0 - 1.0;
                 
-                if (control.RenderTransform is TransformGroup g && g.Children[0] is ScaleTransform s)
+                _targetAngleY = -nx * MaxTilt;
+                _targetAngleX = ny * MaxTilt;
+                _targetGlareOpacity = 0.4 + (Math.Abs(nx) + Math.Abs(ny)) * 0.4;
+                
+                StartAnimation();
+            }
+
+            public void HandlePointerExited(object? sender, PointerEventArgs e)
+            {
+                _targetAngleX = 0;
+                _targetAngleY = 0;
+                _targetScale = 1.0;
+                _targetGlareOpacity = 0;
+            }
+
+            private void StartAnimation()
+            {
+                if (_isAnimating) return;
+                _isAnimating = true;
+                _lastTime = TimeSpan.Zero;
+                TopLevel.GetTopLevel(_control)?.RequestAnimationFrame(Animate);
+            }
+
+            private void Animate(TimeSpan time)
+            {
+                if (!_isAnimating) return;
+
+                double dt = _lastTime == TimeSpan.Zero ? 0.004 : (time - _lastTime).TotalSeconds; // Default to 250Hz
+                if (dt > 0.05) dt = 0.004; // Clamp large deltas (tab switch)
+                _lastTime = time;
+
+                // Exponential smoothing (Lerp)
+                var factor = 1.0 - Math.Exp(-SmoothSpeed * dt);
+                _currentAngleX += (_targetAngleX - _currentAngleX) * factor;
+                _currentAngleY += (_targetAngleY - _currentAngleY) * factor;
+                _currentScale += (_targetScale - _currentScale) * factor;
+                _glareOpacity += (_targetGlareOpacity - _glareOpacity) * factor;
+
+                ApplyTransforms();
+
+                // Stop if we are close enough to targets
+                bool atTarget = Math.Abs(_targetAngleX - _currentAngleX) < 0.01 && 
+                               Math.Abs(_targetAngleY - _currentAngleY) < 0.01 &&
+                               Math.Abs(_targetScale - _currentScale) < 0.001 &&
+                               Math.Abs(_targetGlareOpacity - _glareOpacity) < 0.01;
+
+                if (atTarget && _targetScale == 1.0)
                 {
-                    s.ScaleX = 1.05;
-                    s.ScaleY = 1.05;
+                    _isAnimating = false;
+                    return;
+                }
+
+                TopLevel.GetTopLevel(_control)?.RequestAnimationFrame(Animate);
+            }
+
+            private void ApplyTransforms()
+            {
+                if (_control.RenderTransform is not TransformGroup group)
+                {
+                    group = new TransformGroup();
+                    group.Children.Add(new ScaleTransform());
+                    group.Children.Add(new Rotate3DTransform { Depth = 800 });
+                    _control.RenderTransform = group;
+                }
+
+                var s = (ScaleTransform)group.Children[0];
+                var r = (Rotate3DTransform)group.Children[1];
+
+                s.ScaleX = _currentScale;
+                s.ScaleY = _currentScale;
+                
+                r.CenterX = _control.Bounds.Width / 2;
+                r.CenterY = _control.Bounds.Height / 2;
+                r.AngleX = _currentAngleX;
+                r.AngleY = _currentAngleY;
+
+                // Dynamic Shadow Depth
+                if (_control is Border b)
+                {
+                    var offX = -_currentAngleY * 0.8;
+                    var offY = _currentAngleX * 0.8;
+                    var blur = 15 + Math.Abs(_currentAngleX) + Math.Abs(_currentAngleY);
+                    b.BoxShadow = new BoxShadows(new BoxShadow 
+                    { 
+                        OffsetX = offX, 
+                        OffsetY = 15 + offY, 
+                        Blur = blur, 
+                        Color = Color.FromArgb(80, 0, 0, 0) 
+                    });
+                }
+
+                // Enhanced Glare
+                var glare = FindVisualChildByName(_control, "GlareLayer") as Border;
+                if (glare != null)
+                {
+                    glare.Opacity = _glareOpacity;
+                    if (glare.Background is LinearGradientBrush lgb)
+                    {
+                        var nx = -_currentAngleY / MaxTilt;
+                        var ny = _currentAngleX / MaxTilt;
+                        lgb.StartPoint = new RelativePoint(0.5 - nx, 0.5 - ny, RelativeUnit.Relative);
+                        lgb.EndPoint = new RelativePoint(0.5 + nx, 0.5 + ny, RelativeUnit.Relative);
+                    }
                 }
             }
-        }
 
-        private static void OnPointerMoved(object? sender, PointerEventArgs e)
-        {
-            if (sender is Control control && control.RenderTransform is TransformGroup group && group.Children.Count > 1 && group.Children[1] is Rotate3DTransform rot3D)
+            private static Visual? FindVisualChildByName(Visual? parent, string name)
             {
-                var p = e.GetPosition(control);
-                rot3D.CenterX = control.Bounds.Width / 2;
-                rot3D.CenterY = control.Bounds.Height / 2;
-                var nx = (p.X / control.Bounds.Width) * 2.0 - 1.0;
-                var ny = (p.Y / control.Bounds.Height) * 2.0 - 1.0;
-                rot3D.AngleY = -nx * 6.0;
-                rot3D.AngleX = ny * 6.0;
+                if (parent == null) return null;
+                if (parent is Control c && c.Name == name) return parent;
+
+                foreach (var child in Avalonia.VisualTree.VisualExtensions.GetVisualChildren(parent))
+                {
+                    var found = FindVisualChildByName(child, name);
+                    if (found != null) return found;
+                }
+                return null;
             }
         }
 
-        private static void OnPointerExited(object? sender, PointerEventArgs e)
-        {
-            if (sender is Control control && control.RenderTransform is TransformGroup group)
-            {
-                if (group.Children[0] is ScaleTransform s) { s.ScaleX = 1.0; s.ScaleY = 1.0; }
-                if (group.Children.Count > 1 && group.Children[1] is Rotate3DTransform r) { r.AngleX = 0; r.AngleY = 0; }
-            }
-        }
-
-        #endregion
 
         #region Smooth Scrolling (High-Precision Fixed Step)
 
@@ -277,9 +384,9 @@ namespace Osutag.Services
 
             // Pre-calculated constants to avoid per-frame division
             private const double ScrollStep = 100.0;
-            private const double InterpolationSpeed = 12.0;
-            private const double SnapThreshold = 0.1;
-            private const double MaxDeltaSeconds = 0.1;
+            private const double InterpolationSpeed = 20.0; // Higher = snappier (tuned for 240Hz+)
+            private const double SnapThreshold = 0.05; // Tighter snapping for precision
+            private const double MaxDeltaSeconds = 0.05; // 20fps minimum (prevents lerp overshoot)
 
             public SmoothScrollController(ScrollViewer sv)
             {
@@ -319,12 +426,13 @@ namespace Osutag.Services
                 double dt;
                 if (_lastTime == TimeSpan.Zero)
                 {
-                    dt = 0.016; // Assume ~60fps for first frame
+                    dt = 0.004; // Assume ~250fps for first frame on high-Hz displays
                 }
                 else
                 {
                     dt = (time - _lastTime).TotalSeconds;
-                    if (dt > MaxDeltaSeconds) dt = 0.016; // Clamp large deltas (tab switch, etc.)
+                    if (dt > MaxDeltaSeconds) dt = 0.004; // Clamp large deltas
+                    if (dt < 0.001) dt = 0.001; // Minimum delta to prevent division issues
                 }
                 _lastTime = time;
 

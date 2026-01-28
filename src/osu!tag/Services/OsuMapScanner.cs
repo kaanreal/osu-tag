@@ -116,9 +116,9 @@ namespace Osutag.Services
                         results.Add(map);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore errors
+                System.Diagnostics.Debug.WriteLine($"Folder scan error for {folder}: {ex.Message}");
             }
 
             return results;
@@ -362,8 +362,9 @@ namespace Osutag.Services
 
                 return metadata;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"ParseOsuFile error for {filePath}: {ex.Message}");
                 return null;
             }
         }

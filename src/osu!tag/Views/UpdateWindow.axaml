@@ -51,7 +51,7 @@
                                            <Setter Property="FontSize" Value="14"/>
                                        </Style>
                                        <Style Selector="ctxt|CTextBlock.Heading1">
-                                           <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                           <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
                                            <Setter Property="FontSize" Value="18"/>
                                            <Setter Property="FontWeight" Value="Bold"/>
                                        </Style>
@@ -83,7 +83,7 @@
                     <StackPanel Name="ProgressPanel" IsVisible="False" VerticalAlignment="Center" Spacing="8">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Text="Downloading update..." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Name="ProgressText" Text="0%" FontSize="13" FontWeight="Bold" Grid.Column="1" Foreground="{StaticResource AccentBrush}"/>
+                            <TextBlock Name="ProgressText" Text="0%" FontSize="13" FontWeight="Bold" Grid.Column="1" Foreground="{DynamicResource AccentBrush}"/>
                         </Grid>
                         <ProgressBar Name="DownloadProgressBar" Minimum="0" Maximum="100" Value="0" Height="6"/>
                     </StackPanel>

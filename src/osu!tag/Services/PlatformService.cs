@@ -66,7 +66,7 @@ namespace Osutag.Services
             {
                 return System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "companella"
+                    "Companella"
                 );
             }
             else if (IsMacOS)

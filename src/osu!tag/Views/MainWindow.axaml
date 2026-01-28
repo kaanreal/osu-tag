@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Osutag.ViewModels"
         xmlns:converters="using:Osutag.Converters"
@@ -17,8 +17,7 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         WindowStartupLocation="CenterScreen"
-        CanResize="True"
-        PointerPressed="OnPointerPressed">
+        CanResize="True">
     
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -42,7 +41,7 @@
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:1.0" Easing="QuinticEaseInOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.6" Easing="QuinticEaseInOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -54,8 +53,8 @@
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.5" Easing="QuinticEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.5" Easing="QuinticEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -64,8 +63,8 @@
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.6" Easing="QuinticEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.6" Easing="QuinticEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
@@ -99,8 +98,34 @@
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*" Name="RootGrid">
+        <Panel Name="DynamicBackgroundLayer" Grid.RowSpan="2" IsHitTestVisible="False" IsVisible="{Binding DynamicBackgroundEnabled}" Background="#0A0E14">
+            <Panel.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:1.5" Easing="QuinticEaseInOut" />
+                </Transitions>
+            </Panel.Transitions>
+            
+            <Image Source="{Binding CurrentBackground}" Stretch="UniformToFill" Opacity="{Binding BackgroundOpacity}">
+                <Image.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:1.5" Easing="QuinticEaseInOut" />
+                    </Transitions>
+                </Image.Transitions>
+            </Image>
+            
+            <Image Source="{Binding NextBackground}" Stretch="UniformToFill" Opacity="{Binding NextBackgroundOpacity}">
+                <Image.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:1.5" Easing="QuinticEaseInOut" />
+                    </Transitions>
+                </Image.Transitions>
+            </Image>
+
+            <!-- Overlay to ensure readability -->
+            <Border Background="{DynamicResource BackgroundBrush}" Opacity="0.45" />
+        </Panel>
         <!-- Custom Title Bar (Always reserves space, buttons visible only on Windows) -->
-        <Panel Grid.Row="0" IsHitTestVisible="True" Height="32" Background="Transparent">
+        <Panel Grid.Row="0" IsHitTestVisible="True" Height="32" Background="Transparent" PointerPressed="OnPointerPressed">
              <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsWindows}">
                 <!-- Spacing for title bar buttons -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
@@ -121,7 +146,7 @@
         <!-- Premium Header -->
         <Border Grid.Row="0" Background="{StaticResource SurfaceElevatedBrush}" 
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
-                Classes="AnimatedOpacity"
+                Classes="AnimatedOpacity" Opacity="0.85"
                 BoxShadow="0 4 20 0 #1A000000">
             
             <Grid Margin="32,0">
@@ -227,11 +252,11 @@
                 <StackPanel Grid.Row="0" Spacing="24" Margin="0,0,0,24">
                     <!-- osu! Songs Path -->
                     <Border Background="{StaticResource SurfaceElevatedBrush}" 
-                            CornerRadius="16" Padding="20" 
+                            CornerRadius="16" Padding="20" Opacity="0.85"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                         <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                             <PathIcon Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" 
-                                      Foreground="{StaticResource AccentBrush}" Width="20" Height="20" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                                      Foreground="{DynamicResource AccentBrush}" Width="20" Height="20" Margin="0,0,16,0" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="osu! Songs Path" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
                                 <TextBlock Text="{Binding SelectedPath}" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
@@ -316,7 +341,7 @@
                                 BorderThickness="1">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
                                      <PathIcon Data="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2v-3h2v3zm4 0h-2v-5h2v5z"
-                                               Foreground="{StaticResource AccentBrush}" Width="16" Height="16" VerticalAlignment="Center"/>
+                                               Foreground="{DynamicResource AccentBrush}" Width="16" Height="16" VerticalAlignment="Center"/>
                                      <TextBlock Text="{Binding FilteredMaps.Count}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                  <TextBlock Text="results" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -375,6 +400,21 @@
                                                 <Style Selector="Button:pointerover /template/ Border#HoverShadow">
                                                     <Setter Property="Opacity" Value="1"/>
                                                 </Style>
+                                                <!-- Hover Glow for Artist Text -->
+                                                <Style Selector="Button:pointerover TextBlock.ArtistGlow">
+                                                    <Setter Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="8" Opacity="0.6"/>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                                <Style Selector="Button.Selected TextBlock.ArtistGlow">
+                                                    <Setter Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="8" Opacity="0.6"/>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
                                             </Button.Styles>
                                             
                                             <Button.ContextMenu>
@@ -390,7 +430,7 @@
                                                         <MenuItem.Icon><PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></MenuItem.Icon>
                                                     </MenuItem>
                                                     <MenuItem Header="Spotify Track" 
-                                                              IsVisible="{Binding IsOnSpotify}"
+                                                              IsVisible="False"
                                                   Command="{Binding #Root.((vm:MainViewModel)DataContext).OpenSpotifyUrlCommand}" 
                                                               CommandParameter="{Binding}">
                                                         <MenuItem.Icon><PathIcon Data="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 17.3c-.2.4-.7.5-1.1.3-2.8-1.7-6.4-2.1-10.6-1.1-.5.1-.9-.2-1-.6-.1-.5.2-.9.6-1 4.6-1.1 8.5-.6 11.8 1.4.3.2.4.7.3 1zm1.5-3.3c-.3.5-.9.6-1.3.4-3.2-2-8.2-2.6-12-1.4-.6.2-1.1-.1-1.3-.7-.2-.6.1-1.1.7-1.3 4.4-1.3 10-0.6 13.6 1.7.5.2.7.9.3 1.3zm.1-3.4C14.9 8.2 8.4 8 4.6 9.1c-.7.2-1.4-.2-1.6-.9-.2-.7.2-1.4.9-1.6 4.3-1.3 11.5-1.1 16.2 1.7.6.4.8 1.1.4 1.7-.4.6-1.2.8-1.4.3z"/></MenuItem.Icon>
@@ -429,7 +469,7 @@
                                                                         <!-- Spotify Logo Overlay -->
                                                                         <Button HorizontalAlignment="Right" VerticalAlignment="Top" 
                                                                                 Margin="6" Padding="6"
-                                                                                IsVisible="{Binding IsOnSpotify}"
+                                                                                IsVisible="False"
                                                                     Command="{Binding #Root.((vm:MainViewModel)DataContext).OpenSpotifyUrlCommand}"
                                                                                 CommandParameter="{Binding}"
                                                                                 Background="#AA1DB954" CornerRadius="12"
@@ -444,9 +484,30 @@
                                                                 <!-- Info -->
                                                                 <StackPanel Grid.Row="1" Margin="12,8,12,12">
                                                                     <TextBlock Text="{Binding Title}" Foreground="#333" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                                    <TextBlock Classes="ArtistGlow" Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                                                                     <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" Foreground="#999" FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
                                                                 </StackPanel>
+                                                                
+                                                                <!-- Dynamic Glare Layer -->
+                                                                <Border Name="GlareLayer" Grid.RowSpan="2" 
+                                                                        CornerRadius="4" 
+                                                                        Opacity="0"
+                                                                        IsHitTestVisible="False">
+                                                                    <Border.Background>
+                                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                            <GradientStop Offset="0" Color="#00FFFFFF"/>
+                                                                            <GradientStop Offset="0.4" Color="#1AFFFFFF"/>
+                                                                            <GradientStop Offset="0.5" Color="#33FFFFFF"/>
+                                                                            <GradientStop Offset="0.6" Color="#1AFFFFFF"/>
+                                                                            <GradientStop Offset="1" Color="#00FFFFFF"/>
+                                                                        </LinearGradientBrush>
+                                                                    </Border.Background>
+                                                                    <Border.Transitions>
+                                                                        <Transitions>
+                                                                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                                                        </Transitions>
+                                                                    </Border.Transitions>
+                                                                </Border>
                                                             </Grid>
                                                         </Border>
                                                         <!-- Selection Border (Now perfectly aligned via Stretch) -->
@@ -501,7 +562,7 @@
                     <ProgressBar Minimum="0" Maximum="100" 
                                  Value="{Binding ProgressPercentage}" 
                                  Height="4" 
-                                 Foreground="{StaticResource AccentBrush}"
+                                 Foreground="{DynamicResource AccentBrush}"
                                  IsVisible="{Binding IsProcessing}"/>
                 </Border>
             </Grid>
@@ -546,7 +607,7 @@
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                              <TextBlock Text="{Binding LastSelectedItem.DisplayName}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                             <TextBlock Text="{Binding LastSelectedItem.SubDisplayName}" FontSize="12" Foreground="{StaticResource AccentBrush}"
+                             <TextBlock Text="{Binding LastSelectedItem.SubDisplayName}" FontSize="12" Foreground="{DynamicResource AccentBrush}"
                                         IsVisible="{Binding LastSelectedItem.SubDisplayName, Converter={StaticResource NullToBoolConverter}}"/>
                         </StackPanel>
                     </StackPanel>
@@ -554,7 +615,7 @@
                     <!-- Selection Count Breakdown -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="12"
                                 IsVisible="{Binding IsBottomBarExpanded}">
-                        <TextBlock Text="📊" FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                        <PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding SelectedCount, StringFormat='{}{0} items selected'}" 
                                    FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -583,7 +644,7 @@
                                 CornerRadius="12" Padding="12,8" 
                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="📁" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                                <PathIcon Data="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="14" Height="14" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding OutputPath}" MaxWidth="200" TextTrimming="CharacterEllipsis" 
                                            FontSize="12" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -603,7 +664,7 @@
                             CornerRadius="16" Padding="20" Margin="0,0,0,20"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
                          <Grid ColumnDefinitions="Auto,*,Auto">
-                             <TextBlock Text="📁" FontSize="24" Foreground="{StaticResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                             <PathIcon Data="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="24" Height="24" Foreground="{DynamicResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Center"/>
                              <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                  <TextBlock Text="Conversion Output Path" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextTertiaryBrush}"/>
                                  <TextBox Text="{Binding OutputPath}" Classes="Modern" Margin="0,4,0,0"/>
@@ -641,7 +702,7 @@
                                                      <Button Classes="Secondary" Padding="8" Width="32" Height="32" ToolTip.Tip="Remove"
                                                              Command="{Binding #Root.((vm:MainViewModel)DataContext).RemoveItemCommand}"
                                                              CommandParameter="{Binding}">
-                                                         <TextBlock Text="✕" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                         <PathIcon Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" Width="14" Height="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                                      </Button>
                                                  </StackPanel>
                                              </Grid>
@@ -659,7 +720,7 @@
                                 <TextBlock Grid.Column="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold"/>
                             </Grid>
                             <Border Height="8" CornerRadius="4" Background="{StaticResource SurfaceBrush}" ClipToBounds="True">
-                                <ProgressBar Value="{Binding ProgressPercentage}" Maximum="100" Height="8" Foreground="{StaticResource AccentBrush}" ShowProgressText="False"/>
+                                <ProgressBar Value="{Binding ProgressPercentage}" Maximum="100" Height="8" Foreground="{DynamicResource AccentBrush}" ShowProgressText="False"/>
                             </Border>
                         </StackPanel>
                     </Border>
@@ -698,7 +759,11 @@
                  <Grid RowDefinitions="Auto,*,Auto" Margin="32" ClipToBounds="False">
                      <StackPanel Spacing="8">
                          <TextBlock Text="Select Difficulty" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                         <TextBlock Text="{Binding OverlayMapGroup.Artist, StringFormat='{}from {0}'}" FontSize="14" Foreground="{StaticResource AccentBrush}"/>
+                         <TextBlock Text="{Binding OverlayMapGroup.Artist, StringFormat='{}from {0}'}" FontSize="14" Foreground="{DynamicResource AccentBrush}">
+                             <TextBlock.Effect>
+                                 <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="8" Opacity="0.5"/>
+                             </TextBlock.Effect>
+                         </TextBlock>
                      </StackPanel>
 
                      <ScrollViewer Grid.Row="1" Margin="0,24" ClipToBounds="False">
@@ -771,12 +836,21 @@
                                                                            TextTrimming="CharacterEllipsis"/>
                                                                <!-- Artist -->
                                                                <TextBlock Text="{Binding Artist}" 
-                                                                           Foreground="{StaticResource AccentBrush}" FontSize="11" 
-                                                                           TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                                          Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
+                                                                          TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                               
+                                                               <!-- Added Difficulty Name & Audio Filename -->
+                                                               <TextBlock Text="{Binding DifficultyName}" 
+                                                                          Foreground="#555" FontSize="11" FontWeight="Regular"
+                                                                          TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+
+                                                               <TextBlock Text="{Binding AudioFilename}" 
+                                                                          Foreground="#888" FontSize="10" FontStyle="Italic"
+                                                                          TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
                                                                
                                                                <!-- Audio Indicator Only -->
                                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="4">
-                                                                   <TextBlock Text="🎵 Preview" FontSize="10" VerticalAlignment="Center" Foreground="#999" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/>
+                                                                   <StackPanel Orientation="Horizontal" Spacing="4"><PathIcon Data="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" Width="10" Height="10" Foreground="#999" VerticalAlignment="Center" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/><TextBlock Text="Preview" FontSize="10" VerticalAlignment="Center" Foreground="#999" IsVisible="{Binding Difficulty.Mp3Path, Converter={StaticResource NullToBoolConverter}}"/></StackPanel>
                                                                </StackPanel>
                                                            </StackPanel>
                                                        </Grid>
@@ -852,7 +926,7 @@
 
 
 
-                         <Border x:Name="BrandingIcon" Classes="BrandingIcon" Width="100" Height="100" Background="{StaticResource AccentBrush}" CornerRadius="24"
+                         <Border x:Name="BrandingIcon" Classes="BrandingIcon" Width="100" Height="100" Background="{DynamicResource AccentBrush}" CornerRadius="24"
                                  Opacity="0" RenderTransform="scale(0.8)">
                              <Image Source="/Assets/app.ico" Width="72" Height="72" RenderOptions.BitmapInterpolationMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                          </Border>
@@ -886,8 +960,7 @@
                          
                          <StackPanel>
                              <!-- 1. Folder Selection / Welcome State -->
-                             <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="32" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000"
-                                     IsVisible="{Binding IsFolderSelectionVisible}">
+                             <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="32" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000" IsVisible="{Binding IsFolderSelectionVisible}">
                                  <StackPanel Spacing="24">
                                      <TextBlock Text="Welcome! Please select your Songs folder." Foreground="#AAA" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
                                      <Button Command="{Binding BrowseCommand}" Classes="Primary" Height="60" HorizontalAlignment="Stretch">
@@ -902,9 +975,8 @@
                                  </StackPanel>
                              </Border>
 
-                             <!-- 2. Scanning / Processing / Audio Loading State -->
-                             <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="40" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000"
-                                     IsVisible="{Binding IsFolderSelectionVisible, Converter={StaticResource BoolNegationConverter}}">
+                                                                                         <!-- 2. Scanning / Processing / Audio Loading State -->
+                             <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="40" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000" IsVisible="{Binding IsFolderSelectionVisible, Converter={StaticResource InverseBoolConverter}}">
                                  <StackPanel Spacing="32">
                                      <!-- Dynamic Title -->
                                      <TextBlock FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"
@@ -912,9 +984,9 @@
 
                                      <!-- Unified Progress Bar -->
                                      <Grid RowDefinitions="Auto,Auto">
-                                         <ProgressBar Classes="SmoothLoader" Value="{Binding ProgressPercentage}" Height="10" CornerRadius="5" Foreground="{StaticResource AccentBrush}" Background="#30363D"
+                                         <ProgressBar Classes="SmoothLoader" Value="{Binding ProgressPercentage}" Height="10" CornerRadius="5" Foreground="{DynamicResource AccentBrush}" Background="#30363D"
                                                       IsIndeterminate="{Binding IsProgressBarIndeterminate}"/>
-                                         <TextBlock Grid.Row="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Right" Margin="0,8,0,0"
+                                         <TextBlock Grid.Row="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right" Margin="0,8,0,0"
                                                     IsVisible="{Binding IsProgressBarIndeterminate, Converter={StaticResource BoolNegationConverter}}"/>
                                      </Grid>
 
@@ -941,9 +1013,20 @@
 
             </Grid>
         </Panel>
-
-
-
-        
+        <!-- Top Floating Notification (FFmpeg Download) -->
+        <Panel Grid.RowSpan="2" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,50,0,0" IsVisible="{Binding IsFFmpegDownloading}" ZIndex="1000">
+            <Border Background="#CC1C212B" CornerRadius="16" Padding="20,12" BorderBrush="#4030363D" BorderThickness="1" BoxShadow="0 8 30 0 #A0000000" MinWidth="450">
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                            <TextBlock Text="{Binding FFmpegStatusMessage}" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding FFmpegDownloadProgress, StringFormat='{}{0:F0}%'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ProgressBar Classes="SmoothLoader" Value="{Binding FFmpegDownloadProgress}" Height="4" CornerRadius="2" Foreground="{DynamicResource AccentBrush}" Background="#151921" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+        </Panel>
     </Grid>
 </Window>

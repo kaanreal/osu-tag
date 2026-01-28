@@ -48,7 +48,7 @@
                         
                         <!-- Title Input -->
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Title Override" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                            <TextBlock Text="Title Override" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" FontSize="12"/>
                             <TextBox Text="{Binding OverrideTitle}" Watermark="{Binding OriginalTitle}" 
                                      Classes="Modern" Height="44"/>
                             <TextBlock Text="Default: Original metadata title" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
@@ -56,14 +56,14 @@
 
                         <!-- Artist Input -->
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Artist Override" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                            <TextBlock Text="Artist Override" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" FontSize="12"/>
                             <TextBox Text="{Binding OverrideArtist}" Watermark="{Binding OriginalArtist}" 
                                      Classes="Modern" Height="44"/>
                         </StackPanel>
 
                         <!-- Cover Image Section -->
                         <StackPanel Spacing="8">
-                            <TextBlock Text="Cover Art" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                            <TextBlock Text="Cover Art" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" FontSize="12"/>
                             <Grid ColumnDefinitions="160,*" Height="160">
                                  <Border Grid.Column="0" CornerRadius="12" ClipToBounds="True" Background="#000"
                                          BoxShadow="0 8 24 0 #60000000">
@@ -83,7 +83,7 @@
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Text="Playback Speed" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" FontSize="14"/>
                                     <TextBlock Grid.Column="1" Text="{Binding PlaybackRate, StringFormat='{}{0:0.00}x'}" 
-                                               FontWeight="Bold" Foreground="{StaticResource AccentBrush}" FontSize="14"/>
+                                               FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FontSize="14"/>
                                 </Grid>
                                 
                                 <Grid ColumnDefinitions="*,60">

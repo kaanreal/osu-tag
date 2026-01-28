@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Input;
 using System.Linq;
@@ -11,6 +12,9 @@ using System.Text.RegularExpressions;
 using Osutag.Models;
 using Osutag.Services;
 using Avalonia.Threading;
+using Avalonia.Media.Imaging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Osutag.ViewModels
 {
@@ -49,6 +53,7 @@ namespace Osutag.ViewModels
         // Display properties for Overlay
         public string? Title { get; set; }
         public string? Artist { get; set; }
+        public string AudioFilename => System.IO.Path.GetFileName(Difficulty.Mp3Path);
 
         public string? CoverPath
         {
@@ -344,6 +349,15 @@ namespace Osutag.ViewModels
 
     public class MainViewModel : ObservableObject
     {
+        private readonly DynamicBackgroundService _bgService = new();
+        private DispatcherTimer? _bgTimer;
+        private Bitmap? _currentBackground;
+        private Bitmap? _nextBackground;
+        private double _backgroundOpacity = 1.0;
+        private double _nextBackgroundOpacity = 0.0;
+        private bool _dynamicBackgroundEnabled;
+        private string _selectedTheme = SettingsService.Settings.ThemeColor;
+        private string _osuPath = SettingsService.Settings.OsuPath;
         private string _selectedPath = "";
         private bool _isFolderSelectionVisible = false;
         private string _outputPath = "";
@@ -377,6 +391,34 @@ namespace Osutag.ViewModels
         private bool _isOverlayOpen = false;
         private MapItemGroup? _overlayMapGroup;
         private string _githubStars = "0";
+        private bool _isFFmpegDownloading = false;
+        private double _ffmpegDownloadProgress = 0.0;
+        private string _ffmpegStatusMessage = "";
+        private bool _isSoundAvailable = true;
+
+        public bool IsSoundAvailable
+        {
+            get => _isSoundAvailable;
+            set => SetProperty(ref _isSoundAvailable, value);
+        }
+
+        public bool IsFFmpegDownloading
+        {
+            get => _isFFmpegDownloading;
+            set => SetProperty(ref _isFFmpegDownloading, value);
+        }
+
+        public double FFmpegDownloadProgress
+        {
+            get => _ffmpegDownloadProgress;
+            set => SetProperty(ref _ffmpegDownloadProgress, value);
+        }
+
+        public string FFmpegStatusMessage
+        {
+            get => _ffmpegStatusMessage;
+            set => SetProperty(ref _ffmpegStatusMessage, value);
+        }
 
         public string GithubStars
         {
@@ -568,7 +610,6 @@ namespace Osutag.ViewModels
             set => SetProperty(ref _companellaStatus, value);
         }
 
-        private string _selectedTheme = SettingsService.Settings.ThemeColor;
         public string SelectedTheme
         {
             get => _selectedTheme;
@@ -578,9 +619,62 @@ namespace Osutag.ViewModels
                 {
                     SettingsService.Settings.ThemeColor = value;
                     SettingsService.Save();
-                    // Theme application logic will go in App.axaml.cs or via dynamic resource
+                    if (value == "Dynamic")
+                    {
+                        DynamicBackgroundEnabled = true;
+                    }
+                    else
+                    {
+                        DynamicBackgroundEnabled = false;
+                        App.ApplyTheme(value);
+                    }
                 }
             }
+        }
+
+        public string OsuPath
+        {
+            get => _osuPath;
+            set => SetProperty(ref _osuPath, value);
+        }
+
+        public bool DynamicBackgroundEnabled
+        {
+            get => _dynamicBackgroundEnabled;
+            set
+            {
+                if (SetProperty(ref _dynamicBackgroundEnabled, value))
+                {
+                    SettingsService.Settings.DynamicBackgroundEnabled = value;
+                    SettingsService.Save();
+                    if (value) StartBackgroundCycle();
+                    else StopBackgroundCycle();
+                }
+            }
+        }
+
+        public Bitmap? CurrentBackground
+        {
+            get => _currentBackground;
+            set => SetProperty(ref _currentBackground, value);
+        }
+
+        public Bitmap? NextBackground
+        {
+            get => _nextBackground;
+            set => SetProperty(ref _nextBackground, value);
+        }
+
+        public double BackgroundOpacity
+        {
+            get => _backgroundOpacity;
+            set => SetProperty(ref _backgroundOpacity, value);
+        }
+
+        public double NextBackgroundOpacity
+        {
+            get => _nextBackgroundOpacity;
+            set => SetProperty(ref _nextBackgroundOpacity, value);
         }
 
         public bool IsScanning
@@ -872,7 +966,10 @@ namespace Osutag.ViewModels
         private async Task LoadCompanellaPlayCounts()
         {
             if (!SettingsService.Settings.SortByMostPlayed)
+            {
+                _playCountCache = new Dictionary<string, int>();
                 return;
+            }
 
             var companellaPath = SettingsService.Settings.CompanellaPath;
 
@@ -1097,6 +1194,112 @@ namespace Osutag.ViewModels
             OpenSpotifyUrlCommand = new RelayCommand(OpenSpotifyUrl);
             OpenGithubCommand = new RelayCommand(_ => OpenGithub());
 
+            // Initialize Dynamic Background
+            _dynamicBackgroundEnabled = SettingsService.Settings.DynamicBackgroundEnabled;
+            if (_dynamicBackgroundEnabled)
+            {
+                StartBackgroundCycle();
+            }
+        }
+
+        private void StartBackgroundCycle()
+        {
+            if (_bgTimer != null) return;
+
+            // Immediate first cycle
+            _ = CycleBackground();
+
+            _bgTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30) // Cycle every 30 seconds
+            };
+            _bgTimer.Tick += async (s, e) => await CycleBackground();
+            _bgTimer.Start();
+        }
+
+        private void StopBackgroundCycle()
+        {
+            _bgTimer?.Stop();
+            _bgTimer = null;
+            CurrentBackground = null;
+            NextBackground = null;
+            // Restore static theme
+            App.ApplyTheme(SelectedTheme);
+        }
+
+        private async Task CycleBackground()
+        {
+            string osuPath = OsuPath;
+            if (string.IsNullOrEmpty(osuPath) || !Directory.Exists(osuPath))
+            {
+                // Try to fallback to deriving from songs path if not set
+                string songsPath = SettingsService.Settings.LastSongsPath;
+                if (!string.IsNullOrEmpty(songsPath) && Directory.Exists(songsPath))
+                {
+                    osuPath = Path.GetDirectoryName(songsPath.TrimEnd(Path.DirectorySeparatorChar))!;
+                }
+            }
+
+            if (string.IsNullOrEmpty(osuPath) || !Directory.Exists(osuPath)) return;
+
+            _bgService.ScanBackgrounds(osuPath);
+
+            string? nextPath = _bgService.GetRandomBackground();
+            if (string.IsNullOrEmpty(nextPath)) return;
+
+            // Load blurred bitmap in background
+            try
+            {
+                using var stream = await _bgService.GetBlurredBackgroundStreamAsync(nextPath);
+                if (stream == null) return;
+                
+                var nextBitmap = new Bitmap(stream);
+                string? color;
+
+                if (CurrentBackground == null)
+                {
+                    CurrentBackground = nextBitmap;
+                    BackgroundOpacity = 1.0;
+                    
+                    // Immediate theme apply for first load
+                    color = _bgService.ExtractDominantColor(nextPath);
+                    if (!string.IsNullOrEmpty(color)) App.ApplyTheme(color);
+                }
+                else
+                {
+                    NextBackground = nextBitmap;
+                    
+                    // Start cross-fade: FADE IN NEXT on top of CURRENT
+                    NextBackgroundOpacity = 1.0;
+                    
+                    // Wait half the transition time
+                    await Task.Delay(750);
+                    
+                    // Apply theme color midway
+                    color = _bgService.ExtractDominantColor(nextPath);
+                    if (!string.IsNullOrEmpty(color))
+                    {
+                        App.ApplyTheme(color);
+                    }
+                    
+                    // Wait for the rest of the transition
+                    await Task.Delay(750);
+                    
+                    // Commit swap ATOMICALLY
+                    CurrentBackground = nextBitmap;
+                    
+                    // Crucial: Set opacities to final state instantly to prevent flicker
+                    BackgroundOpacity = 1.0;
+                    NextBackgroundOpacity = 0.0;
+                    
+                    // Clear next only after opacities are set
+                    NextBackground = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CycleBackground failed: {ex.Message}");
+            }
         }
 
         private void OpenSpotifyUrl(object? parameter)
@@ -1162,8 +1365,12 @@ namespace Osutag.ViewModels
         {
             // Give the UI thread a moment to start the entrance animation smoothly
             await Task.Delay(50);
+
+            // Start the initialization sequence
+            IsStartingUp = true;
             
-            await Task.CompletedTask;
+            // Start FFmpeg setup in background - non-blocking
+            _ = EnsureFFmpegReadyAsync();
             // Auto-scan for Companella on Windows
 
 
@@ -1196,7 +1403,46 @@ namespace Osutag.ViewModels
 
 
 
-        // ... existing methods ...
+
+        private async Task EnsureFFmpegReadyAsync()
+        {
+            // First check if sound is available already
+            if (await FFmpegHelper.CheckBinariesExistAsync())
+            {
+                IsSoundAvailable = true;
+                return;
+            }
+
+            // No binaries found, sound is unavailable for now
+            IsSoundAvailable = false;
+            IsFFmpegDownloading = true;
+            FFmpegStatusMessage = "Downloading FFmpeg for audio previews...";
+            
+            try
+            {
+                var progress = new Progress<double>(p =>
+                {
+                    FFmpegDownloadProgress = p * 100;
+                    if (p < 0.9) FFmpegStatusMessage = $"Downloading FFmpeg... {FFmpegDownloadProgress:F0}%";
+                    else if (p < 1.0) FFmpegStatusMessage = "Extracting binaries...";
+                    else FFmpegStatusMessage = "Setup complete!";
+                });
+
+                await FFmpegHelper.GetFFmpegPathAsync(progress);
+                IsSoundAvailable = true;
+            }
+            catch (Exception ex)
+            {
+                FFmpegStatusMessage = $"Setup failed: {ex.Message}. Audio will be unavailable.";
+                Debug.WriteLine($"FFmpeg Setup Failed: {ex}");
+                IsSoundAvailable = false;
+            }
+            finally
+            {
+                await Task.Delay(2000); // Keep notification visible for success/fail feedback
+                IsFFmpegDownloading = false;
+            }
+        }
 
         private async void BrowseOutputPath()
         {
@@ -1384,7 +1630,10 @@ namespace Osutag.ViewModels
                 SettingsService.Settings.ScannedFolders = "";
                 SettingsService.Save();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ClearCache failed: {ex.Message}");
+            }
         }
 
         // Returns mapping of folder name -> last scanned ticks (UTC). Backwards-compatible with older format which stored only names (ticks=0).
@@ -1728,7 +1977,8 @@ namespace Osutag.ViewModels
             }
 
             // Initialize Audio Engine in background (parallel to map loading)
-            _ = Task.Run(() => AudioService.Instance.Initialize());
+            // Audio Engine (FFplay) initializes on demand
+            // _ = Task.Run(() => AudioService.Instance.Initialize());
 
             // Only clear if not using smart scan, or if smart scan is disabled in settings
             bool smartScanEnabled = useSmartScan && SettingsService.Settings.SmartScan;
@@ -2423,7 +2673,57 @@ namespace Osutag.ViewModels
                     }
 
                     string mp3Output = Path.Combine(mapOutputDir, $"{safeTitle}.mp3");
-                    File.Copy(diff.Mp3Path, mp3Output, overwrite: true);
+                    
+                    float rate = ParseRateMultiplier(diff.Rate);
+                    bool maintainPitch = false;
+                    float pitchSemitones = 0.0f;
+
+                    // Manual override check
+                    var selectedInfoForAudio = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info => 
+                        info.MapGroup == group && 
+                        (string.IsNullOrEmpty(info.SubDisplayName) || info.SubDisplayName == diffName));
+                    
+                    if (selectedInfoForAudio != null)
+                    {
+                        // Apply override if rate differs OR if we have specific pitch settings
+                        // For Rate Packs, if user didn't touch anything, rate follows diff.
+                        // If user moved slider, SelectedItemInfo reflects that.
+                        if (Math.Abs(selectedInfoForAudio.PlaybackRate - 1.0f) > 0.001f)
+                           rate = selectedInfoForAudio.PlaybackRate;
+                           
+                        maintainPitch = selectedInfoForAudio.MaintainPitch;
+                        pitchSemitones = selectedInfoForAudio.PitchSemitones;
+                    }
+
+                    // Processing criteria:
+                    // 1. Rate != 1.0
+                    // 2. PitchSemitones != 0
+                    // 3. User explicit request via checkbox? (Implied by maintainPitch=true usually requiring processing if rate != 1)
+                    
+                    bool needsProcessing = Math.Abs(rate - 1.0f) > 0.001f || Math.Abs(pitchSemitones) > 0.001f;
+
+                    if (needsProcessing)
+                    {
+                        try
+                        {
+                            Services.AudioProcessingService.ProcessAudio(diff.Mp3Path, mp3Output, rate, pitchSemitones, maintainPitch);
+                        }
+                        catch (Exception ex)
+                        {
+                            // If DllNotFoundException or similar, it often means native libs missing.
+                            // We catch standard Exception to cover BASS errors too.
+                            try
+                            {
+                                File.Copy(diff.Mp3Path, mp3Output, true);
+                                AddResult("⚠ Audio Warning", $"Processing failed (copied original). Error: {ex.Message}");
+                            }
+                            catch { /* Copy failed too? */ }
+                        }
+                    }
+                    else
+                    {
+                         File.Copy(diff.Mp3Path, mp3Output, true);
+                    }
 
                     var osuMap = new OsuMap
                     {
@@ -2528,8 +2828,7 @@ namespace Osutag.ViewModels
         {
             try
             {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string companellaPath = Path.Combine(localAppData, "Companella");
+                string companellaPath = PlatformService.GetDefaultCompanellaPath();
                 
                 if (Directory.Exists(companellaPath))
                 {

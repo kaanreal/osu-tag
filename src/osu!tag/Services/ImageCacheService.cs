@@ -19,7 +19,7 @@ namespace Osutag.Services
         public static ImageCacheService Instance => _instance.Value;
 
         // LRU cache with max 500 entries (each ~200px wide bitmap ~50KB = ~25MB max)
-        private const int MaxCacheSize = 500;
+        private const int MaxCacheSize = 800; // Larger cache for 10,000+ map collections
         private const int DecodeWidth = 200; // Sufficient for 180px card display
 
         private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
@@ -140,9 +140,9 @@ namespace Osutag.Services
                     // DecodeToWidth is more efficient than full decode for thumbnails
                     return Bitmap.DecodeToWidth(stream, DecodeWidth);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // File not found, invalid format, etc.
+                    System.Diagnostics.Debug.WriteLine($"Image load failed for {path}: {ex.Message}");
                     return null;
                 }
             });

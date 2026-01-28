@@ -65,7 +65,7 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
                     <Button Content="Cancel" Click="Cancel_Click" Background="Transparent" Foreground="#AAA"/>
-                    <Button Content="Save Crop" Click="Save_Click" Background="{StaticResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                    <Button Content="Save Crop" Click="Save_Click" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
                 </StackPanel>
             </Grid>
         </Border>
