@@ -94,7 +94,7 @@
                                 </Grid>
                                 
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="Playback Speed" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" FontWeight="Medium"/>
+                                    <TextBlock Text="Enable Pitch" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" FontWeight="Medium"/>
                                     <ToggleButton Grid.Column="1" Classes="Secondary" Padding="24,10" VerticalAlignment="Center"
                                                  IsChecked="{Binding IsPitchShiftEnabled, Mode=TwoWay}">
                                         <TextBlock Text="Pitch" FontWeight="Bold" 
