@@ -14,7 +14,8 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         WindowStartupLocation="CenterScreen"
-        CanResize="True">
+        CanResize="True"
+        PointerPressed="OnPointerPressed">
     
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -24,22 +25,73 @@
         <converters:BoolToDoubleConverter x:Key="BoolToDoubleConverter"/>
         <converters:BoolToTransformConverter x:Key="BoolToTransformConverter"/>
         <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
+        <converters:BoolNegationConverter x:Key="BoolNegationConverter"/>
     </Window.Resources>
+
 
     <Window.Styles>
         <Style Selector="Grid#RootGrid">
-            <Style.Animations>
-                <Animation Duration="0:0:0.8" Easing="CubicEaseOut">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+            <!-- Animation handled in code-behind -->
+        </Style>
+
+
+        <Style Selector="Panel#MainOverlay">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:1.0" Easing="QuinticEaseInOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Panel#MainOverlay[Opacity=0]">
+        </Style>
+
+        <Style Selector="Panel.LoadingEntrance">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Grid.WindowEntrance">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Grid.WindowEntrance[Opacity=0]">
+            <Setter Property="RenderTransform" Value="translateY(30px)"/>
+        </Style>
+
+        <Style Selector="Border.BrandingIcon">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="TextBlock.BrandingText">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:1.0" Easing="QuinticEaseOut"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.8" Easing="QuinticEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ProgressBar.SmoothLoader">
         </Style>
     </Window.Styles>
 
@@ -106,6 +158,37 @@
                                     </TextBlock.Effect>
                                 </TextBlock>
                             </Button>
+
+                            <!-- GitHub Link (Pill Shape) -->
+                            <!-- GitHub Link (Pill Badge) -->
+                            <Border BorderBrush="White" 
+                                    BorderThickness="1.2" 
+                                    CornerRadius="14" 
+                                    Background="Black"
+                                    Margin="12,0,0,0" 
+                                    VerticalAlignment="Bottom"
+                                    BoxShadow="0 1 4 0 #40000000">
+                                <Button Command="{Binding OpenGithubCommand}" 
+                                        Background="Transparent" 
+                                        BorderThickness="0"
+                                        CornerRadius="14"
+                                        Padding="8,3" 
+                                        Cursor="Hand">
+                                    <Button.Styles>
+                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                            <Setter Property="Background" Value="#1A1A1A"/>
+                                            <Setter Property="BorderBrush" Value="White"/>
+                                        </Style>
+                                    </Button.Styles>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <Viewbox Width="12" Height="12" VerticalAlignment="Center">
+                                            <Path Data="M12 2A10 10 0 0 0 2 12C2 16.42 4.87 20.17 8.84 21.5C9.34 21.58 9.5 21.27 9.5 21.03C9.5 20.82 9.5 20.24 9.5 19.5C6.71 20.11 6.12 18.15 6.12 18.15C5.67 16.97 5.03 16.66 5.03 16.66C4.12 16.03 5.1 16.05 5.1 16.05C6.1 16.12 6.63 17.08 6.63 17.08C7.5 18.61 8.96 18.17 9.54 17.91C9.62 17.27 9.87 16.84 10.15 16.59C7.92 16.34 5.58 15.47 5.58 11.63C5.58 10.53 5.97 9.63 6.61 8.92C6.5 8.67 6.16 7.64 6.71 6.27C6.71 6.27 7.56 6 9.5 7.31C10.3 7.09 11.15 6.98 12 6.97C12.85 6.98 13.7 7.09 14.5 7.31C16.44 6 17.29 6.27 17.29 6.27C17.84 7.64 17.5 8.67 17.39 8.92C18.04 9.63 18.42 10.53 18.42 11.63C18.42 15.48 16.07 16.34 13.84 16.59C14.2 16.9 14.5 17.53 14.5 18.48C14.5 19.86 14.5,20.97 14.5,21.03C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10 10 0 0 0 12 2Z" 
+                                                  Fill="White"/>
+                                        </Viewbox>
+                                        <TextBlock Text="{Binding GithubStars}" FontSize="12" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
                         </StackPanel>
                         <TextBlock Text="by Kaan and AI" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
                     </StackPanel>
@@ -128,7 +211,13 @@
         </Border>
 
          <!-- Main Content -->
-        <Grid Grid.Row="1" ColumnDefinitions="*" ClipToBounds="False" Classes="WindowEntrance">
+        <Grid Grid.Row="1" ColumnDefinitions="*" ClipToBounds="False" Classes="WindowEntrance"
+              Opacity="{Binding IsInitialLoadDone, Converter={StaticResource BoolToDoubleConverter}}">
+
+
+
+
+
             <Grid Grid.Column="0" Margin="32,24,32,12" RowDefinitions="Auto,*" ClipToBounds="False">
                 
                 <!-- Top Section: Path & Search -->
@@ -205,7 +294,6 @@
                                              FontSize="16"
                                              HorizontalContentAlignment="Left"
                                              VerticalContentAlignment="Center"
-                                             VerticalAlignment="Center"
                                              HorizontalAlignment="Stretch"
                                              Foreground="{StaticResource TextPrimaryBrush}"
                                              Margin="34,0,10,0"
@@ -235,9 +323,9 @@
 
 
                 <!-- Map List (Virtualized for 240Hz Performance) -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,20,16,24" ClipToBounds="False">
-                    <Grid RowDefinitions="*,Auto" ClipToBounds="False">
-                        <ItemsRepeater ItemsSource="{Binding MapGroups}" ClipToBounds="False">
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,20,16,24" ClipToBounds="True">
+                    <Grid RowDefinitions="*,Auto" ClipToBounds="True">
+                        <ItemsRepeater ItemsSource="{Binding MapGroups}" ClipToBounds="True">
                             <ItemsRepeater.Layout>
                                 <UniformGridLayout ItemsStretch="None" 
                                                  MinItemWidth="200" 
@@ -247,17 +335,21 @@
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate>
                                     <Border Width="180" Height="260" Margin="10,0,20,20" x:Name="MapCard" ClipToBounds="False"
-                                            services:AnimationHelper.EnableEntranceAnimation="True">
+                                            services:AnimationHelper.EnableEntranceAnimation="True"
+                                            Background="Transparent">
 
                                         <!-- Main Interactive Wrapper utilizing Button for correct Input handling -->
                                         <!-- Main Interactive Wrapper utilizing Button for correct Input handling -->
                                         <!-- ClipToBounds=False serves to allow Stacks to peek out -->
-                                        <Button Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        <Button x:Name="CardButton"
+                                                Command="{Binding DataContext.ToggleMapSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}"
+                                                Click="MapCard_Click"
                                                 Background="Transparent" BorderThickness="0" Padding="0"
                                                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                 ClipToBounds="False"
-                                                PointerEntered="MapCard_PointerEntered">
+                                                PointerEntered="MapCard_PointerEntered"
+                                                PointerExited="MapCard_PointerExited">
                                             
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
@@ -284,11 +376,21 @@
                                             
                                             <Button.ContextMenu>
                                                 <ContextMenu>
-                                                    <MenuItem Header="Beatmap Info" Command="{Binding OpenBeatmapUrlCommand}" CommandParameter="{Binding}">
+                                                    <MenuItem Header="Beatmap Info" 
+                                                              Command="{Binding DataContext.OpenBeatmapUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}">
                                                         <MenuItem.Icon><PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/></MenuItem.Icon>
                                                     </MenuItem>
-                                                    <MenuItem Header="Open Directory" Command="{Binding OpenDirectoryCommand}" CommandParameter="{Binding}">
+                                                    <MenuItem Header="Open Directory" 
+                                                              Command="{Binding DataContext.OpenDirectoryCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}">
                                                         <MenuItem.Icon><PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="Spotify Track" 
+                                                              IsVisible="{Binding IsOnSpotify}"
+                                                              Command="{Binding DataContext.OpenSpotifyUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}">
+                                                        <MenuItem.Icon><PathIcon Data="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 17.3c-.2.4-.7.5-1.1.3-2.8-1.7-6.4-2.1-10.6-1.1-.5.1-.9-.2-1-.6-.1-.5.2-.9.6-1 4.6-1.1 8.5-.6 11.8 1.4.3.2.4.7.3 1zm1.5-3.3c-.3.5-.9.6-1.3.4-3.2-2-8.2-2.6-12-1.4-.6.2-1.1-.1-1.3-.7-.2-.6.1-1.1.7-1.3 4.4-1.3 10-0.6 13.6 1.7.5.2.7.9.3 1.3zm.1-3.4C14.9 8.2 8.4 8 4.6 9.1c-.7.2-1.4-.2-1.6-.9-.2-.7.2-1.4.9-1.6 4.3-1.3 11.5-1.1 16.2 1.7.6.4.8 1.1.4 1.7-.4.6-1.2.8-1.4.3z"/></MenuItem.Icon>
                                                     </MenuItem>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
@@ -310,7 +412,7 @@
                                                 <!-- Moved Hover Animation here so only the top card tilts, leaving stack behind -->
                                                 <!-- Main Card Visuals -->
                                                 <!-- Unclipped parent so hover animation + selection glow work together -->
-                                                <Border Width="180" Height="260" CornerRadius="4" ClipToBounds="False" BoxShadow="0 4 12 0 #20000000"
+                                                <Border Width="180" Height="260" CornerRadius="4" ClipToBounds="False"
                                                         services:AnimationHelper.EnableHoverAnimation="True">
                                                     <Grid>
                                                         <!-- Content (Clipped for Image/Corners) -->
@@ -318,22 +420,32 @@
                                                             <Grid RowDefinitions="*,Auto">
                                                                 <!-- Cover Image -->
                                                                 <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" CornerRadius="2" ClipToBounds="True">
-                                                                    <Image Source="{Binding CoverBitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="LowQuality"/>
+                                                                    <Panel>
+                                                                        <Image Source="{Binding CoverBitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="LowQuality"/>
+                                                                        
+                                                                        <!-- Spotify Logo Overlay -->
+                                                                        <Button HorizontalAlignment="Right" VerticalAlignment="Top" 
+                                                                                Margin="6" Padding="6"
+                                                                                IsVisible="{Binding IsOnSpotify}"
+                                                                                Command="{Binding DataContext.OpenSpotifyUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Background="#AA1DB954" CornerRadius="12"
+                                                                                Width="24" Height="24"
+                                                                                Classes="InvisibleToggle">
+                                                                            <PathIcon Data="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 17.3c-.2.4-.7.5-1.1.3-2.8-1.7-6.4-2.1-10.6-1.1-.5.1-.9-.2-1-.6-.1-.5.2-.9.6-1 4.6-1.1 8.5-.6 11.8 1.4.3.2.4.7.3 1zm1.5-3.3c-.3.5-.9.6-1.3.4-3.2-2-8.2-2.6-12-1.4-.6.2-1.1-.1-1.3-.7-.2-.6.1-1.1.7-1.3 4.4-1.3 10-0.6 13.6 1.7.5.2.7.9.3 1.3zm.1-3.4C14.9 8.2 8.4 8 4.6 9.1c-.7.2-1.4-.2-1.6-.9-.2-.7.2-1.4.9-1.6 4.3-1.3 11.5-1.1 16.2 1.7.6.4.8 1.1.4 1.7-.4.6-1.2.8-1.4.3z" 
+                                                                                      Foreground="White" Width="12" Height="12"/>
+                                                                        </Button>
+                                                                    </Panel>
                                                                 </Border>
                                                                 
                                                                 <!-- Info -->
                                                                 <StackPanel Grid.Row="1" Margin="12,8,12,12">
                                                                     <TextBlock Text="{Binding Title}" Foreground="#333" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
-                                                                        <TextBlock.Effect>
-                                                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" Opacity="0.5" OffsetX="0" OffsetY="0"/>
-                                                                        </TextBlock.Effect>
-                                                                    </TextBlock>
+                                                                    <TextBlock Text="{Binding Artist}" Foreground="{StaticResource AccentBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                                                                     <TextBlock Text="{Binding Creator, StringFormat='mapped by {0}'}" Foreground="#999" FontSize="10" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
                                                                 </StackPanel>
                                                             </Grid>
                                                         </Border>
-
                                                         <!-- Selection Border (Now perfectly aligned via Stretch) -->
                                                         <Border HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                                 CornerRadius="4" IsHitTestVisible="False"
@@ -355,12 +467,8 @@
                                                                     <Style Selector="Rectangle">
                                                                         <Style.Animations>
                                                                             <Animation Duration="0:0:1" IterationCount="Infinite" Easing="LinearEasing">
-                                                                                <KeyFrame Cue="0%">
-                                                                                    <Setter Property="StrokeDashOffset" Value="0"/>
-                                                                                </KeyFrame>
-                                                                                <KeyFrame Cue="100%">
-                                                                                    <Setter Property="StrokeDashOffset" Value="12"/>
-                                                                                </KeyFrame>
+                                                                                <KeyFrame Cue="0%"><Setter Property="StrokeDashOffset" Value="0"/></KeyFrame>
+                                                                                <KeyFrame Cue="100%"><Setter Property="StrokeDashOffset" Value="12"/></KeyFrame>
                                                                             </Animation>
                                                                         </Style.Animations>
                                                                     </Style>
@@ -376,21 +484,8 @@
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
     
-                        <!-- Load More Section (Minimalist) -->
-                        <Panel Grid.Row="1" Margin="0,24,16,64">
-                            <Button Content="LOAD MORE MAPS" 
-                                    Classes="Primary" 
-                                    HorizontalAlignment="Center" 
-                                    Padding="64,14" 
-                                    FontSize="14" FontWeight="Black"
-                                    Command="{Binding LoadMoreCommand}" 
-                                    IsVisible="{Binding CanLoadMore}"/>
-                            
-                            <!-- Loading indicator -->
-                            <ProgressBar IsIndeterminate="True" Width="120" Height="4" 
-                                         HorizontalAlignment="Center"
-                                         IsVisible="{Binding IsLoadingMore}"/>
-                        </Panel>
+                        <!-- Load More & Loading Section -->
+                        <cc:LoadingFooter Grid.Row="1" IsVisible="{Binding IsSearching, Converter={StaticResource BoolNegationConverter}}"/>
                     </Grid>
                 </ScrollViewer>
 
@@ -593,7 +688,7 @@
             </Button>
 
             <!-- Menu Card -->
-            <Border Width="900" Height="700" CornerRadius="24"
+            <Border x:Name="OverlayCard" Width="900" Height="700" CornerRadius="24"
                     Background="{StaticResource SurfaceElevatedBrush}"
                     BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                     BoxShadow="0 20 50 0 #66000000">
@@ -628,7 +723,8 @@
                                                    ClipToBounds="False"
                                                   HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                   services:AnimationHelper.EnableHoverAnimation="True"
-                                                  PointerEntered="DifficultyCard_PointerEntered">
+                                                  PointerEntered="DifficultyCard_PointerEntered"
+                                                  PointerExited="DifficultyCard_PointerExited">
                                               
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
@@ -728,175 +824,123 @@
                  </Grid>
             </Border>
         </Grid>
-        <!-- Welcome / Onboarding - Full Window Experience -->
-        <Panel Grid.RowSpan="2" IsVisible="{Binding IsFolderSelectionVisible}" ZIndex="500">
+        <!-- Unified Main Overlay (Welcome, Scanning, Audio) -->
+        <Panel Grid.RowSpan="2" ZIndex="500" Name="MainOverlay" ClipToBounds="False"
+               IsHitTestVisible="{Binding ShowMainOverlay}"
+               Opacity="{Binding ShowMainOverlay, Converter={StaticResource BoolToDoubleConverter}}">
+
+
+
+
+
+
             <!-- Background with blur -->
-            <Panel Background="#0D1117" Opacity="0.85"/>
+            <Panel x:Name="MainOverlayBackground" Background="#0D1117" Opacity="0.95"/>
             
             <Grid>
-                <!-- Animated Background Elements -->
-                <Canvas IsHitTestVisible="False">
-                    <Ellipse Width="600" Height="600" Fill="#20FF66AA" Margin="-100,-100,0,0">
-                        <Ellipse.Effect>
-                            <BlurEffect Radius="100"/>
-                        </Ellipse.Effect>
-                    </Ellipse>
-                    <Ellipse Width="500" Height="500" Fill="#155B9FED" Margin="800,400,0,0">
-                        <Ellipse.Effect>
-                            <BlurEffect Radius="100"/>
-                        </Ellipse.Effect>
-                    </Ellipse>
-                </Canvas>
 
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="40" Width="600">
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="600" Margin="0,0,0,100" Spacing="40">
+
+
+
                      <!-- Branding -->
-                     <StackPanel Spacing="16" HorizontalAlignment="Center">
-                        <Border Width="100" Height="100" Background="{StaticResource AccentBrush}" CornerRadius="24">
-                            <Image Source="/Assets/app.ico" Width="72" Height="72" RenderOptions.BitmapInterpolationMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Text="Welcome to osu!tag" 
-                                   FontSize="48" 
-                                   FontWeight="ExtraBold" 
-                                   HorizontalAlignment="Center">
-                            <TextBlock.Foreground>
+                     <StackPanel x:Name="BrandingStack" Spacing="24" HorizontalAlignment="Center">
+
+
+
+                         <Border x:Name="BrandingIcon" Classes="BrandingIcon" Width="100" Height="100" Background="{StaticResource AccentBrush}" CornerRadius="24"
+                                 Opacity="0" RenderTransform="scale(0.8)">
+                             <Image Source="/Assets/app.ico" Width="72" Height="72" RenderOptions.BitmapInterpolationMode="HighQuality" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                         </Border>
+
+                          <TextBlock x:Name="BrandingText" Classes="BrandingText" Text="osu!tag" FontSize="48" FontWeight="ExtraBold" HorizontalAlignment="Center"
+                                     Opacity="0" RenderTransform="translateY(30px)">
+                             <TextBlock.Foreground>
                                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                                     <GradientStop Offset="0" Color="#5B9FED"/>
                                     <GradientStop Offset="1" Color="#FF66AA"/>
                                 </LinearGradientBrush>
                             </TextBlock.Foreground>
                         </TextBlock>
-                        <TextBlock Text="The ultimate tool to organize and supercharge your music library." 
-                                   Foreground="#AAA" 
-                                   FontSize="18" 
-                                   TextAlignment="Center"
-                                   TextWrapping="Wrap"/>
                      </StackPanel>
 
-                     <!-- Main Action -->
-                     <Border Background="#1C212B" 
-                             CornerRadius="24" 
-                             Padding="32" 
-                             BorderBrush="#30363D" 
-                             BorderThickness="1"
-                             BoxShadow="0 10 40 0 #80000000">
-                         <StackPanel Spacing="24">
-                             <TextBlock Text="Get Started" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
-                             
-                             <Button Command="{Binding BrowseCommand}" 
-                                     Classes="Primary"
-                                     Height="60"
-                                     HorizontalAlignment="Stretch">
-                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                     <PathIcon Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
-                                     <TextBlock Text="Select osu! Songs Folder" FontWeight="Bold" FontSize="16"/>
+                        <!-- Progress / Content -->
+                       <Panel x:Name="LoadingEntrance" Classes="LoadingEntrance" ClipToBounds="False"
+                              Opacity="0" RenderTransform="translateY(30px)">
+
+
+
+                         <Panel.Styles>
+                             <!-- Simple style to handle the negation-to-double logic via IsVisible-like effect -->
+                             <Style Selector="Panel[Opacity=0]">
+                                 <Setter Property="IsHitTestVisible" Value="False"/>
+                             </Style>
+                             <Style Selector="Panel[Opacity=1]">
+                                 <Setter Property="IsHitTestVisible" Value="True"/>
+                             </Style>
+                         </Panel.Styles>
+                         
+                         <StackPanel>
+                             <!-- 1. Folder Selection / Welcome State -->
+                             <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="32" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000"
+                                     IsVisible="{Binding IsFolderSelectionVisible}">
+                                 <StackPanel Spacing="24">
+                                     <TextBlock Text="Welcome! Please select your Songs folder." Foreground="#AAA" FontSize="16" TextAlignment="Center" TextWrapping="Wrap"/>
+                                     <Button Command="{Binding BrowseCommand}" Classes="Primary" Height="60" HorizontalAlignment="Stretch">
+                                         <StackPanel Orientation="Horizontal" Spacing="12">
+                                             <PathIcon Data="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z" Width="20" Height="20" Foreground="White" VerticalAlignment="Center"/>
+                                             <TextBlock Text="Select osu! Songs Folder" FontWeight="Bold" FontSize="16"/>
+                                         </StackPanel>
+                                     </Button>
+                                     <Button Command="{Binding UseDefaultPathCommand}" Classes="Secondary" Height="50" HorizontalAlignment="Stretch">
+                                         <TextBlock Text="Use Default Path" FontWeight="Medium"/>
+                                     </Button>
                                  </StackPanel>
-                             </Button>
+                             </Border>
 
-                             <Button Command="{Binding UseDefaultPathCommand}" 
-                                     Classes="Secondary"
-                                     Height="50"
-                                     HorizontalAlignment="Stretch">
-                                 <TextBlock Text="Use Default Path" FontWeight="Medium"/>
-                             </Button>
+                             <!-- 2. Scanning / Processing / Audio Loading State -->
+                             <Border Classes="ContentCard" Background="#1C212B" CornerRadius="24" Padding="40" BorderBrush="#30363D" BorderThickness="1" BoxShadow="0 10 40 0 #80000000"
+                                     IsVisible="{Binding IsFolderSelectionVisible, Converter={StaticResource BoolNegationConverter}}">
+                                 <StackPanel Spacing="32">
+                                     <!-- Dynamic Title -->
+                                     <TextBlock FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"
+                                                Text="{Binding CurrentLoadingTitle}"/>
+
+                                     <!-- Unified Progress Bar -->
+                                     <Grid RowDefinitions="Auto,Auto">
+                                         <ProgressBar Classes="SmoothLoader" Value="{Binding ProgressPercentage}" Height="10" CornerRadius="5" Foreground="{StaticResource AccentBrush}" Background="#30363D"
+                                                      IsIndeterminate="{Binding IsProgressBarIndeterminate}"/>
+                                         <TextBlock Grid.Row="1" Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" HorizontalAlignment="Right" Margin="0,8,0,0"
+                                                    IsVisible="{Binding IsProgressBarIndeterminate, Converter={StaticResource BoolNegationConverter}}"/>
+                                     </Grid>
+
+                                     <!-- Status Message -->
+                                     <TextBlock FontSize="14" Foreground="#AAA" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                                                IsVisible="{Binding IsLoadingMore, Converter={StaticResource BoolNegationConverter}}">
+                                         <TextBlock.Text>
+                                             <MultiBinding StringFormat="{}{0}">
+                                                 <Binding Path="ScanStatusMessage"/>
+                                                 <Binding Path="ProgressMessage"/>
+                                             </MultiBinding>
+                                         </TextBlock.Text>
+                                     </TextBlock>
+
+                                     <!-- Load More State (Simpler) -->
+                                     <TextBlock Text="Fetching more maps from your library..." FontSize="14" Foreground="#AAA" HorizontalAlignment="Center"
+                                                IsVisible="{Binding IsLoadingMore}"/>
+
+                                 </StackPanel>
+                             </Border>
                          </StackPanel>
-                     </Border>
-
-                     <TextBlock Text="osu!tag scans your beatmaps and tags your audio files for you." 
-                                Foreground="#666" 
-                                FontSize="13" 
-                                TextAlignment="Center"/>
+                      </Panel>
                 </StackPanel>
+
             </Grid>
         </Panel>
-        <!-- Loading Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="2" 
-                IsVisible="{Binding IsScanning}" 
-                Background="#990A0E14" 
-                ZIndex="200"
-                Classes="AnimatedOpacity">
-            <Border Background="{StaticResource SurfaceElevatedBrush}"
-                    CornerRadius="24"
-                    Padding="40"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    BoxShadow="0 10 40 0 #66000000"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1">
-                <StackPanel Spacing="24" Width="400">
-                    <TextBlock Text="Scanning Beatmaps" 
-                               FontSize="20" FontWeight="Bold" 
-                               Foreground="{StaticResource TextPrimaryBrush}"
-                               HorizontalAlignment="Center"/>
-                    
-                    <Grid RowDefinitions="Auto,Auto">
-                        <ProgressBar Value="{Binding ProgressPercentage}" 
-                                     Height="8" 
-                                     CornerRadius="4"
-                                     Foreground="{StaticResource AccentBrush}"
-                                     Background="{StaticResource SurfaceBrush}"/>
-                        
-                        <TextBlock Grid.Row="1" 
-                                   Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" 
-                                   FontSize="12" FontWeight="Bold" 
-                                   Foreground="{StaticResource AccentBrush}"
-                                   HorizontalAlignment="Right"
-                                   Margin="0,8,0,0"/>
-                    </Grid>
-                    
-                    <TextBlock Text="{Binding ScanStatusMessage}" 
-                               FontSize="13" 
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-        </Border>
 
-        <!-- Processing Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="2" 
-                IsVisible="{Binding IsProcessing}" 
-                Background="#990A0E14" 
-                ZIndex="201"
-                Classes="AnimatedOpacity">
-            <Border Background="{StaticResource SurfaceElevatedBrush}"
-                    CornerRadius="24"
-                    Padding="40"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    BoxShadow="0 10 40 0 #66000000"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1">
-                <StackPanel Spacing="24" Width="400">
-                    <TextBlock Text="Processing MP3s" 
-                               FontSize="20" FontWeight="Bold" 
-                               Foreground="{StaticResource TextPrimaryBrush}"
-                               HorizontalAlignment="Center"/>
-                    
-                    <Grid RowDefinitions="Auto,Auto">
-                        <ProgressBar Value="{Binding ProgressPercentage}" 
-                                     Height="8" 
-                                     CornerRadius="4"
-                                     Foreground="{StaticResource AccentBrush}"
-                                     Background="{StaticResource SurfaceBrush}"/>
-                        
-                        <TextBlock Grid.Row="1" 
-                                   Text="{Binding ProgressPercentage, StringFormat='{}{0}%'}" 
-                                   FontSize="12" FontWeight="Bold" 
-                                   Foreground="{StaticResource AccentBrush}"
-                                   HorizontalAlignment="Right"
-                                   Margin="0,8,0,0"/>
-                    </Grid>
-                    
-                    <TextBlock Text="{Binding ProgressMessage}" 
-                               FontSize="13" 
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-        </Border>
+
+
         
     </Grid>
 </Window>

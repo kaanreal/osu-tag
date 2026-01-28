@@ -82,5 +82,7 @@ namespace Osutag.Services
         public bool TelemetryEnabled { get; set; } = true;
         public bool DiscordRpcEnabled { get; set; } = true;
         public string AnonymousUserId { get; set; } = "";
+        public string SpotifyClientId { get; set; } = "";
+        public string SpotifyClientSecret { get; set; } = "";
     }
 }

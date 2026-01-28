@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Osutag.Services;
 using Osutag.Views;
@@ -202,6 +203,8 @@ namespace Osutag.Views
             CheckForUpdates = SettingsService.Settings.CheckForUpdates;
             PreviewVolume = SettingsService.Settings.PreviewVolume;
             SelectedTheme = SettingsService.Settings.ThemeColor;
+            SpotifyClientId = SettingsService.Settings.SpotifyClientId;
+            SpotifyClientSecret = SettingsService.Settings.SpotifyClientSecret;
         }
 
         private void SaveSettings()
@@ -219,6 +222,8 @@ namespace Osutag.Views
                 SettingsService.Settings.CheckForUpdates = CheckForUpdates;
                 SettingsService.Settings.PreviewVolume = PreviewVolume;
                 SettingsService.Settings.ThemeColor = SelectedTheme;
+                SettingsService.Settings.SpotifyClientId = SpotifyClientId;
+                SettingsService.Settings.SpotifyClientSecret = SpotifyClientSecret;
                 SettingsService.Save();
                 
                 // Handle Discord RPC changes - Temporarily disabled for debugging
@@ -287,6 +292,30 @@ namespace Osutag.Views
             {
                 if (btn != null) btn.IsEnabled = true;
             }
+        }
+
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            BeginMoveDrag(e);
+        }
+
+        private void SpotifyHelp_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            PlatformService.OpenUrl("https://developer.spotify.com/dashboard");
+        }
+
+        public static readonly StyledProperty<string> SpotifyClientIdProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(SpotifyClientId));
+        public string SpotifyClientId
+        {
+            get => GetValue(SpotifyClientIdProperty);
+            set => SetValue(SpotifyClientIdProperty, value);
+        }
+
+        public static readonly StyledProperty<string> SpotifyClientSecretProperty = AvaloniaProperty.Register<SettingsWindow, string>(nameof(SpotifyClientSecret));
+        public string SpotifyClientSecret
+        {
+            get => GetValue(SpotifyClientSecretProperty);
+            set => SetValue(SpotifyClientSecretProperty, value);
         }
     }
 }

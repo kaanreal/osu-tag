@@ -1,29 +1,23 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using LibVLCSharp.Shared;
+using MiniaudioSharp;
 
 namespace Osutag.Services
 {
-    /// <summary>
-    /// Singleton service for cross-platform audio playback using LibVLCSharp.
-    /// This implementation provides consistent behavior across Windows, macOS, and Linux.
-    /// </summary>
-    public class AudioService : IDisposable
+    public unsafe class AudioService : IDisposable
     {
-        private static readonly Lazy<AudioService> _instance = new(() => new AudioService());
-        public static AudioService Instance => _instance.Value;
+        private static AudioService? _instance;
+        public static AudioService Instance => _instance ??= new AudioService();
 
+        private ma_engine* _engine;
+        private ma_sound* _sound;
         private bool _isInitialized = false;
-        private LibVLC? _libVLC;
-        private MediaPlayer? _mediaPlayer;
-        
-        // Debouncing
-        private CancellationTokenSource? _playbackCancellation;
-        private string? _currentPlayingPath;
-        private readonly object _playbackLock = new object();
-        private readonly object _vlcLock = new object();
+        private string? _currentPath;
+        private readonly object _lock = new();
+        private CancellationTokenSource? _playCts;
 
         private int _volume = (int)SettingsService.Settings.PreviewVolume;
         public int Volume
@@ -33,11 +27,27 @@ namespace Osutag.Services
             {
                 _volume = value;
                 SettingsService.Settings.PreviewVolume = value;
-                
-                // Update live if playing
-                if (_mediaPlayer != null)
+                lock (_lock)
                 {
-                    _mediaPlayer.Volume = value;
+                    if (_isInitialized && _sound != null)
+                    {
+                        Miniaudio.ma_sound_set_volume(_sound, _volume / 100f);
+                    }
+                }
+            }
+        }
+
+        public event EventHandler<bool>? IsLoadingChanged;
+        private bool _isLoading;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set
+            {
+                if (_isLoading != value)
+                {
+                    _isLoading = value;
+                    IsLoadingChanged?.Invoke(this, value);
                 }
             }
         }
@@ -53,125 +63,179 @@ namespace Osutag.Services
 
             try
             {
-                // Initialize Core. native libraries must be deployed.
-                Core.Initialize();
+                // ma_engine is quite large, and if the binding is opaque, sizeof() might be 1 or 4.
+                // We allocate a safe margin of 64KB to avoid memory corruption during ma_engine_init.
+                _engine = (ma_engine*)Marshal.AllocHGlobal(64 * 1024);
+                
+                // Clear memory
+                byte* ptr = (byte*)_engine;
+                for(int i=0; i<64*1024; i++) ptr[i] = 0;
 
-                // Create LibVLC with default options
-                _libVLC = new LibVLC();
-                
-                // Create MediaPlayer
-                _mediaPlayer = new MediaPlayer(_libVLC);
-                
-                _isInitialized = true;
-                Console.WriteLine("[Audio] LibVLC Initialized successfully.");
+                var result = Miniaudio.ma_engine_init(null, _engine);
+                if (result == ma_result.MA_SUCCESS)
+                {
+                    _isInitialized = true;
+                }
+                else
+                {
+                    Marshal.FreeHGlobal((IntPtr)_engine);
+                    _engine = null;
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Audio] Failed to initialize LibVLC: {ex.Message}");
-            }
+            catch { }
         }
 
-        public void PlayPreview(string path, int startTimeMs, int? volume = null)
+        public void PlayPreview(string path, int startTimeMs, int? durationMs = null, float rate = 1.0f, bool maintainPitch = false)
         {
-            if (!_isInitialized) Initialize();
-            if (_libVLC == null || _mediaPlayer == null) return;
+            if (!_isInitialized) return;
 
-            // Offload to thread to keep UI snappy, though LibVLC is async-friendly.
+            lock (_lock)
+            {
+                if (_currentPath == path && _sound != null) return;
+                
+                // Cancel previous loading task
+                _playCts?.Cancel();
+                _playCts = new CancellationTokenSource();
+            }
+
+            var token = _playCts.Token;
+            
+            // Move entire operation off the UI thread
             Task.Run(() =>
             {
-                CancellationToken token;
-                
-                lock (_playbackLock)
+                try
                 {
-                    _playbackCancellation?.Cancel();
-                    _playbackCancellation = new CancellationTokenSource();
-                    token = _playbackCancellation.Token;
+                    // 1. STOP PREVIOUS (Inside background thread, but with lock)
+                    StopInternal();
 
-                    if (_currentPlayingPath == path && _mediaPlayer.IsPlaying) 
+                    if (token.IsCancellationRequested) return;
+
+                    IsLoading = true;
+
+                    // 2. LOAD NEW
+                    var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(path + "\0");
+                    fixed (byte* pPath = utf8Bytes)
                     {
-                        // Already playing this track, maybe just seek?
-                        // For now, simpler to just restart to ensure preview point is hit.
-                    }
-                    _currentPlayingPath = path;
-                }
+                        var pSound = (ma_sound*)Marshal.AllocHGlobal(32 * 1024); // Safe margin for ma_sound
+                        // Clear memory
+                        byte* sPtr = (byte*)pSound;
+                        for(int i=0; i<32*1024; i++) sPtr[i] = 0;
 
-                if (token.IsCancellationRequested) return;
-
-                int finalVolume = volume ?? (int)SettingsService.Settings.PreviewVolume;
-                if (finalVolume <= 0) return;
-
-                lock (_vlcLock)
-                {
-                    try
-                    {
-                        // Local path handling
-                        string mediaPath = path;
-                        if (!path.Contains("://") && File.Exists(path))
+                        var result = Miniaudio.ma_sound_init_from_file(_engine, (sbyte*)pPath, 0, null, null, pSound);
+                        
+                        if (result != ma_result.MA_SUCCESS)
                         {
-                            // LibVLC sometimes prefers file:// URI for local files to handle chars better
-                            mediaPath = new Uri(path).AbsoluteUri;
-                        }
-
-                        // Create media from path
-                        using var media = new Media(_libVLC, mediaPath, FromType.FromLocation);
-
-                        // Optimizations for faster seek/start
-                        media.AddOption(":no-video"); 
-                        
-                        _mediaPlayer.Media = media;
-                        _mediaPlayer.Volume = finalVolume;
-                        
-                        // Play immediately
-                        bool playResult = _mediaPlayer.Play();
-                        
-                        if (!playResult)
-                        {
-                            Console.WriteLine($"[Audio] LibVLC Play() returned false for {path}");
+                            Marshal.FreeHGlobal((IntPtr)pSound);
                             return;
                         }
 
-                        // Handle Seeking
+                        if (token.IsCancellationRequested)
+                        {
+                            Miniaudio.ma_sound_uninit(pSound);
+                            Marshal.FreeHGlobal((IntPtr)pSound);
+                            return;
+                        }
+
+                        lock (_lock)
+                        {
+                            _sound = pSound;
+                            _currentPath = path;
+                        }
+                    }
+
+                    // 3. CONFIGURE & START
+                    lock (_lock)
+                    {
+                        if (_sound == null) return;
+                        Miniaudio.ma_sound_set_volume(_sound, _volume / 100f);
+                        Miniaudio.ma_sound_set_pitch(_sound, rate);
+
                         if (startTimeMs > 0)
                         {
-                            // LibVLC expects time in milliseconds directly.
-                            _mediaPlayer.Time = startTimeMs;
-                            Console.WriteLine($"[Audio] Playing {Path.GetFileName(path)} from {startTimeMs}ms");
+                            var pDataSource = Miniaudio.ma_sound_get_data_source(_sound);
+                            if (pDataSource != null)
+                            {
+                                ma_format format;
+                                uint channels;
+                                uint sampleRate;
+                                Miniaudio.ma_data_source_get_data_format(pDataSource, &format, &channels, &sampleRate, null, 0);
+                                if (sampleRate > 0)
+                                {
+                                    ulong frame = (ulong)((double)startTimeMs / 1000.0 * sampleRate);
+                                    Miniaudio.ma_sound_seek_to_pcm_frame(_sound, frame);
+                                }
+                            }
                         }
-                        else
-                        {
-                             Console.WriteLine($"[Audio] Playing {Path.GetFileName(path)} from start");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                         Console.WriteLine($"[Audio] LibVLC Error: {ex.Message}");
+                        Miniaudio.ma_sound_start(_sound);
                     }
                 }
-            });
+                catch { }
+                finally
+                {
+                    IsLoading = false;
+                }
+            }, token);
+        }
+
+        public void UpdatePlaybackState(float rate, bool maintainPitch)
+        {
+            lock (_lock)
+            {
+                if (_isInitialized && _sound != null)
+                {
+                    if (!maintainPitch)
+                    {
+                        // Coupled Mode: Changes both speed and pitch
+                        Miniaudio.ma_sound_set_pitch(_sound, rate);
+                    }
+                    else
+                    {
+                        // Independent Mode: Attempt speed change without pitch shift
+                        // Since ma_sound_set_speed isn't available, we'll try a fallback
+                        // Or we just reset to 1.0 for consistency if we can't do it.
+                        // However, to make it 'live', we'll stick to resampling for now
+                        // but maybe we can find a way to set speed.
+                        Miniaudio.ma_sound_set_pitch(_sound, rate);
+                    }
+                }
+            }
         }
 
         public void Stop()
         {
-            lock (_playbackLock)
-            {
-                _playbackCancellation?.Cancel();
-                _currentPlayingPath = null;
-            }
+            _playCts?.Cancel();
+            Task.Run(() => StopInternal());
+        }
 
-            lock (_vlcLock)
+        private void StopInternal()
+        {
+            lock (_lock)
             {
-                if (_mediaPlayer != null && _mediaPlayer.IsPlaying)
+                _currentPath = null;
+                if (_sound != null)
                 {
-                    _mediaPlayer.Stop();
+                    Miniaudio.ma_sound_stop(_sound);
+                    Miniaudio.ma_sound_uninit(_sound);
+                    Marshal.FreeHGlobal((IntPtr)_sound);
+                    _sound = null;
                 }
             }
         }
 
         public void Dispose()
         {
-            Stop();
-            _mediaPlayer?.Dispose();
-            _libVLC?.Dispose();
+            _playCts?.Cancel();
+            StopInternal();
+            lock (_lock)
+            {
+                if (_isInitialized && _engine != null)
+                {
+                    Miniaudio.ma_engine_uninit(_engine);
+                    Marshal.FreeHGlobal((IntPtr)_engine);
+                    _engine = null;
+                    _isInitialized = false;
+                }
+            }
         }
     }
 }

@@ -82,5 +82,27 @@ namespace Osutag.Services
             
             return "";
         }
+        /// <summary>
+        /// Opens a URL in the default browser.
+        /// </summary>
+        public static void OpenUrl(string url)
+        {
+            if (IsWindows)
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url.Replace("&", "^&"),
+                    UseShellExecute = true
+                });
+            }
+            else if (IsMacOS)
+            {
+                System.Diagnostics.Process.Start("open", url);
+            }
+            else if (IsLinux)
+            {
+                System.Diagnostics.Process.Start("xdg-open", url);
+            }
+        }
     }
 }

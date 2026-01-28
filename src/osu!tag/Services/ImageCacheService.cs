@@ -155,19 +155,47 @@ namespace Osutag.Services
 
             try
             {
-                if (_cache.Count <= MaxCacheSize)
+                int currentCount = _cache.Count;
+                if (currentCount <= MaxCacheSize)
                     return;
 
-                // Remove oldest 20% of entries
-                var toRemove = _cache.Count - (int)(MaxCacheSize * 0.8);
+                // Calculate how many to remove (target 80% capacity)
+                int targetSize = (int)(MaxCacheSize * 0.8);
+                int toRemove = currentCount - targetSize;
                 
-                var oldestEntries = _cache
-                    .OrderBy(kvp => kvp.Value.LastAccess)
-                    .Take(toRemove)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
+                if (toRemove <= 0) return;
 
-                foreach (var key in oldestEntries)
+                // Use threshold-based eviction: find access time that would remove ~toRemove items
+                // This avoids sorting the entire collection
+                int threshold = _accessCounter - (MaxCacheSize / 2); // Remove items older than half the access history
+                
+                // Pre-allocate with estimated capacity
+                var keysToRemove = new List<string>(toRemove + 10);
+                
+                foreach (var kvp in _cache)
+                {
+                    if (kvp.Value.LastAccess < threshold)
+                    {
+                        keysToRemove.Add(kvp.Key);
+                        if (keysToRemove.Count >= toRemove)
+                            break;
+                    }
+                }
+
+                // If threshold didn't find enough, fall back to oldest entries
+                if (keysToRemove.Count < toRemove / 2)
+                {
+                    keysToRemove.Clear();
+                    // Simple approach: remove first N entries encountered (approximates LRU over time)
+                    int removed = 0;
+                    foreach (var key in _cache.Keys)
+                    {
+                        keysToRemove.Add(key);
+                        if (++removed >= toRemove) break;
+                    }
+                }
+
+                foreach (var key in keysToRemove)
                 {
                     if (_cache.TryRemove(key, out var removed))
                     {

@@ -54,12 +54,18 @@ namespace Osutag.Views
             {
                 if (item.Difficulty != null && !string.IsNullOrEmpty(item.Difficulty.Mp3Path))
                 {
-                    // Use the preview time from the difficulty if available, or -1
-                    // Actually, OsuMapDifficulty doesn't have PreviewTime directly, but MainViewModel sets it in MapItemGroup.
-                    // We need to pass it or just use 0 if not found.
-                    // In RatesWindow, we don't have the MapItemGroup context easily.
-                    // Let's check how we can get it.
-                    Services.AudioService.Instance.PlayPreview(item.Difficulty.Mp3Path, 0); // Default to start for rates for now
+                    float rate = 1.0f;
+                    if (!string.IsNullOrEmpty(item.Difficulty.Rate))
+                    {
+                        var rateStr = item.Difficulty.Rate.Replace("x", "", StringComparison.OrdinalIgnoreCase).Trim();
+                        if (float.TryParse(rateStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float parsed))
+                            rate = parsed;
+                    }
+
+                    int previewTime = item.Difficulty.PreviewTime;
+                    if (previewTime <= 0) previewTime = 0;
+
+                    Services.AudioService.Instance.PlayPreview(item.Difficulty.Mp3Path, previewTime, null, rate);
                 }
             }
         }

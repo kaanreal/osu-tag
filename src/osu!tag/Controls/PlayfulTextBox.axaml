@@ -7,6 +7,42 @@
              ClipToBounds="False">
     
     <Grid>
+        <!-- Manual Watermark -->
+        <TextBlock Name="WatermarkBlock"
+                   Text="{Binding Watermark, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   Foreground="{DynamicResource TextTertiaryBrush}"
+                   Opacity="0.6"
+                   FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   VerticalAlignment="Center"
+                   IsHitTestVisible="False"
+                   Margin="5,0,0,0">
+            <TextBlock.RenderTransform>
+                <ScaleTransform ScaleX="1" ScaleY="1"/>
+            </TextBlock.RenderTransform>
+            <TextBlock.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </TextBlock.Transitions>
+            <TextBlock.Styles>
+                <Style Selector="TextBlock">
+                    <Setter Property="Opacity" Value="0.6"/>
+                    <Setter Property="RenderTransform" Value="scale(1)"/>
+                </Style>
+                <Style Selector="TextBlock[IsVisible=False]">
+                    <Setter Property="Opacity" Value="0"/>
+                    <Setter Property="RenderTransform" Value="scale(0.9)"/>
+                </Style>
+            </TextBlock.Styles>
+            <TextBlock.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                    <Binding Path="Text" RelativeSource="{RelativeSource AncestorType=UserControl}" Converter="{x:Static StringConverters.IsNullOrEmpty}"/>
+                    <Binding Path="!#InputBox.IsFocused"/>
+                </MultiBinding>
+            </TextBlock.IsVisible>
+        </TextBlock>
+
         <!-- The actual input box (Invisible Text) -->
         <TextBox Name="InputBox"
                  Foreground="Transparent"
@@ -16,7 +52,6 @@
                  FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
                  HorizontalContentAlignment="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
                  VerticalContentAlignment="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                 Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=UserControl}}"
                  AcceptsReturn="False"
                  TextWrapping="NoWrap">
              <TextBox.Styles>

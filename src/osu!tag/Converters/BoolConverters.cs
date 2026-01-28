@@ -199,4 +199,47 @@ namespace Osutag.Converters
             throw new NotImplementedException();
         }
     }
+
+    /// <summary>
+    /// Converts a boolean to "Linked" or "Normal" text.
+    /// </summary>
+    public class BoolToLinkedTextConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return (value is bool b && b) ? "Linked" : "Normal";
+        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Converts a boolean to AccentBrush (true) or TextPrimaryBrush (false).
+    /// Caches brush references to avoid repeated resource lookups.
+    /// </summary>
+    public class BoolToLinkedColorConverter : IValueConverter
+    {
+        // Cached brush references (initialized on first use)
+        private static object? _accentBrush;
+        private static object? _textPrimaryBrush;
+        private static bool _cachesInitialized;
+
+        private static void EnsureCachesInitialized()
+        {
+            if (_cachesInitialized) return;
+            
+            if (Avalonia.Application.Current?.Resources != null)
+            {
+                Avalonia.Application.Current.Resources.TryGetResource("AccentBrush", Avalonia.Styling.ThemeVariant.Default, out _accentBrush);
+                Avalonia.Application.Current.Resources.TryGetResource("TextPrimaryBrush", Avalonia.Styling.ThemeVariant.Default, out _textPrimaryBrush);
+                _cachesInitialized = true;
+            }
+        }
+
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            EnsureCachesInitialized();
+            return (value is bool b && b) ? _accentBrush : _textPrimaryBrush;
+        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
 }

@@ -15,13 +15,14 @@ namespace Osutag.Converters
 
             if (parameter is string paramStr)
             {
-                var parts = paramStr.Split('|');
+                var parts = paramStr.Split(',');
                 if (parts.Length >= 2)
                 {
-                    return boolValue ? parts[1] : parts[0];
+                    string transformStr = boolValue ? parts[1] : parts[0];
+                    return Avalonia.Media.Transformation.TransformOperations.Parse(transformStr);
                 }
             }
-            return "none";
+            return Avalonia.Media.Transformation.TransformOperations.Parse("none");
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

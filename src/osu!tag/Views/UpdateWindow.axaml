@@ -10,7 +10,8 @@
         TransparencyLevelHint="None"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
-        CanResize="False">
+        CanResize="False"
+        PointerPressed="Header_PointerPressed">
     
     <Panel>
          <!-- Background -->

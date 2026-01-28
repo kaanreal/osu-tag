@@ -1,5 +1,7 @@
 using System;
-using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -9,95 +11,175 @@ using Avalonia.Media;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Osutag.Services
 {
     public static class AnimationHelper
     {
-        #region Entrance Animation ("Falling" osu! style)
+        private static readonly ConditionalWeakTable<ScrollViewer, SmoothScrollController> _controllers = new();
+
+        // ===== CACHED EASING FUNCTIONS (Avoid per-animation allocations) =====
+        private static readonly BackEaseOut CachedBackEaseOut = new();
+        private static readonly LinearEasing CachedLinearEasing = new();
+        
+        // ===== CACHED DURATIONS =====
+        private static readonly TimeSpan EntranceDuration = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan OpacityDuration = TimeSpan.FromMilliseconds(400);
+        private static readonly TimeSpan HoverScaleDuration = TimeSpan.FromMilliseconds(200);
+        private static readonly TimeSpan HoverRotateDuration = TimeSpan.FromMilliseconds(150);
+
+        // ===== CACHED TRANSITION TEMPLATES (cloned per-control to avoid shared state issues) =====
+        private static Transitions CreateEntranceTranslateTransitions() => new()
+        {
+            new DoubleTransition { Property = TranslateTransform.YProperty, Duration = EntranceDuration, Easing = CachedBackEaseOut }
+        };
+
+        private static Transitions CreateEntranceScaleTransitions() => new()
+        {
+            new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = EntranceDuration, Easing = CachedBackEaseOut },
+            new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = EntranceDuration, Easing = CachedBackEaseOut }
+        };
+
+        private static Transitions CreateEntranceOpacityTransitions() => new()
+        {
+            new DoubleTransition { Property = Visual.OpacityProperty, Duration = OpacityDuration, Easing = CachedLinearEasing }
+        };
+
+        private static Transitions CreateHoverScaleTransitions() => new()
+        {
+            new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = HoverScaleDuration },
+            new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = HoverScaleDuration }
+        };
+
+        private static Transitions CreateHoverRotateTransitions() => new()
+        {
+            new DoubleTransition { Property = Rotate3DTransform.AngleXProperty, Duration = HoverRotateDuration },
+            new DoubleTransition { Property = Rotate3DTransform.AngleYProperty, Duration = HoverRotateDuration }
+        };
+
+        #region Entrance Animation
 
         public static readonly AttachedProperty<bool> EnableEntranceAnimationProperty =
             AvaloniaProperty.RegisterAttached<Control, bool>("EnableEntranceAnimation", typeof(AnimationHelper));
 
-        public static bool GetEnableEntranceAnimation(Control element) => element.GetValue(EnableEntranceAnimationProperty);
+
+
         public static void SetEnableEntranceAnimation(Control element, bool value) => element.SetValue(EnableEntranceAnimationProperty, value);
+
+        public static readonly AttachedProperty<long> LastEntranceTimeProperty =
+            AvaloniaProperty.RegisterAttached<Control, long>("LastEntranceTime", typeof(AnimationHelper));
+
+        public static long GetLastEntranceTime(Control element) => element.GetValue(LastEntranceTimeProperty);
+        public static void SetLastEntranceTime(Control element, long value) => element.SetValue(LastEntranceTimeProperty, value);
 
         static AnimationHelper()
         {
             EnableEntranceAnimationProperty.Changed.AddClassHandler<Control>(OnEnableEntranceAnimationChanged);
             EnableHoverAnimationProperty.Changed.AddClassHandler<Control>(OnEnableHoverAnimationChanged);
+            EnableSmoothScrollingProperty.Changed.AddClassHandler<ScrollViewer>(OnEnableSmoothScrollingChanged);
         }
+
+        private static long _lastStaggerTick;
+        private static int _staggerCount;
+        private const int MaxStagger = 15;
+        private const int StaggerDelayMs = 30;
 
         private static void OnEnableEntranceAnimationChanged(Control control, AvaloniaPropertyChangedEventArgs args)
         {
             if (args.NewValue is true)
             {
-                control.AttachedToVisualTree += OnAttachedToVisualTree;
-                control.DataContextChanged += OnDataContextChanged;
+                control.AttachedToVisualTree -= OnControlAttached;
+                control.AttachedToVisualTree += OnControlAttached;
             }
             else
             {
-                control.AttachedToVisualTree -= OnAttachedToVisualTree;
-                control.DataContextChanged -= OnDataContextChanged;
+                control.AttachedToVisualTree -= OnControlAttached;
             }
         }
 
-        private static void OnDataContextChanged(object? sender, EventArgs e)
+        private static void OnControlAttached(object? sender, VisualTreeAttachmentEventArgs e) => RunEntranceAnimation(sender as Control);
+
+        public static readonly AttachedProperty<System.Threading.CancellationTokenSource?> AnimationTokenProperty =
+            AvaloniaProperty.RegisterAttached<Control, System.Threading.CancellationTokenSource?>("AnimationToken", typeof(AnimationHelper));
+
+        public static System.Threading.CancellationTokenSource? GetAnimationToken(Control element) => element.GetValue(AnimationTokenProperty);
+        public static void SetAnimationToken(Control element, System.Threading.CancellationTokenSource? value) => element.SetValue(AnimationTokenProperty, value);
+
+        private static void RunEntranceAnimation(Control? control)
         {
-             if (sender is Control control) RunEntranceAnimation(control);
-        }
-
-        private static void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
-        {
-            if (sender is not Control control) return;
-            RunEntranceAnimation(control);
-        }
-
-        private static void RunEntranceAnimation(Control control)
-        {
-            var visual = ElementComposition.GetElementVisual(control);
-            if (visual == null) return;
+            if (control == null) return;
             
-            var compositor = visual.Compositor;
+            // DEBOUNCE
+            var now = Stopwatch.GetTimestamp();
+            var lastTime = GetLastEntranceTime(control);
+            if ((now - lastTime) / (double)Stopwatch.Frequency < 0.2) return;
+            SetLastEntranceTime(control, now);
 
-            // FADE SAFEGUARD: Set initial visual state
-            visual.Opacity = 0.01f; 
-            visual.Offset = new Vector3(0, -60, 0); 
-            visual.Scale = new Vector3(0.9f, 0.9f, 1f);
-
-            var animationGroup = compositor.CreateAnimationGroup();
+            // Staggering Logic
+            var dt = (now - _lastStaggerTick) / (double)Stopwatch.Frequency;
             
-            // Opacity
-            var opacityAnim = compositor.CreateScalarKeyFrameAnimation();
-            opacityAnim.Target = "Opacity";
-            opacityAnim.InsertKeyFrame(0f, 0f); 
-            opacityAnim.InsertKeyFrame(0.5f, 1f); 
-            opacityAnim.Duration = TimeSpan.FromMilliseconds(500);
-            
-            // Offset
-            var offsetAnim = compositor.CreateVector3KeyFrameAnimation();
-            offsetAnim.Target = "Offset";
-            offsetAnim.InsertKeyFrame(0f, new Vector3(0, -60, 0));
-            offsetAnim.InsertKeyFrame(1f, Vector3.Zero);
-            offsetAnim.Duration = TimeSpan.FromMilliseconds(500);
-            
-            // Scale
-            var scaleAnim = compositor.CreateVector3KeyFrameAnimation();
-            scaleAnim.Target = "Scale";
-            scaleAnim.InsertKeyFrame(0f, new Vector3(0.9f, 0.9f, 1f));
-            scaleAnim.InsertKeyFrame(1f, Vector3.One); 
-            scaleAnim.Duration = TimeSpan.FromMilliseconds(500);
+            if (dt > 0.15) _staggerCount = 0;
+            _lastStaggerTick = now;
+            var delayMs = Math.Min(_staggerCount * 20, 300); 
+            _staggerCount++;
 
-            animationGroup.Add(opacityAnim);
-            animationGroup.Add(offsetAnim);
-            animationGroup.Add(scaleAnim);
+            // Ensure RenderTransform exists and is compatible
+            if (control.RenderTransform is not TransformGroup)
+            {
+                var group = new TransformGroup();
+                group.Children.Add(new ScaleTransform());
+                group.Children.Add(new TranslateTransform());
+                control.RenderTransform = group;
+            }
+            
+            var groupTransform = control.RenderTransform as TransformGroup;
+            var scaleTransform = groupTransform?.Children[0] as ScaleTransform;
+            var translateTransform = groupTransform?.Children[1] as TranslateTransform;
 
-            visual.StartAnimationGroup(animationGroup);
+            if (scaleTransform == null || translateTransform == null) return;
+
+            // 1. DISABLE TRANSITIONS & RESET STATE
+            // We must clear transitions to snap instantly to the start position without animating backward.
+            control.Transitions = null;
+            if (scaleTransform.Transitions != null) scaleTransform.Transitions = null;
+            if (translateTransform.Transitions != null) translateTransform.Transitions = null;
+
+            // Snap to Start (Hidden/Offset)
+            control.Opacity = 0;
+            translateTransform.Y = 20; 
+            scaleTransform.ScaleX = 0.92;
+            scaleTransform.ScaleY = 0.92;
+
+            // 2. TRIGGER ANIMATION (NEXT FRAME)
+            // Post to UI thread to allow the layout engine to process the "Snap" above.
+            // Then re-enable transitions and set the target.
+            Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                // Wait for Stagger
+                if (delayMs > 0) await Task.Delay(delayMs);
+
+                // Re-validate control is still attached to visual tree
+                if (Avalonia.VisualTree.VisualExtensions.GetVisualRoot(control) == null) return;
+
+                // Setup Transitions using cached factory methods (reduces allocations)
+                translateTransform.Transitions = CreateEntranceTranslateTransitions();
+                scaleTransform.Transitions = CreateEntranceScaleTransitions();
+                control.Transitions = CreateEntranceOpacityTransitions();
+
+                // Set Targets (Triggers the transition)
+                control.Opacity = 1;
+                translateTransform.Y = 0;
+                scaleTransform.ScaleX = 1;
+                scaleTransform.ScaleY = 1;
+
+            }, DispatcherPriority.Render); // Use Render priority
         }
 
         #endregion
 
-        #region Hover Animation (Presenting & Smoothed)
+        #region Hover Animation
 
         public static readonly AttachedProperty<bool> EnableHoverAnimationProperty =
             AvaloniaProperty.RegisterAttached<Control, bool>("EnableHoverAnimation", typeof(AnimationHelper));
@@ -112,112 +194,158 @@ namespace Osutag.Services
                 control.PointerEntered += OnPointerEntered;
                 control.PointerMoved += OnPointerMoved;
                 control.PointerExited += OnPointerExited;
-                control.SizeChanged += OnControlSizeChanged;
-                
-                // Define Transform Group
-                var group = new TransformGroup();
-                
-                // 1. Scale Transform (for "Presenting" Pop)
-                var scale = new ScaleTransform();
-                scale.Transitions = new Transitions
-                {
-                    new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new CubicEaseOut() },
-                    new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new CubicEaseOut() }
-                };
-                group.Children.Add(scale);
-                
-                // 2. Rotate3D Transform (Perspective Tilt)
-                var rot3D = new Rotate3DTransform 
-                { 
-                    Depth = 800,
-                    CenterX = control.Bounds.Width / 2,
-                    CenterY = control.Bounds.Height / 2
-                };
-                // Transitions provide the "Smoothness" / Physics feel automatically
-                rot3D.Transitions = new Transitions
-                {
-                    new DoubleTransition { Property = Rotate3DTransform.AngleXProperty, Duration = TimeSpan.FromMilliseconds(200), Easing = new CubicEaseOut() },
-                    new DoubleTransition { Property = Rotate3DTransform.AngleYProperty, Duration = TimeSpan.FromMilliseconds(200), Easing = new CubicEaseOut() }
-                };
-                group.Children.Add(rot3D);
-                
-                control.RenderTransform = group;
-            }
-            else
-            {
-                control.PointerEntered -= OnPointerEntered;
-                control.PointerMoved -= OnPointerMoved;
-                control.PointerExited -= OnPointerExited;
-                control.SizeChanged -= OnControlSizeChanged;
-            }
-        }
-
-        private static void OnControlSizeChanged(object? sender, SizeChangedEventArgs e)
-        {
-            if (sender is Control control && control.RenderTransform is TransformGroup group 
-                && group.Children.Count > 1 && group.Children[1] is Rotate3DTransform rot3D)
-            {
-                rot3D.CenterX = control.Bounds.Width / 2;
-                rot3D.CenterY = control.Bounds.Height / 2;
             }
         }
 
         private static void OnPointerEntered(object? sender, PointerEventArgs e)
         {
-            if (sender is not Control control) return;
-            
-            if (control.RenderTransform is TransformGroup group && group.Children[0] is ScaleTransform scale)
+            if (sender is Control control)
             {
-                 // "Presenting" Pop (Subtle 1.05x)
-                 // Just setting the property triggers the smooth Transition defined above.
-                 scale.ScaleX = 1.05;
-                 scale.ScaleY = 1.05;
+                if (control.RenderTransform is not TransformGroup)
+                {
+                    var group = new TransformGroup();
+                    var scale = new ScaleTransform();
+                    scale.Transitions = CreateHoverScaleTransitions();
+                    group.Children.Add(scale);
+                    var rot3D = new Rotate3DTransform { Depth = 800 };
+                    rot3D.Transitions = CreateHoverRotateTransitions();
+                    group.Children.Add(rot3D);
+                    control.RenderTransform = group;
+                }
+                
+                if (control.RenderTransform is TransformGroup g && g.Children[0] is ScaleTransform s)
+                {
+                    s.ScaleX = 1.05;
+                    s.ScaleY = 1.05;
+                }
             }
         }
 
         private static void OnPointerMoved(object? sender, PointerEventArgs e)
         {
-            if (sender is not Control control) return;
-            var p = e.GetPosition(control);
-            
-            if (control.RenderTransform is TransformGroup group && group.Children.Count > 1 && group.Children[1] is Rotate3DTransform rot3D)
+            if (sender is Control control && control.RenderTransform is TransformGroup group && group.Children.Count > 1 && group.Children[1] is Rotate3DTransform rot3D)
             {
-                var w = control.Bounds.Width;
-                var h = control.Bounds.Height;
-                
-                // Normalize -1 to 1
-                var nx = (p.X / w) * 2.0 - 1.0;
-                var ny = (p.Y / h) * 2.0 - 1.0;
-                
-                // Max Angle (Degrees) - Reduced intensity
-                double maxAngle = 8.0;
-                
-                // Set Target Angle
-                // The Transition (200ms CubicEaseOut) will smooth this value change automatically.
-                rot3D.AngleY = -nx * maxAngle; // Yaw
-                rot3D.AngleX = ny * maxAngle;  // Pitch
+                var p = e.GetPosition(control);
+                rot3D.CenterX = control.Bounds.Width / 2;
+                rot3D.CenterY = control.Bounds.Height / 2;
+                var nx = (p.X / control.Bounds.Width) * 2.0 - 1.0;
+                var ny = (p.Y / control.Bounds.Height) * 2.0 - 1.0;
+                rot3D.AngleY = -nx * 6.0;
+                rot3D.AngleX = ny * 6.0;
             }
         }
 
         private static void OnPointerExited(object? sender, PointerEventArgs e)
         {
-            if (sender is not Control control) return;
+            if (sender is Control control && control.RenderTransform is TransformGroup group)
+            {
+                if (group.Children[0] is ScaleTransform s) { s.ScaleX = 1.0; s.ScaleY = 1.0; }
+                if (group.Children.Count > 1 && group.Children[1] is Rotate3DTransform r) { r.AngleX = 0; r.AngleY = 0; }
+            }
+        }
 
-             if (control.RenderTransform is TransformGroup group)
-             {
-                 var scale = group.Children[0] as ScaleTransform;
-                 var rot3D = group.Children[1] as Rotate3DTransform;
-                 
-                 // Return to rest (Smoothly animated by Transitions)
-                 if (scale != null) {
-                    scale.ScaleX = 1.0;
-                    scale.ScaleY = 1.0;
-                 }
-                 if (rot3D != null) {
-                    rot3D.AngleX = 0.0;
-                    rot3D.AngleY = 0.0;
-                 }
-             }
+        #endregion
+
+        #region Smooth Scrolling (High-Precision Fixed Step)
+
+        public static readonly AttachedProperty<bool> EnableSmoothScrollingProperty =
+            AvaloniaProperty.RegisterAttached<ScrollViewer, bool>("EnableSmoothScrolling", typeof(AnimationHelper));
+
+        public static bool GetEnableSmoothScrolling(ScrollViewer element) => element.GetValue(EnableSmoothScrollingProperty);
+        public static void SetEnableSmoothScrolling(ScrollViewer element, bool value) => element.SetValue(EnableSmoothScrollingProperty, value);
+
+        private static void OnEnableSmoothScrollingChanged(ScrollViewer scrollViewer, AvaloniaPropertyChangedEventArgs args)
+        {
+            if (args.NewValue is true)
+            {
+                if (!_controllers.TryGetValue(scrollViewer, out var controller))
+                {
+                    controller = new SmoothScrollController(scrollViewer);
+                    _controllers.Add(scrollViewer, controller);
+                }
+                scrollViewer.AddHandler(InputElement.PointerWheelChangedEvent, controller.HandleWheel, RoutingStrategies.Tunnel);
+            }
+        }
+
+        private class SmoothScrollController
+        {
+            private readonly ScrollViewer _sv;
+            private Avalonia.Vector _targetOffset;
+            private Avalonia.Vector _currentOffset;
+            private bool _isAnimating;
+            private TimeSpan _lastTime;
+
+            // Pre-calculated constants to avoid per-frame division
+            private const double ScrollStep = 100.0;
+            private const double InterpolationSpeed = 12.0;
+            private const double SnapThreshold = 0.1;
+            private const double MaxDeltaSeconds = 0.1;
+
+            public SmoothScrollController(ScrollViewer sv)
+            {
+                _sv = sv;
+                _targetOffset = sv.Offset;
+                _currentOffset = sv.Offset;
+            }
+
+            public void HandleWheel(object? sender, PointerWheelEventArgs e)
+            {
+                e.Handled = true;
+
+                if (!_isAnimating)
+                {
+                    _targetOffset = _sv.Offset;
+                    _currentOffset = _sv.Offset;
+                    _isAnimating = true;
+                    _lastTime = TimeSpan.Zero; // Will be set on first frame
+                    TopLevel.GetTopLevel(_sv)?.RequestAnimationFrame(AnimateLoop);
+                }
+
+                // Calculate target with clamping
+                double maxX = Math.Max(0, _sv.Extent.Width - _sv.Viewport.Width);
+                double maxY = Math.Max(0, _sv.Extent.Height - _sv.Viewport.Height);
+                
+                _targetOffset = new Avalonia.Vector(
+                    Math.Clamp(_targetOffset.X - e.Delta.X * ScrollStep, 0, maxX),
+                    Math.Clamp(_targetOffset.Y - e.Delta.Y * ScrollStep, 0, maxY)
+                );
+            }
+
+            private void AnimateLoop(TimeSpan time)
+            {
+                if (!_isAnimating) return;
+                
+                // Use provided TimeSpan directly - more accurate than Stopwatch for animation frames
+                double dt;
+                if (_lastTime == TimeSpan.Zero)
+                {
+                    dt = 0.016; // Assume ~60fps for first frame
+                }
+                else
+                {
+                    dt = (time - _lastTime).TotalSeconds;
+                    if (dt > MaxDeltaSeconds) dt = 0.016; // Clamp large deltas (tab switch, etc.)
+                }
+                _lastTime = time;
+
+                var diff = _targetOffset - _currentOffset;
+
+                // Check if we've reached the target
+                if (diff.Length < SnapThreshold)
+                {
+                    _currentOffset = _targetOffset;
+                    _sv.Offset = _targetOffset;
+                    _isAnimating = false;
+                    return;
+                }
+
+                // Exponential interpolation for smooth deceleration
+                _currentOffset = _targetOffset - (diff * Math.Exp(-InterpolationSpeed * dt));
+                _sv.Offset = _currentOffset;
+
+                if (_isAnimating)
+                    TopLevel.GetTopLevel(_sv)?.RequestAnimationFrame(AnimateLoop);
+            }
         }
 
         #endregion

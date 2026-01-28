@@ -1,9 +1,17 @@
 using System;
+using Avalonia;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
+using Avalonia.Rendering.Composition;
+using Avalonia.Styling;
+using Avalonia.Media.Transformation;
+using System.Diagnostics;
 using Osutag.ViewModels;
 
 namespace Osutag.Views
@@ -36,13 +44,67 @@ namespace Osutag.Views
             Close();
         }
 
-        protected override void OnLoaded(RoutedEventArgs e)
+        protected override async void OnLoaded(RoutedEventArgs e)
         {
             base.OnLoaded(e);
             
             // Initialize Discord RPC
             Services.DiscordRpcService.Initialize();
+
+            if (_viewModel != null)
+            {
+                // Start both animation and initialization in parallel
+                var animTask = PlayEntranceAnimationAsync();
+                var initTask = _viewModel.InitializeAsync();
+
+                // Wait for both to complete
+                await Task.WhenAll(animTask, initTask);
+
+                // Now that both work and animation are done, signal completion
+                _viewModel.IsInitialLoadDone = true;
+            }
         }
+
+        private async Task PlayEntranceAnimationAsync()
+        {
+            var icon = this.FindControl<Border>("BrandingIcon");
+            var text = this.FindControl<TextBlock>("BrandingText");
+
+            if (icon == null || text == null) return;
+
+            // Wait for window to settle
+            await Task.Delay(200);
+
+            // Trigger XAML Transitions
+            icon.Opacity = 1;
+            icon.RenderTransform = TransformOperations.Parse("scale(1.0)");
+
+            await Task.Delay(250);
+
+            text.Opacity = 1;
+            text.RenderTransform = TransformOperations.Parse("translateY(0px)");
+
+            var loading = this.FindControl<Panel>("LoadingEntrance");
+            if (loading != null)
+            {
+                await Task.Delay(200);
+                loading.Opacity = 1;
+                loading.RenderTransform = TransformOperations.Parse("translateY(0px)");
+            }
+
+
+
+            // Wait for entrance to finish (transitions are 1.0s)
+            await Task.Delay(1200);
+        }
+
+
+
+
+
+
+
+
 
         protected override void OnClosed(EventArgs e)
         {
@@ -70,7 +132,7 @@ namespace Osutag.Views
 
                 try
                 {
-                    await Task.Delay(100, currentToken.Token);
+                    await Task.Delay(300, currentToken.Token);
                     if (currentToken.Token.IsCancellationRequested) return;
 
                     if (!string.IsNullOrEmpty(group.PreviewMp3Path))
@@ -169,6 +231,26 @@ namespace Osutag.Views
             }
             catch (TaskCanceledException) { }
         }
+
+        private void MapCard_Click(object? sender, RoutedEventArgs e)
+        {
+            if (sender is not Control control || control.DataContext is not MapItemGroup group || !group.IsStack)
+                return;
+
+            // Open Overlay (ViewModel)
+            if (_viewModel != null)
+            {
+                 _viewModel.OverlayMapGroup = group;
+                 _viewModel.IsOverlayOpen = true;
+            }
+        }
+
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            BeginMoveDrag(e);
+        }
+
+
     }
 }
 
