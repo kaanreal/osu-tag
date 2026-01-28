@@ -77,7 +77,10 @@
     <TrimmerRootAssembly Include="Osutag"/>
     <TrimmerRootAssembly Include="TagLibSharp"/>
     <TrimmerRootAssembly Include="DiscordRPC"/>
-    <TrimmerRootAssembly Include="NAudio"/>
+    <TrimmerRootAssembly Include="MiniaudioSharp"/>
+    <TrimmerRootAssembly Include="ManagedBass"/>
+    <TrimmerRootAssembly Include="ManagedBass.Enc"/>
+    <TrimmerRootAssembly Include="ManagedBass.Fx"/>
   </ItemGroup>
 
 </Project>
