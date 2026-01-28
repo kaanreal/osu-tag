@@ -1728,7 +1728,8 @@ namespace Osutag.ViewModels
             }
 
             // Initialize Audio Engine in background (parallel to map loading)
-            _ = Task.Run(() => AudioService.Instance.Initialize());
+            // Audio Engine (FFplay) initializes on demand
+            // _ = Task.Run(() => AudioService.Instance.Initialize());
 
             // Only clear if not using smart scan, or if smart scan is disabled in settings
             bool smartScanEnabled = useSmartScan && SettingsService.Settings.SmartScan;
@@ -2423,7 +2424,57 @@ namespace Osutag.ViewModels
                     }
 
                     string mp3Output = Path.Combine(mapOutputDir, $"{safeTitle}.mp3");
-                    File.Copy(diff.Mp3Path, mp3Output, overwrite: true);
+                    
+                    float rate = ParseRateMultiplier(diff.Rate);
+                    bool maintainPitch = false;
+                    float pitchSemitones = 0.0f;
+
+                    // Manual override check
+                    var selectedInfoForAudio = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info => 
+                        info.MapGroup == group && 
+                        (string.IsNullOrEmpty(info.SubDisplayName) || info.SubDisplayName == diffName));
+                    
+                    if (selectedInfoForAudio != null)
+                    {
+                        // Apply override if rate differs OR if we have specific pitch settings
+                        // For Rate Packs, if user didn't touch anything, rate follows diff.
+                        // If user moved slider, SelectedItemInfo reflects that.
+                        if (Math.Abs(selectedInfoForAudio.PlaybackRate - 1.0f) > 0.001f)
+                           rate = selectedInfoForAudio.PlaybackRate;
+                           
+                        maintainPitch = selectedInfoForAudio.MaintainPitch;
+                        pitchSemitones = selectedInfoForAudio.PitchSemitones;
+                    }
+
+                    // Processing criteria:
+                    // 1. Rate != 1.0
+                    // 2. PitchSemitones != 0
+                    // 3. User explicit request via checkbox? (Implied by maintainPitch=true usually requiring processing if rate != 1)
+                    
+                    bool needsProcessing = Math.Abs(rate - 1.0f) > 0.001f || Math.Abs(pitchSemitones) > 0.001f;
+
+                    if (needsProcessing)
+                    {
+                        try
+                        {
+                            Services.AudioProcessingService.ProcessAudio(diff.Mp3Path, mp3Output, rate, pitchSemitones, maintainPitch);
+                        }
+                        catch (Exception ex)
+                        {
+                            // If DllNotFoundException or similar, it often means native libs missing.
+                            // We catch standard Exception to cover BASS errors too.
+                            try
+                            {
+                                File.Copy(diff.Mp3Path, mp3Output, true);
+                                AddResult("⚠ Audio Warning", $"Processing failed (copied original). Error: {ex.Message}");
+                            }
+                            catch { /* Copy failed too? */ }
+                        }
+                    }
+                    else
+                    {
+                         File.Copy(diff.Mp3Path, mp3Output, true);
+                    }
 
                     var osuMap = new OsuMap
                     {

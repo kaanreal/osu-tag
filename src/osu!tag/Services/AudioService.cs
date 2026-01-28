@@ -1,23 +1,31 @@
 using System;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using MiniaudioSharp;
 
 namespace Osutag.Services
 {
-    public unsafe class AudioService : IDisposable
+    /// <summary>
+    /// Audio playback service using FFplay (part of FFmpeg suite).
+    /// </summary>
+    public class AudioService : IDisposable
     {
         private static AudioService? _instance;
         public static AudioService Instance => _instance ??= new AudioService();
 
-        private ma_engine* _engine;
-        private ma_sound* _sound;
-        private bool _isInitialized = false;
-        private string? _currentPath;
+        private Process? _ffplayProcess;
+        private CancellationTokenSource? _durationCts;
+        private CancellationTokenSource? _debounceCts;
         private readonly object _lock = new();
-        private CancellationTokenSource? _playCts;
+
+        // State for live updates
+        private string? _lastPath;
+        private int _lastStartTimeMs;
+        private float _lastRate = 1.0f;
+        private bool _lastMaintainPitch = true;
+        private readonly Stopwatch _playStopwatch = new();
 
         private int _volume = (int)SettingsService.Settings.PreviewVolume;
         public int Volume
@@ -25,15 +33,8 @@ namespace Osutag.Services
             get => _volume;
             set
             {
-                _volume = value;
-                SettingsService.Settings.PreviewVolume = value;
-                lock (_lock)
-                {
-                    if (_isInitialized && _sound != null)
-                    {
-                        Miniaudio.ma_sound_set_volume(_sound, _volume / 100f);
-                    }
-                }
+                _volume = Math.Clamp(value, 0, 100);
+                SettingsService.Settings.PreviewVolume = _volume;
             }
         }
 
@@ -52,190 +53,223 @@ namespace Osutag.Services
             }
         }
 
-        private AudioService()
+        private AudioService() { }
+
+        /// <summary>
+        /// Plays an audio preview using FFplay.
+        /// </summary>
+        /// <param name="path">Path to MP3</param>
+        /// <param name="startTimeMs">Start offset in milliseconds</param>
+        /// <param name="durationMs">Duration to play (optional)</param>
+        /// <param name="rate">Playback speed multiplier (e.g. 1.5)</param>
+        /// <param name="maintainPitch">If true, pitch is preserved (Double Time). If false, pitch changes with speed (Nightcore).</param>
+        public void PlayPreview(string path, int startTimeMs, int? durationMs = null, float rate = 1.0f, bool maintainPitch = true) 
         {
-            Initialize();
+            PlayPreviewInternal(path, startTimeMs, durationMs, rate, maintainPitch, true);
         }
 
-        public void Initialize()
+        private void PlayPreviewInternal(string path, int startTimeMs, int? durationMs = null, float rate = 1.0f, bool maintainPitch = true, bool resetState = true)
         {
-            if (_isInitialized) return;
+            Stop();
 
-            try
+            if (!File.Exists(path)) return;
+
+            if (resetState)
             {
-                // ma_engine is quite large, and if the binding is opaque, sizeof() might be 1 or 4.
-                // We allocate a safe margin of 64KB to avoid memory corruption during ma_engine_init.
-                _engine = (ma_engine*)Marshal.AllocHGlobal(64 * 1024);
-                
-                // Clear memory
-                byte* ptr = (byte*)_engine;
-                for(int i=0; i<64*1024; i++) ptr[i] = 0;
-
-                var result = Miniaudio.ma_engine_init(null, _engine);
-                if (result == ma_result.MA_SUCCESS)
-                {
-                    _isInitialized = true;
-                }
-                else
-                {
-                    Marshal.FreeHGlobal((IntPtr)_engine);
-                    _engine = null;
-                }
-            }
-            catch { }
-        }
-
-        public void PlayPreview(string path, int startTimeMs, int? durationMs = null, float rate = 1.0f, bool maintainPitch = false)
-        {
-            if (!_isInitialized) return;
-
-            lock (_lock)
-            {
-                if (_currentPath == path && _sound != null) return;
-                
-                // Cancel previous loading task
-                _playCts?.Cancel();
-                _playCts = new CancellationTokenSource();
+                _lastPath = path;
+                _lastStartTimeMs = startTimeMs;
+                _lastRate = rate;
+                _lastMaintainPitch = maintainPitch;
             }
 
-            var token = _playCts.Token;
-            
-            // Move entire operation off the UI thread
-            Task.Run(() =>
+            IsLoading = true;
+
+            Task.Run(async () =>
             {
                 try
                 {
-                    // 1. STOP PREVIOUS (Inside background thread, but with lock)
-                    StopInternal();
-
-                    if (token.IsCancellationRequested) return;
-
-                    IsLoading = true;
-
-                    // 2. LOAD NEW
-                    var utf8Bytes = System.Text.Encoding.UTF8.GetBytes(path + "\0");
-                    fixed (byte* pPath = utf8Bytes)
+                    // Locate FFplay (downloads if missing)
+                    string ffplayPath;
+                    try
                     {
-                        var pSound = (ma_sound*)Marshal.AllocHGlobal(32 * 1024); // Safe margin for ma_sound
-                        // Clear memory
-                        byte* sPtr = (byte*)pSound;
-                        for(int i=0; i<32*1024; i++) sPtr[i] = 0;
-
-                        var result = Miniaudio.ma_sound_init_from_file(_engine, (sbyte*)pPath, 0, null, null, pSound);
-                        
-                        if (result != ma_result.MA_SUCCESS)
-                        {
-                            Marshal.FreeHGlobal((IntPtr)pSound);
-                            return;
-                        }
-
-                        if (token.IsCancellationRequested)
-                        {
-                            Miniaudio.ma_sound_uninit(pSound);
-                            Marshal.FreeHGlobal((IntPtr)pSound);
-                            return;
-                        }
-
-                        lock (_lock)
-                        {
-                            _sound = pSound;
-                            _currentPath = path;
-                        }
+                        ffplayPath = await FFmpegHelper.GetFFplayPathAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to locate ffplay: {ex.Message}");
+                        return;
                     }
 
-                    // 3. CONFIGURE & START
+                    // Build audio filter
+                    string audioFilter;
+                    if (maintainPitch)
+                    {
+                        // Tempo change without pitch (atempo)
+                        audioFilter = BuildAtempoFilter(rate);
+                    }
+                    else
+                    {
+                        // Speed change with pitch (Nightcore)
+                        var newRate = (int)(44100 * rate);
+                        audioFilter = $"asetrate={newRate},aresample=44100";
+                    }
+
+                    // FFplay volume: 0-100 -> 0.0-1.0
+                    var volumeNorm = (_volume / 100.0).ToString("0.00", CultureInfo.InvariantCulture);
+                    audioFilter += $",volume={volumeNorm}";
+
+                    // Build arguments
+                    var startSec = startTimeMs / 1000.0;
+                    var args = $"-nodisp -autoexit -loglevel quiet -ss {startSec.ToString("0.000", CultureInfo.InvariantCulture)} -i \"{path}\" -af \"{audioFilter}\"";
+
+                    if (durationMs.HasValue)
+                    {
+                        var durationSec = durationMs.Value / 1000.0;
+                        args = $"-nodisp -autoexit -loglevel quiet -ss {startSec.ToString("0.000", CultureInfo.InvariantCulture)} -t {durationSec.ToString("0.000", CultureInfo.InvariantCulture)} -i \"{path}\" -af \"{audioFilter}\"";
+                    }
+
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = ffplayPath,
+                        Arguments = args,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
                     lock (_lock)
                     {
-                        if (_sound == null) return;
-                        Miniaudio.ma_sound_set_volume(_sound, _volume / 100f);
-                        Miniaudio.ma_sound_set_pitch(_sound, rate);
+                        _ffplayProcess = new Process { StartInfo = psi };
+                        _ffplayProcess.Start();
+                        _playStopwatch.Restart();
+                    }
 
-                        if (startTimeMs > 0)
+                    // Handle auto-stop after duration
+                    if (durationMs.HasValue)
+                    {
+                        _durationCts = new CancellationTokenSource();
+                        try
                         {
-                            var pDataSource = Miniaudio.ma_sound_get_data_source(_sound);
-                            if (pDataSource != null)
-                            {
-                                ma_format format;
-                                uint channels;
-                                uint sampleRate;
-                                Miniaudio.ma_data_source_get_data_format(pDataSource, &format, &channels, &sampleRate, null, 0);
-                                if (sampleRate > 0)
-                                {
-                                    ulong frame = (ulong)((double)startTimeMs / 1000.0 * sampleRate);
-                                    Miniaudio.ma_sound_seek_to_pcm_frame(_sound, frame);
-                                }
-                            }
+                            await Task.Delay(durationMs.Value, _durationCts.Token).ConfigureAwait(false);
+                            Stop();
                         }
-                        Miniaudio.ma_sound_start(_sound);
+                        catch (TaskCanceledException) { }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"FFplay playback error: {ex.Message}");
+                }
                 finally
                 {
                     IsLoading = false;
                 }
-            }, token);
+            });
         }
 
+        /// <summary>
+        /// Updates playback state live by restarting FFplay at the current calculated position.
+        /// </summary>
         public void UpdatePlaybackState(float rate, bool maintainPitch)
         {
-            lock (_lock)
+            if (_lastPath == null || (_lastRate == rate && _lastMaintainPitch == maintainPitch)) return;
+
+            // Debounce to avoid process spam while sliding
+            _debounceCts?.Cancel();
+            _debounceCts = new CancellationTokenSource();
+            var token = _debounceCts.Token;
+
+            Task.Run(async () =>
             {
-                if (_isInitialized && _sound != null)
+                try
                 {
-                    if (!maintainPitch)
+                    await Task.Delay(150, token).ConfigureAwait(false);
+                    if (token.IsCancellationRequested) return;
+
+                    int currentPos;
+                    lock (_lock)
                     {
-                        // Coupled Mode: Changes both speed and pitch
-                        Miniaudio.ma_sound_set_pitch(_sound, rate);
+                        // Calculate current position in the audio
+                        // Audio Time = Initial Offset + (Wall Time * Playback Rate)
+                        var elapsedMs = (int)_playStopwatch.ElapsedMilliseconds;
+                        currentPos = _lastStartTimeMs + (int)(elapsedMs * _lastRate);
+                        
+                        _lastRate = rate;
+                        _lastMaintainPitch = maintainPitch;
+                        _lastStartTimeMs = currentPos;
+                        _playStopwatch.Reset(); // Wait for actual process start to restart
                     }
-                    else
-                    {
-                        // Independent Mode: Attempt speed change without pitch shift
-                        // Since ma_sound_set_speed isn't available, we'll try a fallback
-                        // Or we just reset to 1.0 for consistency if we can't do it.
-                        // However, to make it 'live', we'll stick to resampling for now
-                        // but maybe we can find a way to set speed.
-                        Miniaudio.ma_sound_set_pitch(_sound, rate);
-                    }
+
+                    PlayPreviewInternal(_lastPath, currentPos, null, rate, maintainPitch, false);
                 }
-            }
+                catch (TaskCanceledException) { }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Live update error: {ex.Message}");
+                }
+            });
         }
 
         public void Stop()
         {
-            _playCts?.Cancel();
-            Task.Run(() => StopInternal());
-        }
-
-        private void StopInternal()
-        {
             lock (_lock)
             {
-                _currentPath = null;
-                if (_sound != null)
+                _durationCts?.Cancel();
+                _durationCts = null;
+                _debounceCts?.Cancel();
+                _debounceCts = null;
+
+                _playStopwatch.Stop();
+                _playStopwatch.Reset();
+
+                if (_ffplayProcess != null && !_ffplayProcess.HasExited)
                 {
-                    Miniaudio.ma_sound_stop(_sound);
-                    Miniaudio.ma_sound_uninit(_sound);
-                    Marshal.FreeHGlobal((IntPtr)_sound);
-                    _sound = null;
+                    try
+                    {
+                        _ffplayProcess.Kill();
+                    }
+                    catch { }
+                }
+                _ffplayProcess?.Dispose();
+                _ffplayProcess = null;
+            }
+        }
+
+
+        private static string BuildAtempoFilter(float rate)
+        {
+            if (rate >= 0.5f && rate <= 2.0f)
+                return $"atempo={rate.ToString("0.000", CultureInfo.InvariantCulture)}";
+
+            var filters = new System.Text.StringBuilder();
+            var currentRate = rate;
+
+            while (currentRate > 2.0f || currentRate < 0.5f)
+            {
+                if (currentRate > 2.0f)
+                {
+                    if (filters.Length > 0) filters.Append(',');
+                    filters.Append("atempo=2.0");
+                    currentRate /= 2.0f;
+                }
+                else if (currentRate < 0.5f)
+                {
+                    if (filters.Length > 0) filters.Append(',');
+                    filters.Append("atempo=0.5");
+                    currentRate /= 0.5f;
                 }
             }
+
+            if (filters.Length > 0) filters.Append(',');
+            filters.Append($"atempo={currentRate.ToString("0.000", CultureInfo.InvariantCulture)}");
+
+            return filters.ToString();
         }
 
         public void Dispose()
         {
-            _playCts?.Cancel();
-            StopInternal();
-            lock (_lock)
-            {
-                if (_isInitialized && _engine != null)
-                {
-                    Miniaudio.ma_engine_uninit(_engine);
-                    Marshal.FreeHGlobal((IntPtr)_engine);
-                    _engine = null;
-                    _isInitialized = false;
-                }
-            }
+            Stop();
         }
     }
 }
