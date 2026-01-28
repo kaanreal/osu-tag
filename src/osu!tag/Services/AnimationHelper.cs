@@ -12,12 +12,52 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Osutag.Services
 {
     public static class AnimationHelper
     {
         private static readonly ConditionalWeakTable<ScrollViewer, SmoothScrollController> _controllers = new();
+
+        // ===== CACHED EASING FUNCTIONS (Avoid per-animation allocations) =====
+        private static readonly BackEaseOut CachedBackEaseOut = new();
+        private static readonly LinearEasing CachedLinearEasing = new();
+        
+        // ===== CACHED DURATIONS =====
+        private static readonly TimeSpan EntranceDuration = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan OpacityDuration = TimeSpan.FromMilliseconds(400);
+        private static readonly TimeSpan HoverScaleDuration = TimeSpan.FromMilliseconds(200);
+        private static readonly TimeSpan HoverRotateDuration = TimeSpan.FromMilliseconds(150);
+
+        // ===== CACHED TRANSITION TEMPLATES (cloned per-control to avoid shared state issues) =====
+        private static Transitions CreateEntranceTranslateTransitions() => new()
+        {
+            new DoubleTransition { Property = TranslateTransform.YProperty, Duration = EntranceDuration, Easing = CachedBackEaseOut }
+        };
+
+        private static Transitions CreateEntranceScaleTransitions() => new()
+        {
+            new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = EntranceDuration, Easing = CachedBackEaseOut },
+            new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = EntranceDuration, Easing = CachedBackEaseOut }
+        };
+
+        private static Transitions CreateEntranceOpacityTransitions() => new()
+        {
+            new DoubleTransition { Property = Visual.OpacityProperty, Duration = OpacityDuration, Easing = CachedLinearEasing }
+        };
+
+        private static Transitions CreateHoverScaleTransitions() => new()
+        {
+            new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = HoverScaleDuration },
+            new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = HoverScaleDuration }
+        };
+
+        private static Transitions CreateHoverRotateTransitions() => new()
+        {
+            new DoubleTransition { Property = Rotate3DTransform.AngleXProperty, Duration = HoverRotateDuration },
+            new DoubleTransition { Property = Rotate3DTransform.AngleYProperty, Duration = HoverRotateDuration }
+        };
 
         #region Entrance Animation
 
@@ -120,33 +160,13 @@ namespace Osutag.Services
                 // Wait for Stagger
                 if (delayMs > 0) await Task.Delay(delayMs);
 
-                // Re-validate control is still stuck to the tree/valid? 
-                // Implicitly handled by Transitions (if detached, it won't render).
+                // Re-validate control is still attached to visual tree
+                if (Avalonia.VisualTree.VisualExtensions.GetVisualRoot(control) == null) return;
 
-                var duration = TimeSpan.FromMilliseconds(500);
-                var easing = new BackEaseOut(); 
-
-                // Setup Transitions
-                // Using object transitions on Transform properties creates independent composable animations.
-                
-                var transTrans = new Transitions
-                {
-                    new DoubleTransition { Property = TranslateTransform.YProperty, Duration = duration, Easing = easing }
-                };
-                translateTransform.Transitions = transTrans;
-
-                var scaleTrans = new Transitions
-                {
-                    new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = duration, Easing = easing },
-                    new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = duration, Easing = easing }
-                };
-                scaleTransform.Transitions = scaleTrans;
-
-                var controlTrans = new Transitions
-                {
-                    new DoubleTransition { Property = Visual.OpacityProperty, Duration = TimeSpan.FromMilliseconds(400), Easing = new LinearEasing() }
-                };
-                control.Transitions = controlTrans;
+                // Setup Transitions using cached factory methods (reduces allocations)
+                translateTransform.Transitions = CreateEntranceTranslateTransitions();
+                scaleTransform.Transitions = CreateEntranceScaleTransitions();
+                control.Transitions = CreateEntranceOpacityTransitions();
 
                 // Set Targets (Triggers the transition)
                 control.Opacity = 1;
@@ -185,10 +205,10 @@ namespace Osutag.Services
                 {
                     var group = new TransformGroup();
                     var scale = new ScaleTransform();
-                    scale.Transitions = new Transitions { new DoubleTransition { Property = ScaleTransform.ScaleXProperty, Duration = TimeSpan.FromMilliseconds(200) }, new DoubleTransition { Property = ScaleTransform.ScaleYProperty, Duration = TimeSpan.FromMilliseconds(200) } };
+                    scale.Transitions = CreateHoverScaleTransitions();
                     group.Children.Add(scale);
                     var rot3D = new Rotate3DTransform { Depth = 800 };
-                    rot3D.Transitions = new Transitions { new DoubleTransition { Property = Rotate3DTransform.AngleXProperty, Duration = TimeSpan.FromMilliseconds(150) }, new DoubleTransition { Property = Rotate3DTransform.AngleYProperty, Duration = TimeSpan.FromMilliseconds(150) } };
+                    rot3D.Transitions = CreateHoverRotateTransitions();
                     group.Children.Add(rot3D);
                     control.RenderTransform = group;
                 }
@@ -253,7 +273,13 @@ namespace Osutag.Services
             private Avalonia.Vector _targetOffset;
             private Avalonia.Vector _currentOffset;
             private bool _isAnimating;
-            private long _lastTimestamp;
+            private TimeSpan _lastTime;
+
+            // Pre-calculated constants to avoid per-frame division
+            private const double ScrollStep = 100.0;
+            private const double InterpolationSpeed = 12.0;
+            private const double SnapThreshold = 0.1;
+            private const double MaxDeltaSeconds = 0.1;
 
             public SmoothScrollController(ScrollViewer sv)
             {
@@ -271,14 +297,17 @@ namespace Osutag.Services
                     _targetOffset = _sv.Offset;
                     _currentOffset = _sv.Offset;
                     _isAnimating = true;
-                    _lastTimestamp = Stopwatch.GetTimestamp();
+                    _lastTime = TimeSpan.Zero; // Will be set on first frame
                     TopLevel.GetTopLevel(_sv)?.RequestAnimationFrame(AnimateLoop);
                 }
 
-                const double step = 100.0;
+                // Calculate target with clamping
+                double maxX = Math.Max(0, _sv.Extent.Width - _sv.Viewport.Width);
+                double maxY = Math.Max(0, _sv.Extent.Height - _sv.Viewport.Height);
+                
                 _targetOffset = new Avalonia.Vector(
-                    Math.Max(0, Math.Min(_targetOffset.X - e.Delta.X * step, _sv.Extent.Width - _sv.Viewport.Width)),
-                    Math.Max(0, Math.Min(_targetOffset.Y - e.Delta.Y * step, _sv.Extent.Height - _sv.Viewport.Height))
+                    Math.Clamp(_targetOffset.X - e.Delta.X * ScrollStep, 0, maxX),
+                    Math.Clamp(_targetOffset.Y - e.Delta.Y * ScrollStep, 0, maxY)
                 );
             }
 
@@ -286,15 +315,23 @@ namespace Osutag.Services
             {
                 if (!_isAnimating) return;
                 
-                long now = Stopwatch.GetTimestamp();
-                double dt = (double)(now - _lastTimestamp) / Stopwatch.Frequency;
-                _lastTimestamp = now;
-
-                if (dt > 0.1) dt = 0.016; 
+                // Use provided TimeSpan directly - more accurate than Stopwatch for animation frames
+                double dt;
+                if (_lastTime == TimeSpan.Zero)
+                {
+                    dt = 0.016; // Assume ~60fps for first frame
+                }
+                else
+                {
+                    dt = (time - _lastTime).TotalSeconds;
+                    if (dt > MaxDeltaSeconds) dt = 0.016; // Clamp large deltas (tab switch, etc.)
+                }
+                _lastTime = time;
 
                 var diff = _targetOffset - _currentOffset;
 
-                if (diff.Length < 0.1)
+                // Check if we've reached the target
+                if (diff.Length < SnapThreshold)
                 {
                     _currentOffset = _targetOffset;
                     _sv.Offset = _targetOffset;
@@ -302,8 +339,8 @@ namespace Osutag.Services
                     return;
                 }
 
-                const double speed = 12.0; 
-                _currentOffset = _targetOffset - (diff * Math.Exp(-speed * dt));
+                // Exponential interpolation for smooth deceleration
+                _currentOffset = _targetOffset - (diff * Math.Exp(-InterpolationSpeed * dt));
                 _sv.Offset = _currentOffset;
 
                 if (_isAnimating)

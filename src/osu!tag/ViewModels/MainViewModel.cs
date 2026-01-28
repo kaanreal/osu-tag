@@ -229,6 +229,22 @@ namespace Osutag.ViewModels
         public ICommand? ExportBackgroundCommand { get; set; }
         public ObservableCollection<DifficultyItem> Difficulties { get; } = new();
         public ObservableCollection<AudioFileItem> UniqueAudioFiles { get; } = new();
+        
+        private bool _isOnSpotify;
+        public bool IsOnSpotify
+        {
+            get => _isOnSpotify;
+            set => SetProperty(ref _isOnSpotify, value);
+        }
+
+        private string? _spotifyUrl;
+        public string? SpotifyUrl
+        {
+            get => _spotifyUrl;
+            set => SetProperty(ref _spotifyUrl, value);
+        }
+
+        public ICommand? OpenSpotifyUrlCommand { get; set; }
 
         // Randomization for Shuffle Animation
         private static readonly Random _rng = new();
@@ -423,6 +439,34 @@ namespace Osutag.ViewModels
         {
             get => _isBottomBarExpanded;
             set => SetProperty(ref _isBottomBarExpanded, value);
+        }
+
+        public string SpotifyClientId
+        {
+            get => SettingsService.Settings.SpotifyClientId;
+            set
+            {
+                if (SettingsService.Settings.SpotifyClientId != value)
+                {
+                    SettingsService.Settings.SpotifyClientId = value;
+                    OnPropertyChanged(nameof(SpotifyClientId));
+                    SettingsService.Save();
+                }
+            }
+        }
+
+        public string SpotifyClientSecret
+        {
+            get => SettingsService.Settings.SpotifyClientSecret;
+            set
+            {
+                if (SettingsService.Settings.SpotifyClientSecret != value)
+                {
+                    SettingsService.Settings.SpotifyClientSecret = value;
+                    OnPropertyChanged(nameof(SpotifyClientSecret));
+                    SettingsService.Save();
+                }
+            }
         }
 
         public string SearchHints => "Search by: Artist, Title, Creator, Difficulty, Tags, or Source";
@@ -1016,6 +1060,7 @@ namespace Osutag.ViewModels
         public ICommand OpenDirectoryCommand { get; }
         public ICommand ExportBackgroundCommand { get; }
         public ICommand OpenSupporterUrlCommand { get; }
+        public ICommand OpenSpotifyUrlCommand { get; }
 
         public MainViewModel()
         {
@@ -1049,8 +1094,66 @@ namespace Osutag.ViewModels
             OpenDirectoryCommand = new RelayCommand(param => OpenDirectory(param as MapItemGroup));
             ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
             OpenUpdateWindowCommand = new RelayCommand(_ => OpenUpdateWindow());
+            OpenSpotifyUrlCommand = new RelayCommand(OpenSpotifyUrl);
             OpenGithubCommand = new RelayCommand(_ => OpenGithub());
 
+        }
+
+        private void OpenSpotifyUrl(object? parameter)
+        {
+            string? url = null;
+            if (parameter is MapItemGroup group) url = group.SpotifyUrl;
+            else if (parameter is string s) url = s;
+
+            if (!string.IsNullOrEmpty(url))
+            {
+                PlatformService.OpenUrl(url);
+            }
+        }
+
+        private async Task FetchSpotifyStatusForAllAsync()
+        {
+            // Only run if credentials are set
+            if (string.IsNullOrEmpty(SettingsService.Settings.SpotifyClientId) || 
+                string.IsNullOrEmpty(SettingsService.Settings.SpotifyClientSecret))
+                return;
+
+            var groupsToProcess = _allMapGroups.Where(g => !g.IsOnSpotify).ToList();
+            if (!groupsToProcess.Any()) return;
+
+            // Process in batches to avoid overwhelming the API
+            const int batchSize = 5;
+            for (int i = 0; i < groupsToProcess.Count; i += batchSize)
+            {
+                var batch = groupsToProcess.Skip(i).Take(batchSize);
+                var tasks = batch.Select(async group =>
+                {
+                    var (isOnSpotify, url) = await SpotifyService.Instance.SearchTrackAsync(group.Artist, group.Title);
+                    if (isOnSpotify)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            group.IsOnSpotify = true;
+                            group.SpotifyUrl = url;
+                            
+                            // Also update difficulties
+                            foreach (var diff in group.Difficulties)
+                            {
+                                diff.Difficulty.IsOnSpotify = true;
+                                diff.Difficulty.SpotifyUrl = url;
+                            }
+                        });
+                    }
+                });
+
+                await Task.WhenAll(tasks);
+                // Save cache periodically
+                if (i % 20 == 0) SaveMapCache();
+                
+                await Task.Delay(100); // Brief delay between batches
+            }
+
+            SaveMapCache();
         }
 
         // InitializeAsync will be called from View OnLoaded
@@ -1374,6 +1477,8 @@ namespace Osutag.ViewModels
             public int PreviewTime { get; set; }
             public int BeatmapSetId { get; set; } = -1;
             public string? DirectoryPath { get; set; }
+            public bool IsOnSpotify { get; set; }
+            public string? SpotifyUrl { get; set; }
             public List<CachedDifficulty> Difficulties { get; set; } = new();
         }
 
@@ -1387,6 +1492,8 @@ namespace Osutag.ViewModels
             public string? Title { get; set; }
             public string? CoverPath { get; set; }
             public int PreviewTime { get; set; } = -1;
+            public bool IsOnSpotify { get; set; }
+            public string? SpotifyUrl { get; set; }
         }
 
         private void SaveMapCache()
@@ -1405,16 +1512,20 @@ namespace Osutag.ViewModels
                     PreviewTime = g.PreviewTime,
                     BeatmapSetId = g.BeatmapSetId,
                     DirectoryPath = g.DirectoryPath,
+                    IsOnSpotify = g.IsOnSpotify,
+                    SpotifyUrl = g.SpotifyUrl,
                     Difficulties = g.Difficulties.Select(d => new CachedDifficulty
                     {
                         DifficultyName = d.DifficultyName,
                         Mp3Path = d.Difficulty.Mp3Path,
                         OsuFilePath = d.Difficulty.OsuFilePath,
                         Rate = d.Difficulty.Rate,
-                        Artist = d.Difficulty.Artist,
-                        Title = d.Difficulty.Title,
-                        CoverPath = d.Difficulty.CoverPath,
-                        PreviewTime = d.Difficulty.PreviewTime
+                        Artist = d.Artist,
+                        Title = d.Title,
+                        CoverPath = d.CoverPath,
+                        PreviewTime = d.Difficulty.PreviewTime,
+                        IsOnSpotify = d.Difficulty.IsOnSpotify,
+                        SpotifyUrl = d.Difficulty.SpotifyUrl
                     }).ToList()
                 }).ToList();
 
@@ -1459,9 +1570,12 @@ namespace Osutag.ViewModels
                         PreviewTime = cached.PreviewTime,
                         BeatmapSetId = cached.BeatmapSetId,
                         DirectoryPath = cached.DirectoryPath,
+                        IsOnSpotify = cached.IsOnSpotify,
+                        SpotifyUrl = cached.SpotifyUrl,
                         OpenBeatmapUrlCommand = OpenBeatmapUrlCommand,
                         OpenDirectoryCommand = OpenDirectoryCommand,
-                        ExportBackgroundCommand = ExportBackgroundCommand
+                        ExportBackgroundCommand = ExportBackgroundCommand,
+                        OpenSpotifyUrlCommand = OpenSpotifyUrlCommand
                     };
                     
                     // Smart Check: Check if all difficulties share the same metadata
@@ -1475,7 +1589,7 @@ namespace Osutag.ViewModels
                     // (We check for "Various Artists" to avoid flagging "Rate Packs" like Quadraphinix as Mixed Packs, since they have multiple MP3s but same Artist)
                     
                     bool metadataVaries = distinctTitles.Count > 1 || distinctArtists.Count > 1;
-                    bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+                    bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a?.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) == true);
                     
                     bool isMixedPack = metadataVaries || isVariousArtistsPack;
 
@@ -1506,33 +1620,37 @@ namespace Osutag.ViewModels
                         }
                     }
 
-                    foreach (var diff in cached.Difficulties)
+                    foreach (var d in cached.Difficulties)
                     {
-                        if (!File.Exists(diff.OsuFilePath))
+                        if (!File.Exists(d.OsuFilePath))
                             continue;
+
+                        var diff = new OsuMapDifficulty
+                        {
+                            DifficultyName = d.DifficultyName,
+                            Mp3Path = d.Mp3Path,
+                            OsuFilePath = d.OsuFilePath,
+                            Rate = d.Rate,
+                            Artist = d.Artist,
+                            Title = d.Title,
+                            CoverPath = d.CoverPath,
+                            PreviewTime = d.PreviewTime,
+                            IsOnSpotify = d.IsOnSpotify,
+                            SpotifyUrl = d.SpotifyUrl
+                        };
 
                         // FOR CHILDREN: If it's a mixed pack, the "Title" metadata is often generic (e.g. "Pack Name")
                         // The user wants to see the "Version" (Song Name) instead.
-                        var displayTitle = isMixedPack ? diff.DifficultyName : (diff.Title ?? cached.Title);
+                        var displayTitle = isMixedPack ? d.DifficultyName : (d.Title ?? cached.Title);
 
                         mapGroup.Difficulties.Add(new DifficultyItem
                         {
-                            DifficultyName = diff.DifficultyName,
-                            Difficulty = new OsuMapDifficulty
-                            {
-                                DifficultyName = diff.DifficultyName,
-                                Mp3Path = diff.Mp3Path,
-                                OsuFilePath = diff.OsuFilePath,
-                                Rate = diff.Rate,
-                                Artist = diff.Artist,
-                                Title = diff.Title,
-                                CoverPath = diff.CoverPath,
-                                PreviewTime = diff.PreviewTime
-                            },
+                            DifficultyName = d.DifficultyName,
+                            Difficulty = diff,
                             // IsSelected = false by default to prevent "select all" behavior for stacks
                             Title = displayTitle, 
-                            Artist = diff.Artist ?? cached.Artist, 
-                            CoverPath = diff.CoverPath ?? cached.CoverPath
+                            Artist = d.Artist ?? cached.Artist, 
+                            CoverPath = d.CoverPath ?? cached.CoverPath
                         });
                     }
 
@@ -1702,6 +1820,7 @@ namespace Osutag.ViewModels
                     {
                         await LoadCompanellaPlayCounts();
                         await FilterMapsAsync();
+                        _ = Task.Run(() => FetchSpotifyStatusForAllAsync());
                     }
                     IsScanning = false;
                     await Task.Delay(200); // Allow UI to layout
@@ -1865,7 +1984,7 @@ namespace Osutag.ViewModels
                         var distinctMp3s2 = allDiffsInGroup.Select(d => d.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
                         
                         bool metadataVaries2 = distinctTitles2.Count > 1 || distinctArtists2.Count > 1;
-                        bool isVariousArtistsPack2 = distinctMp3s2.Count > 1 && distinctArtists2.Any(a => a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
+                        bool isVariousArtistsPack2 = distinctMp3s2.Count > 1 && distinctArtists2.Any(a => a?.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) == true);
 
                         bool isMixedPack2 = metadataVaries2 || isVariousArtistsPack2;
 
@@ -1947,6 +2066,8 @@ namespace Osutag.ViewModels
 
                 // Apply filter - this only loads first 50 items to UI
                 await FilterMapsAsync();
+                
+                _ = Task.Run(() => FetchSpotifyStatusForAllAsync());
 
                 if (smartScanEnabled && maps.Count > 0)
                 {

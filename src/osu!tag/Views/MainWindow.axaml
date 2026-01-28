@@ -386,6 +386,12 @@
                                                               CommandParameter="{Binding}">
                                                         <MenuItem.Icon><PathIcon Data="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></MenuItem.Icon>
                                                     </MenuItem>
+                                                    <MenuItem Header="Spotify Track" 
+                                                              IsVisible="{Binding IsOnSpotify}"
+                                                              Command="{Binding DataContext.OpenSpotifyUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}">
+                                                        <MenuItem.Icon><PathIcon Data="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 17.3c-.2.4-.7.5-1.1.3-2.8-1.7-6.4-2.1-10.6-1.1-.5.1-.9-.2-1-.6-.1-.5.2-.9.6-1 4.6-1.1 8.5-.6 11.8 1.4.3.2.4.7.3 1zm1.5-3.3c-.3.5-.9.6-1.3.4-3.2-2-8.2-2.6-12-1.4-.6.2-1.1-.1-1.3-.7-.2-.6.1-1.1.7-1.3 4.4-1.3 10-0.6 13.6 1.7.5.2.7.9.3 1.3zm.1-3.4C14.9 8.2 8.4 8 4.6 9.1c-.7.2-1.4-.2-1.6-.9-.2-.7.2-1.4.9-1.6 4.3-1.3 11.5-1.1 16.2 1.7.6.4.8 1.1.4 1.7-.4.6-1.2.8-1.4.3z"/></MenuItem.Icon>
+                                                    </MenuItem>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
 
@@ -414,7 +420,22 @@
                                                             <Grid RowDefinitions="*,Auto">
                                                                 <!-- Cover Image -->
                                                                 <Border Grid.Row="0" Margin="12,12,12,0" Background="#F0F0F0" CornerRadius="2" ClipToBounds="True">
-                                                                    <Image Source="{Binding CoverBitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="LowQuality"/>
+                                                                    <Panel>
+                                                                        <Image Source="{Binding CoverBitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="LowQuality"/>
+                                                                        
+                                                                        <!-- Spotify Logo Overlay -->
+                                                                        <Button HorizontalAlignment="Right" VerticalAlignment="Top" 
+                                                                                Margin="6" Padding="6"
+                                                                                IsVisible="{Binding IsOnSpotify}"
+                                                                                Command="{Binding DataContext.OpenSpotifyUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Background="#AA1DB954" CornerRadius="12"
+                                                                                Width="24" Height="24"
+                                                                                Classes="InvisibleToggle">
+                                                                            <PathIcon Data="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 17.3c-.2.4-.7.5-1.1.3-2.8-1.7-6.4-2.1-10.6-1.1-.5.1-.9-.2-1-.6-.1-.5.2-.9.6-1 4.6-1.1 8.5-.6 11.8 1.4.3.2.4.7.3 1zm1.5-3.3c-.3.5-.9.6-1.3.4-3.2-2-8.2-2.6-12-1.4-.6.2-1.1-.1-1.3-.7-.2-.6.1-1.1.7-1.3 4.4-1.3 10-0.6 13.6 1.7.5.2.7.9.3 1.3zm.1-3.4C14.9 8.2 8.4 8 4.6 9.1c-.7.2-1.4-.2-1.6-.9-.2-.7.2-1.4.9-1.6 4.3-1.3 11.5-1.1 16.2 1.7.6.4.8 1.1.4 1.7-.4.6-1.2.8-1.4.3z" 
+                                                                                      Foreground="White" Width="12" Height="12"/>
+                                                                        </Button>
+                                                                    </Panel>
                                                                 </Border>
                                                                 
                                                                 <!-- Info -->

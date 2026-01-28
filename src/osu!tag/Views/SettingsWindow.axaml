@@ -131,6 +131,25 @@
 
                                 <CheckBox Content="Enable Discord Rich Presence" IsChecked="{Binding DiscordRpcEnabled}"/>
                                 <CheckBox Content="Share anonymous usage statistics" IsChecked="{Binding TelemetryEnabled}"/>
+
+                                <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
+
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="Spotify Integration" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Add your Spotify API credentials to see which songs are on Spotify." FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                    
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Client ID" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <TextBox Text="{Binding SpotifyClientId}" Watermark="Enter Client ID" Classes="Modern"/>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Client Secret" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <TextBox Text="{Binding SpotifyClientSecret}" Watermark="Enter Client Secret" PasswordChar="*" Classes="Modern"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="You can get these from the Spotify Developer Dashboard." FontSize="10" Foreground="{StaticResource AccentBrush}" Cursor="Hand" PointerPressed="SpotifyHelp_PointerPressed"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>

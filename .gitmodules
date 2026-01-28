@@ -1,0 +1,3 @@
+[submodule "src/osu!tag/osu-find-songs"]
+	path = src/osu!tag/osu-find-songs
+	url = https://github.com/kaanreal/osu-find-songs

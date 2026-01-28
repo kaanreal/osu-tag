@@ -15,6 +15,8 @@ namespace Osutag.Models
         public string? Artist { get; set; }
         public string? CoverPath { get; set; }
         public int PreviewTime { get; set; } = -1;
+        public bool IsOnSpotify { get; set; }
+        public string? SpotifyUrl { get; set; }
     }
 
     public class OsuMap
@@ -28,5 +30,7 @@ namespace Osutag.Models
         public int BeatmapSetId { get; set; } = -1;
         public required List<OsuMapDifficulty> Difficulties { get; set; } = new();
         public int PreviewTime { get; set; } = -1;
+        public bool IsOnSpotify { get; set; }
+        public string? SpotifyUrl { get; set; }
     }
 }
