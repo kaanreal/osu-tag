@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.1.0](https://github.com/kaanreal/osu-tag/compare/v2.0.2...v2.1.0) (2026-01-28)
+
+
+### ✨ New Features
+
+* test ([#119](https://github.com/kaanreal/osu-tag/issues/119)) ([c52d715](https://github.com/kaanreal/osu-tag/commit/c52d71571df55bc8db9d3f459504bb08bad77965))
+
+
+### 🐞 Bug Fixes
+
+* * test fix ([6dbd96d](https://github.com/kaanreal/osu-tag/commit/6dbd96d9854dbd03a86088f37659e07e17fba3a1))
+* * test fix ([c52d715](https://github.com/kaanreal/osu-tag/commit/c52d71571df55bc8db9d3f459504bb08bad77965))
+
+
+### 🛠 Improvements
+
+* * test perf ([c52d715](https://github.com/kaanreal/osu-tag/commit/c52d71571df55bc8db9d3f459504bb08bad77965))
+
 ## [2.0.2](https://github.com/kaanreal/osu-tag/compare/v2.0.2...v2.0.2) (2026-01-28)
 
 
