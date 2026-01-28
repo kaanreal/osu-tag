@@ -85,6 +85,12 @@ MIT License – See LICENSE for details.
 
 ---
 
+
+This was planned to be an simple osu! project but it grew and grew to the point of teaching me things.
+Even if its AI :)
+
+---
+
 <p align="center">
   Built for the osu! community
 </p>
