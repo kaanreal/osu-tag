@@ -77,12 +77,18 @@ jobs:
                   -p:IncludeNativeLibrariesForSelfExtract=true \
                   -p:Version=${{ steps.release_notes.outputs.VERSION }} -o publish
 
+                  if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+                    mv publish/Osutag.exe "publish/osu!tag.exe"
+                  else
+                    mv publish/Osutag "publish/osu!tag"
+                  fi
+
             - name: Package macOS
               if: matrix.os == 'macos-latest'
               run: |
                   mkdir -p "osu!tag.app/Contents/MacOS"
                   mkdir -p "osu!tag.app/Contents/Resources"
-                  cp publish/Osutag "osu!tag.app/Contents/MacOS/osu!tag"
+                  cp "publish/osu!tag" "osu!tag.app/Contents/MacOS/osu!tag"
                   chmod +x "osu!tag.app/Contents/MacOS/osu!tag"
                   cp src/osu!tag/Assets/app.icns "osu!tag.app/Contents/Resources/app.icns" || true
                   echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>osu!tag</string><key>CFBundleIconFile</key><string>app.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>' > "osu!tag.app/Contents/Info.plist"
