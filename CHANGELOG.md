@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.0.2](https://github.com/kaanreal/osu-tag/compare/v2.0.1...v2.0.2) (2026-01-28)
+
+
+### 🐞 Bug Fixes
+
+* **binding:** add new boolean converters for expressive data bindings ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+* Switch audio playback to LibVLCSharp ([80662cd](https://github.com/kaanreal/osu-tag/commit/80662cda4b66241379e0f73510cec5d382e5136c))
+* test release 2.0.2 ([a4e7e53](https://github.com/kaanreal/osu-tag/commit/a4e7e53be89002ee6aaffc1db2134cdf52c23074))
+* **ui:** update App.axaml resources and enable global smooth scrolling ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+
+
+### 🛠 Improvements
+
+* **binding:** refactor BoolToTransformConverter for better performance ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+* optimize UI animations and data binding logic ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+* Refactor window styles and enable resizing in MainWindow ([#107](https://github.com/kaanreal/osu-tag/issues/107)) ([24754bc](https://github.com/kaanreal/osu-tag/commit/24754bcfa2163c34f7223850a995a9e8e70cc4f5))
+* **ui:** optimize PlayfulTextBox with custom watermarks and cached easings ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+
+
+### 🔧 Under the Hood
+
+* **build:** rename Osutag.exe to osu!tag.exe for consistency ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+* **main:** release 2.0.1 ([#114](https://github.com/kaanreal/osu-tag/issues/114)) ([38d96f2](https://github.com/kaanreal/osu-tag/commit/38d96f2b3c152cbe12424288f8b64f37db32a116))
+* **main:** release 2.0.2 ([#108](https://github.com/kaanreal/osu-tag/issues/108)) ([ef43a07](https://github.com/kaanreal/osu-tag/commit/ef43a07f9bf2f48077f5b8086877475278ac5e06))
+* **models:** add Spotify integration fields to map models ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+* **project:** add osu-find-songs submodule and enable AllowUnsafeBlocks ([5268297](https://github.com/kaanreal/osu-tag/commit/52682970e865b34f050173ad0b59124562aa6369))
+
 ## [2.0.1](https://github.com/kaanreal/osu-tag/compare/v2.0.2...v2.0.1) (2026-01-28)
 
 
