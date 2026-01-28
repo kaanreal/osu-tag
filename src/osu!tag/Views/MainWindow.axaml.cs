@@ -247,7 +247,10 @@ namespace Osutag.Views
 
         private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            BeginMoveDrag(e);
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                BeginMoveDrag(e);
+            }
         }
 
 

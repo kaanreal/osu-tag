@@ -11,8 +11,7 @@
         TransparencyLevelHint="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
-        CanResize="False"
-        PointerPressed="OnPointerPressed">
+        CanResize="False">
 
     <Window.Styles>
         <!-- Modern Setting Card Style -->
@@ -56,7 +55,7 @@
             </Grid.RenderTransform>
 
             <!-- Title Bar / Header -->
-            <Border Grid.Row="0" Padding="40,32,40,20" Background="Transparent">
+            <Border Grid.Row="0" Padding="40,32,40,20" Background="Transparent" PointerPressed="OnPointerPressed">
                 <StackPanel Spacing="6">
                     <TextBlock Text="Settings" FontSize="36" FontWeight="Black" Foreground="{StaticResource TextPrimaryBrush}" LetterSpacing="-1"/>
                     <TextBlock Text="Personalize your audio processing experience" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}" Opacity="0.8"/>

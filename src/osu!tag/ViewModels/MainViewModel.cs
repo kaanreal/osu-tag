@@ -578,7 +578,7 @@ namespace Osutag.ViewModels
                 {
                     SettingsService.Settings.ThemeColor = value;
                     SettingsService.Save();
-                    // Theme application logic will go in App.axaml.cs or via dynamic resource
+                    App.ApplyTheme(value);
                 }
             }
         }

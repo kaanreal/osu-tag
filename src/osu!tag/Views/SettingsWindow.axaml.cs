@@ -95,6 +95,7 @@ namespace Osutag.Views
         static SettingsWindow()
         {
             PreviewVolumeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnPreviewVolumeChanged(e));
+            SelectedThemeProperty.Changed.AddClassHandler<SettingsWindow>((x, e) => x.OnSelectedThemeChanged(e));
         }
 
         private void OnPreviewVolumeChanged(AvaloniaPropertyChangedEventArgs e)
@@ -103,6 +104,14 @@ namespace Osutag.Views
             {
                 AudioService.Instance.Volume = (int)volume;
                 SettingsService.Settings.PreviewVolume = volume;
+            }
+        }
+
+        private void OnSelectedThemeChanged(AvaloniaPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is string hexColor)
+            {
+                App.ApplyTheme(hexColor);
             }
         }
 
@@ -296,7 +305,10 @@ namespace Osutag.Views
 
         private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
         {
-            BeginMoveDrag(e);
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                BeginMoveDrag(e);
+            }
         }
 
         private void SpotifyHelp_PointerPressed(object? sender, PointerPressedEventArgs e)

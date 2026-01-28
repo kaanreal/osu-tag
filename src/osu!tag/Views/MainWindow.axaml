@@ -17,8 +17,7 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1"
         WindowStartupLocation="CenterScreen"
-        CanResize="True"
-        PointerPressed="OnPointerPressed">
+        CanResize="True">
     
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -100,7 +99,7 @@
 
     <Grid RowDefinitions="Auto,*" Name="RootGrid">
         <!-- Custom Title Bar (Always reserves space, buttons visible only on Windows) -->
-        <Panel Grid.Row="0" IsHitTestVisible="True" Height="32" Background="Transparent">
+        <Panel Grid.Row="0" IsHitTestVisible="True" Height="32" Background="Transparent" PointerPressed="OnPointerPressed">
              <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsWindows}">
                 <!-- Spacing for title bar buttons -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
