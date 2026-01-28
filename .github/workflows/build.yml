@@ -93,7 +93,7 @@ jobs:
                   if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
                     & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.release_notes.outputs.VERSION }} installer.iss
                   }
-                  Copy-Item publish/Osutag.exe -Destination "osu-tag-v${{ steps.release_notes.outputs.VERSION }}-win-portable.exe"
+                  Copy-Item publish/osu!tag.exe -Destination "osu-tag-v${{ steps.release_notes.outputs.VERSION }}-win-portable.exe"
 
             - name: Package Linux
               if: matrix.os == 'ubuntu-latest'
