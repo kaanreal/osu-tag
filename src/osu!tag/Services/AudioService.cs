@@ -89,10 +89,16 @@ namespace Osutag.Services
                 try
                 {
                     // Locate FFplay (downloads if missing)
+                    if (FFmpegHelper.IsDownloading)
+                    {
+                        Debug.WriteLine("FFmpeg is currently downloading. Sound unavailable.");
+                        return;
+                    }
+                    
                     string ffplayPath;
                     try
                     {
-                        ffplayPath = await FFmpegHelper.GetFFplayPathAsync().ConfigureAwait(false);
+                        ffplayPath = await FFmpegHelper.GetFFplayPathAsync(null).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

@@ -17,6 +17,22 @@ namespace Osutag.Services
         private static string? _cachedFfmpegPath;
         private static string? _cachedFfplayPath;
         private static readonly SemaphoreSlim _downloadLock = new(1, 1);
+        private static bool _isDownloading;
+
+        public static bool IsDownloading => _isDownloading;
+
+        public static Task<bool> CheckBinariesExistAsync()
+        {
+            if (_isDownloading) return Task.FromResult(false);
+            
+            var localFfmpeg = GetLocalExecutablePath("ffmpeg");
+            var localFfplay = GetLocalExecutablePath("ffplay");
+            if (File.Exists(localFfmpeg) && File.Exists(localFfplay)) return Task.FromResult(true);
+
+            // Also check PATH as a fallback before saying "not found"
+            var path = FindInPath(IsWindows ? "ffmpeg.exe" : "ffmpeg");
+            return Task.FromResult(!string.IsNullOrEmpty(path));
+        }
 
         private static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
@@ -24,7 +40,7 @@ namespace Osutag.Services
         /// Gets the path to the FFmpeg executable.
         /// Checks Local -> PATH -> Download.
         /// </summary>
-        public static async Task<string> GetFFmpegPathAsync()
+        public static async Task<string> GetFFmpegPathAsync(IProgress<double>? progress = null)
         {
             if (_cachedFfmpegPath != null && File.Exists(_cachedFfmpegPath)) return _cachedFfmpegPath;
 
@@ -45,7 +61,7 @@ namespace Osutag.Services
             }
 
             // 3. Download
-            await EnsureDownloadedAsync();
+            await EnsureDownloadedAsync(progress);
 
             if (File.Exists(local))
             {
@@ -60,7 +76,7 @@ namespace Osutag.Services
         /// Gets the path to the FFplay executable.
         /// Checks Local -> PATH -> Download.
         /// </summary>
-        public static async Task<string> GetFFplayPathAsync()
+        public static async Task<string> GetFFplayPathAsync(IProgress<double>? progress = null)
         {
             if (_cachedFfplayPath != null && File.Exists(_cachedFfplayPath)) return _cachedFfplayPath;
 
@@ -95,7 +111,7 @@ namespace Osutag.Services
         /// <summary>
         /// Ensures FFmpeg/FFplay binaries are downloaded to the local app data folder.
         /// </summary>
-        private static async Task EnsureDownloadedAsync()
+        private static async Task EnsureDownloadedAsync(IProgress<double>? progress = null)
         {
             var localFfmpeg = GetLocalExecutablePath("ffmpeg");
             var localFfplay = GetLocalExecutablePath("ffplay");
@@ -103,17 +119,19 @@ namespace Osutag.Services
             // Fast check before lock
             if (File.Exists(localFfmpeg) && File.Exists(localFfplay)) return;
 
+            _isDownloading = true;
             await _downloadLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 // Double check after lock
                 if (File.Exists(localFfmpeg) && File.Exists(localFfplay)) return;
 
-                await DownloadFFmpegAsync().ConfigureAwait(false);
+                await DownloadFFmpegAsync(progress).ConfigureAwait(false);
             }
             finally
             {
                 _downloadLock.Release();
+                _isDownloading = false;
             }
         }
 
@@ -129,7 +147,7 @@ namespace Osutag.Services
         /// <summary>
         /// Downloads and extracts FFmpeg binaries (including ffplay).
         /// </summary>
-        private static async Task DownloadFFmpegAsync()
+        public static async Task DownloadFFmpegAsync(IProgress<double>? progress = null)
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var ffmpegDir = Path.Combine(appData, "osu!tag", "ffmpeg");
@@ -165,8 +183,26 @@ namespace Osutag.Services
                 using var response = await httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
-                await using var fs = new FileStream(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await response.Content.CopyToAsync(fs).ConfigureAwait(false);
+                var totalBytes = response.Content.Headers.ContentLength;
+                
+                await using var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                await using var fs = new FileStream(archivePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+                var buffer = new byte[8192];
+                var totalReadBytes = 0L;
+                var readBytes = 0;
+
+                while ((readBytes = await contentStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
+                {
+                    await fs.WriteAsync(buffer, 0, readBytes).ConfigureAwait(false);
+                    totalReadBytes += readBytes;
+
+                    if (totalBytes.HasValue)
+                    {
+                        // Download progress: 0.0 - 0.9 (Leave 10% for extraction)
+                        progress?.Report((double)totalReadBytes / totalBytes.Value * 0.9);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -176,6 +212,8 @@ namespace Osutag.Services
 
             try
             {
+                progress?.Report(0.92); // Starting extraction
+                
                 // Unique extract folder to avoid collision
                 var extractDir = Path.Combine(ffmpegDir, "extract_" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(extractDir);
@@ -183,6 +221,7 @@ namespace Osutag.Services
                 try
                 {
                     ZipFile.ExtractToDirectory(archivePath, extractDir);
+                    progress?.Report(0.98); // Extraction nearly done
 
                     // Search recursively for binaries
                     var ffmpegExeName = IsWindows ? "ffmpeg.exe" : "ffmpeg";
@@ -214,6 +253,8 @@ namespace Osutag.Services
 
                 // Cleanup archive
                 if (File.Exists(archivePath)) File.Delete(archivePath);
+                
+                progress?.Report(1.0); // Done
             }
             catch (Exception ex)
             {

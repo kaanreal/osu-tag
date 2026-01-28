@@ -242,4 +242,21 @@ namespace Osutag.Converters
         }
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
     }
+
+    /// <summary>
+    /// Multi-value converter that returns true if all inputs are true.
+    /// </summary>
+    public class BoolAndConverter : IMultiValueConverter
+    {
+        public object? Convert(System.Collections.Generic.IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+        {
+            foreach (var value in values)
+            {
+                if (value is bool b && !b) return false;
+            }
+            return true;
+        }
+
+        public object? ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
 }

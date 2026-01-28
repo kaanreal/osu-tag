@@ -22,8 +22,12 @@ namespace Osutag.Services
         /// <param name="maintainPitch">If true, changes tempo without pitch. If false, changes both (Nightcore)</param>
         public static void ProcessAudio(string inputPath, string outputPath, float rate, float pitchSemitones, bool maintainPitch)
         {
-            // Get FFmpeg path (sync wrapper for async method)
-            var ffmpegPath = FFmpegHelper.GetFFmpegPathAsync().GetAwaiter().GetResult();
+            // Get FFmpeg path
+            if (FFmpegHelper.IsDownloading)
+            {
+                throw new Exception("FFmpeg is currently setting up. Audio processing unavailable.");
+            }
+            var ffmpegPath = FFmpegHelper.GetFFmpegPathAsync(null).GetAwaiter().GetResult();
 
             // Build the filter chain based on settings
             string audioFilter;

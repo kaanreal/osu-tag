@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Input;
 using System.Linq;
@@ -389,6 +390,34 @@ namespace Osutag.ViewModels
         private bool _isOverlayOpen = false;
         private MapItemGroup? _overlayMapGroup;
         private string _githubStars = "0";
+        private bool _isFFmpegDownloading = false;
+        private double _ffmpegDownloadProgress = 0.0;
+        private string _ffmpegStatusMessage = "";
+        private bool _isSoundAvailable = true;
+
+        public bool IsSoundAvailable
+        {
+            get => _isSoundAvailable;
+            set => SetProperty(ref _isSoundAvailable, value);
+        }
+
+        public bool IsFFmpegDownloading
+        {
+            get => _isFFmpegDownloading;
+            set => SetProperty(ref _isFFmpegDownloading, value);
+        }
+
+        public double FFmpegDownloadProgress
+        {
+            get => _ffmpegDownloadProgress;
+            set => SetProperty(ref _ffmpegDownloadProgress, value);
+        }
+
+        public string FFmpegStatusMessage
+        {
+            get => _ffmpegStatusMessage;
+            set => SetProperty(ref _ffmpegStatusMessage, value);
+        }
 
         public string GithubStars
         {
@@ -1332,8 +1361,12 @@ namespace Osutag.ViewModels
         {
             // Give the UI thread a moment to start the entrance animation smoothly
             await Task.Delay(50);
+
+            // Start the initialization sequence
+            IsStartingUp = true;
             
-            await Task.CompletedTask;
+            // Start FFmpeg setup in background - non-blocking
+            _ = EnsureFFmpegReadyAsync();
             // Auto-scan for Companella on Windows
 
 
@@ -1366,7 +1399,46 @@ namespace Osutag.ViewModels
 
 
 
-        // ... existing methods ...
+
+        private async Task EnsureFFmpegReadyAsync()
+        {
+            // First check if sound is available already
+            if (await FFmpegHelper.CheckBinariesExistAsync())
+            {
+                IsSoundAvailable = true;
+                return;
+            }
+
+            // No binaries found, sound is unavailable for now
+            IsSoundAvailable = false;
+            IsFFmpegDownloading = true;
+            FFmpegStatusMessage = "Downloading FFmpeg for audio previews...";
+            
+            try
+            {
+                var progress = new Progress<double>(p =>
+                {
+                    FFmpegDownloadProgress = p * 100;
+                    if (p < 0.9) FFmpegStatusMessage = $"Downloading FFmpeg... {FFmpegDownloadProgress:F0}%";
+                    else if (p < 1.0) FFmpegStatusMessage = "Extracting binaries...";
+                    else FFmpegStatusMessage = "Setup complete!";
+                });
+
+                await FFmpegHelper.GetFFmpegPathAsync(progress);
+                IsSoundAvailable = true;
+            }
+            catch (Exception ex)
+            {
+                FFmpegStatusMessage = $"Setup failed: {ex.Message}. Audio will be unavailable.";
+                Debug.WriteLine($"FFmpeg Setup Failed: {ex}");
+                IsSoundAvailable = false;
+            }
+            finally
+            {
+                await Task.Delay(2000); // Keep notification visible for success/fail feedback
+                IsFFmpegDownloading = false;
+            }
+        }
 
         private async void BrowseOutputPath()
         {

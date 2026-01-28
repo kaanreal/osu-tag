@@ -15,6 +15,7 @@
          <converters:NumericToBoolConverter x:Key="NumericToBoolConverter"/>
          <converters:BoolToHeightConverter x:Key="BoolToHeightConverter"/>
          <converters:BoolToIconConverter x:Key="BoolToIconConverter"/>
+         <converters:BoolAndConverter x:Key="BoolAndConverter"/>
         
         <!-- Modern Color Palette -->
         <Color x:Key="BackgroundColor">#0A0E14</Color>
