@@ -2,17 +2,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:cc="using:Osutag.Controls"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="50"
              x:Class="Osutag.Controls.PlayfulTextBox"
+             x:DataType="cc:PlayfulTextBox"
+             x:CompileBindings="True"
              ClipToBounds="False">
     
     <Grid>
         <!-- Manual Watermark -->
         <TextBlock Name="WatermarkBlock"
-                   Text="{Binding Watermark, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   Text="{Binding Watermark, RelativeSource={RelativeSource AncestorType=cc:PlayfulTextBox}}"
                    Foreground="{DynamicResource TextTertiaryBrush}"
                    Opacity="0.6"
-                   FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=cc:PlayfulTextBox}}"
                    VerticalAlignment="Center"
                    IsHitTestVisible="False"
                    Margin="5,0,0,0">
@@ -37,7 +40,7 @@
             </TextBlock.Styles>
             <TextBlock.IsVisible>
                 <MultiBinding Converter="{x:Static BoolConverters.And}">
-                    <Binding Path="Text" RelativeSource="{RelativeSource AncestorType=UserControl}" Converter="{x:Static StringConverters.IsNullOrEmpty}"/>
+                    <Binding Path="Text" RelativeSource="{RelativeSource AncestorType=cc:PlayfulTextBox}" Converter="{x:Static StringConverters.IsNullOrEmpty}"/>
                     <Binding Path="!#InputBox.IsFocused"/>
                 </MultiBinding>
             </TextBlock.IsVisible>

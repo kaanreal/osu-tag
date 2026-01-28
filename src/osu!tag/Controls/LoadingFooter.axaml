@@ -2,8 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Osutag.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="100"
-             x:Class="Osutag.Controls.LoadingFooter">
+             x:Class="Osutag.Controls.LoadingFooter"
+             x:DataType="vm:MainViewModel"
+             x:CompileBindings="True">
 
     <Panel Margin="0,24,16,64" IsVisible="{Binding ShowLoadMore}">
 

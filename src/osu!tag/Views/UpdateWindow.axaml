@@ -3,6 +3,7 @@
         xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
         xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
         x:Class="Osutag.Views.UpdateWindow"
+        x:DataType="x:String"
         Title="New Update Available"
         Width="650" Height="450"
         WindowStartupLocation="CenterScreen"

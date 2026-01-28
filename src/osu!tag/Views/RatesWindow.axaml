@@ -1,7 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Osutag.ViewModels"
+        xmlns:views="using:Osutag.Views"
         xmlns:converters="using:Osutag.Converters"
         x:Class="Osutag.Views.RatesWindow"
+        x:DataType="views:RatesWindow"
+        x:CompileBindings="True"
         Title="Select Rate"
         Width="460" Height="500"
         WindowStartupLocation="CenterOwner"
@@ -19,7 +23,7 @@
         <ScrollViewer Grid.Row="1" Margin="0,24">
             <ItemsControl x:Name="RatesList">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="vm:DifficultyItem">
                         <Border CornerRadius="8" Margin="0,0,0,8" Padding="16,12" Cursor="Hand"
                                 PointerPressed="RateItem_Click"
                                 PointerEntered="RateItem_PointerEntered"

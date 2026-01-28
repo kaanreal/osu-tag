@@ -6,6 +6,8 @@
         xmlns:converters="using:Osutag.Converters"
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="700"
         x:Class="Osutag.Views.EditMetadataWindow"
+        x:DataType="vm:EditMetadataViewModel"
+        x:CompileBindings="True"
         Title="Edit Metadata"
         Width="540" Height="780"
         WindowStartupLocation="CenterOwner"
