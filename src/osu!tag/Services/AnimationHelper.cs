@@ -85,6 +85,8 @@ namespace Osutag.Services
         private static int _staggerCount;
         private const int MaxStagger = 12; // Reduced for faster batch appearance
         private const int StaggerDelayMs = 20; // Faster stagger for high-Hz
+        private static long _lastScrollTick;
+        private const double ScrollActivityWindowSeconds = 0.2;
 
         private static void OnEnableEntranceAnimationChanged(Control control, AvaloniaPropertyChangedEventArgs args)
         {
@@ -116,6 +118,34 @@ namespace Osutag.Services
             var lastTime = GetLastEntranceTime(control);
             if ((now - lastTime) / (double)Stopwatch.Frequency < 0.2) return;
             SetLastEntranceTime(control, now);
+
+            var secondsSinceScroll = (now - _lastScrollTick) / (double)Stopwatch.Frequency;
+            if (secondsSinceScroll < ScrollActivityWindowSeconds)
+            {
+                if (control.RenderTransform is not TransformGroup)
+                {
+                    var group = new TransformGroup();
+                    group.Children.Add(new ScaleTransform());
+                    group.Children.Add(new TranslateTransform());
+                    control.RenderTransform = group;
+                }
+
+                var groupTransform = control.RenderTransform as TransformGroup;
+                var scaleTransform = groupTransform?.Children[0] as ScaleTransform;
+                var translateTransform = groupTransform?.Children[1] as TranslateTransform;
+
+                if (scaleTransform == null || translateTransform == null) return;
+
+                control.Transitions = null;
+                if (scaleTransform.Transitions != null) scaleTransform.Transitions = null;
+                if (translateTransform.Transitions != null) translateTransform.Transitions = null;
+
+                control.Opacity = 1;
+                translateTransform.Y = 0;
+                scaleTransform.ScaleX = 1;
+                scaleTransform.ScaleY = 1;
+                return;
+            }
 
             // Staggering Logic
             var dt = (now - _lastStaggerTick) / (double)Stopwatch.Frequency;
@@ -211,6 +241,11 @@ namespace Osutag.Services
             private double _currentScale = 1.0;
             private double _glareOpacity;
             private double _targetGlareOpacity;
+            private Border? _glareLayer;
+            private double _lastShadowOffsetX;
+            private double _lastShadowOffsetY;
+            private double _lastShadowBlur;
+            private bool _shadowInitialized;
             private bool _isAnimating;
             private TimeSpan _lastTime;
             
@@ -228,6 +263,11 @@ namespace Osutag.Services
 
             public void HandlePointerMoved(object? sender, PointerEventArgs e)
             {
+                if (_control.Bounds.Width <= 0 || _control.Bounds.Height <= 0)
+                {
+                    return;
+                }
+
                 var p = e.GetPosition(_control);
                 var nx = (p.X / _control.Bounds.Width) * 2.0 - 1.0;
                 var ny = (p.Y / _control.Bounds.Height) * 2.0 - 1.0;
@@ -245,6 +285,7 @@ namespace Osutag.Services
                 _targetAngleY = 0;
                 _targetScale = 1.0;
                 _targetGlareOpacity = 0;
+                StartAnimation();
             }
 
             private void StartAnimation()
@@ -260,7 +301,7 @@ namespace Osutag.Services
                 if (!_isAnimating) return;
 
                 double dt = _lastTime == TimeSpan.Zero ? 0.004 : (time - _lastTime).TotalSeconds; // Default to 250Hz
-                if (dt > 0.05) dt = 0.004; // Clamp large deltas (tab switch)
+                if (dt > 0.05) dt = 0.05; // Clamp large deltas (tab switch)
                 _lastTime = time;
 
                 // Exponential smoothing (Lerp)
@@ -278,7 +319,7 @@ namespace Osutag.Services
                                Math.Abs(_targetScale - _currentScale) < 0.001 &&
                                Math.Abs(_targetGlareOpacity - _glareOpacity) < 0.01;
 
-                if (atTarget && _targetScale == 1.0)
+                if (atTarget)
                 {
                     _isAnimating = false;
                     return;
@@ -314,17 +355,31 @@ namespace Osutag.Services
                     var offX = -_currentAngleY * 0.8;
                     var offY = _currentAngleX * 0.8;
                     var blur = 15 + Math.Abs(_currentAngleX) + Math.Abs(_currentAngleY);
-                    b.BoxShadow = new BoxShadows(new BoxShadow 
-                    { 
-                        OffsetX = offX, 
-                        OffsetY = 15 + offY, 
-                        Blur = blur, 
-                        Color = Color.FromArgb(80, 0, 0, 0) 
-                    });
+                    if (!_shadowInitialized ||
+                        Math.Abs(offX - _lastShadowOffsetX) > 0.05 ||
+                        Math.Abs(offY - _lastShadowOffsetY) > 0.05 ||
+                        Math.Abs(blur - _lastShadowBlur) > 0.05)
+                    {
+                        _shadowInitialized = true;
+                        _lastShadowOffsetX = offX;
+                        _lastShadowOffsetY = offY;
+                        _lastShadowBlur = blur;
+                        b.BoxShadow = new BoxShadows(new BoxShadow 
+                        { 
+                            OffsetX = offX, 
+                            OffsetY = 15 + offY, 
+                            Blur = blur, 
+                            Color = Color.FromArgb(80, 0, 0, 0) 
+                        });
+                    }
                 }
 
                 // Enhanced Glare
-                var glare = FindVisualChildByName(_control, "GlareLayer") as Border;
+                if (_glareLayer == null || Avalonia.VisualTree.VisualExtensions.GetVisualRoot(_glareLayer) == null)
+                {
+                    _glareLayer = FindVisualChildByName(_control, "GlareLayer") as Border;
+                }
+                var glare = _glareLayer;
                 if (glare != null)
                 {
                     glare.Opacity = _glareOpacity;
@@ -398,6 +453,7 @@ namespace Osutag.Services
             public void HandleWheel(object? sender, PointerWheelEventArgs e)
             {
                 e.Handled = true;
+                _lastScrollTick = Stopwatch.GetTimestamp();
 
                 if (!_isAnimating)
                 {
@@ -431,7 +487,7 @@ namespace Osutag.Services
                 else
                 {
                     dt = (time - _lastTime).TotalSeconds;
-                    if (dt > MaxDeltaSeconds) dt = 0.004; // Clamp large deltas
+                    if (dt > MaxDeltaSeconds) dt = MaxDeltaSeconds; // Clamp large deltas
                     if (dt < 0.001) dt = 0.001; // Minimum delta to prevent division issues
                 }
                 _lastTime = time;
