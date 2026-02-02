@@ -245,6 +245,7 @@ namespace Osutag.Services
                 _targetAngleY = 0;
                 _targetScale = 1.0;
                 _targetGlareOpacity = 0;
+                StartAnimation();
             }
 
             private void StartAnimation()
@@ -260,7 +261,7 @@ namespace Osutag.Services
                 if (!_isAnimating) return;
 
                 double dt = _lastTime == TimeSpan.Zero ? 0.004 : (time - _lastTime).TotalSeconds; // Default to 250Hz
-                if (dt > 0.05) dt = 0.004; // Clamp large deltas (tab switch)
+                if (dt > 0.05) dt = 0.05; // Clamp large deltas (tab switch)
                 _lastTime = time;
 
                 // Exponential smoothing (Lerp)
@@ -278,7 +279,7 @@ namespace Osutag.Services
                                Math.Abs(_targetScale - _currentScale) < 0.001 &&
                                Math.Abs(_targetGlareOpacity - _glareOpacity) < 0.01;
 
-                if (atTarget && _targetScale == 1.0)
+                if (atTarget)
                 {
                     _isAnimating = false;
                     return;
@@ -431,7 +432,7 @@ namespace Osutag.Services
                 else
                 {
                     dt = (time - _lastTime).TotalSeconds;
-                    if (dt > MaxDeltaSeconds) dt = 0.004; // Clamp large deltas
+                    if (dt > MaxDeltaSeconds) dt = MaxDeltaSeconds; // Clamp large deltas
                     if (dt < 0.001) dt = 0.001; // Minimum delta to prevent division issues
                 }
                 _lastTime = time;
