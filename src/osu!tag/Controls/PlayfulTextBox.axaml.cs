@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -68,6 +69,15 @@ namespace Osutag.Controls
             set => SetValue(VerticalContentAlignmentProperty, value);
         }
 
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+            if (change.Property == BoundsProperty)
+            {
+                UpdatePositions(Text);
+            }
+        }
+
         public PlayfulTextBox()
         {
             InitializeComponent();
@@ -86,6 +96,20 @@ namespace Osutag.Controls
                     }
                 }));
             }
+        }
+
+        protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+        {
+            base.OnApplyTemplate(e);
+            // Initial position sync for Caret alignment
+            Dispatcher.UIThread.InvokeAsync(() => UpdatePositions(""), DispatcherPriority.Render);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            // Sync on attach to ensure bounds are ready
+            Dispatcher.UIThread.InvokeAsync(() => UpdatePositions(Text), DispatcherPriority.Render);
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -218,9 +242,9 @@ namespace Osutag.Controls
         private void UpdatePositions(string text)
         {
              // We need to measure where each character SHOULD be.
+             if (_inputBox == null) return;
              
-             if (string.IsNullOrEmpty(text) || _inputBox == null) return;
-             
+             text ??= "";             
              var typeface = new Typeface(_inputBox.FontFamily, _inputBox.FontStyle, _inputBox.FontWeight, _inputBox.FontStretch);
 
              // Single TextLayout for both width calculation and hit testing (was creating 2)
@@ -241,15 +265,41 @@ namespace Osutag.Controls
                  // Get position of character i
                  var hitTest = textLayout.HitTestTextPosition(i);
                  
-                 // Add Padding logic to match underlying TextBox
-                 double x = startOffset + hitTest.X + _inputBox.Padding.Left;
-                 
-                 // Center vertically in the box
-                 double verticalOffset = (_inputBox.Bounds.Height - this.FontSize * 1.5) / 2;
-                 
-                 // Apply Position
-                 Canvas.SetLeft(_activeCharacters[i].Control, x);
-                 Canvas.SetTop(_activeCharacters[i].Control, verticalOffset);
+                // Add Padding logic to match underlying TextBox
+                double x = startOffset + hitTest.X + _inputBox.Padding.Left;
+                
+                // Calculate vertical centering using the SAME font properties as the InputBox
+                // to ensure the hidden text and visual text share identical baselines.
+                double verticalOffset = (_inputBox.Bounds.Height - textLayout.Height) / 2;
+                if (double.IsNaN(verticalOffset) || verticalOffset < 0) verticalOffset = 0;
+                
+                // CRITICAL SYNC: Match the InputBox's internal text alignment
+                // We align the invisible text by pushing it down with padding.
+                if (Math.Abs(_inputBox.Padding.Top - verticalOffset) > 0.01)
+                {
+                    _inputBox.Padding = new Thickness(_inputBox.Padding.Left, verticalOffset, _inputBox.Padding.Right, _inputBox.Padding.Bottom);
+                }
+
+                if (i < _activeCharacters.Count)
+                {
+                    // Apply Position (Use verticalOffset directly as we are top-aligned relative to container, 
+                    // and TextBox is now padded down to match)
+                    Canvas.SetLeft(_activeCharacters[i].Control, x);
+                    Canvas.SetTop(_activeCharacters[i].Control, verticalOffset);
+                }
+             }
+
+             // Handle empty text case to ensure Caret is still centered
+             if (text.Length == 0)
+             {
+                 var textLayoutEmpty = new TextLayout(" ", typeface, this.FontSize, Brushes.Black);
+                 double verticalOffset = (_inputBox.Bounds.Height - textLayoutEmpty.Height) / 2;
+                 if (double.IsNaN(verticalOffset) || verticalOffset < 0) verticalOffset = 0;
+
+                 if (Math.Abs(_inputBox.Padding.Top - verticalOffset) > 0.01)
+                 {
+                     _inputBox.Padding = new Thickness(_inputBox.Padding.Left, verticalOffset, _inputBox.Padding.Right, _inputBox.Padding.Bottom);
+                 }
              }
         }
 

@@ -53,8 +53,8 @@ namespace Osutag.ViewModels
         // Display properties for Overlay
         public string? Title { get; set; }
         public string? Artist { get; set; }
+        public string MetadataString => Difficulty.Rate ?? "1.0x";
         public string AudioFilename => System.IO.Path.GetFileName(Difficulty.Mp3Path);
-
         public string? CoverPath
         {
             get => _coverPath;
@@ -1560,16 +1560,27 @@ namespace Osutag.ViewModels
                 var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
                 if (topLevel != null)
                 {
+                    // Capture state to avoid unnecessary reloads
+                    var oldSort = SettingsService.Settings.SortByMostPlayed;
+                    var oldPath = SettingsService.Settings.CompanellaPath;
+
                     var dialog = new Views.SettingsWindow();
                     await dialog.ShowDialog(topLevel);
 
-                    // Reload settings
+                    // Reload local viewmodel properties
                     _processCovers = SettingsService.Settings.ProcessCovers;
                     _createBackups = SettingsService.Settings.CreateBackups;
                     OnPropertyChanged(nameof(ProcessCovers));
                     OnPropertyChanged(nameof(CreateBackups));
                     
-                    await RefreshCompanellaSorting();
+                    // Only refresh list if sorting rules changed (Strict check)
+                    bool sortChanged = oldSort != SettingsService.Settings.SortByMostPlayed;
+                    bool pathChanged = !string.Equals(oldPath ?? "", SettingsService.Settings.CompanellaPath ?? "", StringComparison.OrdinalIgnoreCase);
+
+                    if (sortChanged || pathChanged)
+                    {
+                        await RefreshCompanellaSorting();
+                    }
                 }
             }
             catch (Exception)

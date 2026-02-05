@@ -132,6 +132,7 @@ namespace Osutag.Views
 
                 try
                 {
+                    AnimateTilt(control, -3, 3, 1.02, -4); // Subtle Hover (Unified Stack + Minimal Lift/Scale)
                     await Task.Delay(300, currentToken.Token);
                     if (currentToken.Token.IsCancellationRequested) return;
 
@@ -147,7 +148,29 @@ namespace Osutag.Views
         private void MapCard_PointerExited(object? sender, PointerEventArgs e)
         {
             lock (_hoverLock) { _hoverDelayCancellation?.Cancel(); }
+            if (sender is Control control) AnimateTilt(control, 0, 0, 1.0, 0); // Reset
             Services.AudioService.Instance.Stop();
+        }
+
+        private void AnimateTilt(Control control, double angleX, double angleY, double scale, double translateY)
+        {
+            // Find the MapCard Border (Direct parent of Button)
+            var border = control.Parent as Border;
+            if (border != null && border.RenderTransform is TransformGroup group)
+            {
+                // Order matches XAML: [0] Scale, [1] Translate, [2] Rotate3D
+                if (group.Children.Count >= 3 &&
+                    group.Children[0] is ScaleTransform scaleT &&
+                    group.Children[1] is TranslateTransform translateT &&
+                    group.Children[2] is Rotate3DTransform rotateT)
+                {
+                    scaleT.ScaleX = scale;
+                    scaleT.ScaleY = scale;
+                    translateT.Y = translateY;
+                    rotateT.AngleX = angleX;
+                    rotateT.AngleY = angleY;
+                }
+            }
         }
 
         private async void DifficultyCard_PointerEntered(object? sender, PointerEventArgs e)
@@ -250,6 +273,30 @@ namespace Osutag.Views
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 BeginMoveDrag(e);
+            }
+        }
+
+        private void ScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
+        {
+            if (sender is ScrollViewer sv)
+            {
+                var container = this.FindControl<Grid>("LoadMoreContainer");
+                if (container == null) return;
+
+                double maxOffset = sv.Extent.Height - sv.Viewport.Height;
+                // Threshold: 50px from bottom logic
+                if (maxOffset < 0) maxOffset = 0;
+                
+                bool nearBottom = sv.Offset.Y >= (maxOffset - 50);
+
+                if (nearBottom && !container.IsVisible)
+                {
+                    container.IsVisible = true;
+                }
+                else if (!nearBottom && container.IsVisible)
+                {
+                    container.IsVisible = false;
+                }
             }
         }
 
