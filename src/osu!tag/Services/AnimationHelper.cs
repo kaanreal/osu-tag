@@ -308,7 +308,10 @@ namespace Osutag.Services
                 r.AngleX = _currentAngleX;
                 r.AngleY = _currentAngleY;
 
-                // Dynamic Shadow Depth
+                // Dynamic Shadow Depth - REMOVED FOR PERFORMANCE
+                // Updating BoxShadow triggers expensive repaints. 
+                // We now use a static opacity-faded shadow border in XAML (HoverShadow).
+                /* 
                 if (_control is Border b)
                 {
                     var offX = -_currentAngleY * 0.8;
@@ -321,7 +324,8 @@ namespace Osutag.Services
                         Blur = blur, 
                         Color = Color.FromArgb(80, 0, 0, 0) 
                     });
-                }
+                } 
+                */
 
                 // Enhanced Glare
                 var glare = FindVisualChildByName(_control, "GlareLayer") as Border;

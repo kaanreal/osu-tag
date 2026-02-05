@@ -30,5 +30,10 @@ class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            .With(new Win32PlatformOptions
+            {
+                RenderingMode = new[] { Win32RenderingMode.AngleEgl },
+                CompositionMode = new[] { Win32CompositionMode.WinUIComposition }
+            })
             .LogToTrace();
 }

@@ -54,7 +54,7 @@
                  CaretBrush="{DynamicResource TextPrimaryBrush}"
                  FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
                  HorizontalContentAlignment="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                 VerticalContentAlignment="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                 VerticalContentAlignment="Top"
                  AcceptsReturn="False"
                  TextWrapping="NoWrap">
              <TextBox.Styles>

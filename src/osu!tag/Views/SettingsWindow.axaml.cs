@@ -170,19 +170,12 @@ namespace Osutag.Views
             }
         }
 
-        private async void OnSortByMostPlayedChanged(AvaloniaPropertyChangedEventArgs e)
+        private void OnSortByMostPlayedChanged(AvaloniaPropertyChangedEventArgs e)
         {
             if (e.NewValue is bool enabled)
             {
                 SettingsService.Settings.SortByMostPlayed = enabled;
                 SettingsService.Save();
-                
-                // Trigger immediate re-sort in MainViewModel if possible
-                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
-                    desktop.MainWindow?.DataContext is MainViewModel mainVm)
-                {
-                    await mainVm.RefreshCompanellaSorting();
-                }
             }
         }
 
