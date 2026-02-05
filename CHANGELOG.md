@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/kaanreal/osu-tag/compare/v2.1.0...v2.1.1) (2026-02-05)
+
+
+### 🛠 Improvements
+
+* UI/Visual Alignment Improvements ([c7b5557](https://github.com/kaanreal/osu-tag/commit/c7b5557a3e366dc00574065460832fe28bea8e77))
+
 ## [2.1.0](https://github.com/kaanreal/osu-tag/compare/v2.0.2...v2.1.0) (2026-01-28)
 
 
