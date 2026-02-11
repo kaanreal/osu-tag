@@ -71,6 +71,9 @@ jobs:
 
             - name: Publish
               shell: bash
+              env:
+                  SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+                  SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
               run: |
                   dotnet publish src/osu!tag/Osutag.csproj -c Release -r ${{ matrix.rid }} \
                   --self-contained -p:PublishSingleFile=true \

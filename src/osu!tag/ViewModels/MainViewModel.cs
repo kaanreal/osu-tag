@@ -483,34 +483,6 @@ namespace Osutag.ViewModels
             set => SetProperty(ref _isBottomBarExpanded, value);
         }
 
-        public string SpotifyClientId
-        {
-            get => SettingsService.Settings.SpotifyClientId;
-            set
-            {
-                if (SettingsService.Settings.SpotifyClientId != value)
-                {
-                    SettingsService.Settings.SpotifyClientId = value;
-                    OnPropertyChanged(nameof(SpotifyClientId));
-                    SettingsService.Save();
-                }
-            }
-        }
-
-        public string SpotifyClientSecret
-        {
-            get => SettingsService.Settings.SpotifyClientSecret;
-            set
-            {
-                if (SettingsService.Settings.SpotifyClientSecret != value)
-                {
-                    SettingsService.Settings.SpotifyClientSecret = value;
-                    OnPropertyChanged(nameof(SpotifyClientSecret));
-                    SettingsService.Save();
-                }
-            }
-        }
-
         public string SearchHints => "Search by: Artist, Title, Creator, Difficulty, Tags, or Source";
 
         public bool ShowLoadMore => CanLoadMore && !IsScanning && !IsLoadingMore && !IsSearching && IsInitialLoadDone;
@@ -1317,11 +1289,9 @@ namespace Osutag.ViewModels
         private async Task FetchSpotifyStatusForAllAsync()
         {
             // Only run if credentials are set
-            if (string.IsNullOrEmpty(SettingsService.Settings.SpotifyClientId) || 
-                string.IsNullOrEmpty(SettingsService.Settings.SpotifyClientSecret))
-                return;
-
+            // Spotify API credentials are now hardcoded in SpotifyService
             var groupsToProcess = _allMapGroups.Where(g => !g.IsOnSpotify).ToList();
+            System.Diagnostics.Debug.WriteLine($"[Spotify] Starting fetch for {groupsToProcess.Count} tracks");
             if (!groupsToProcess.Any()) return;
 
             // Process in batches to avoid overwhelming the API

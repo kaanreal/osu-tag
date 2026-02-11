@@ -24,6 +24,7 @@
 - **Batch Export** - Process and tag multiple beatmaps simultaneously.
 - **Metadata Tagging** - Automatically applies ID3 tags including Artist, Title, and Album info.
 - **Cover Art Extraction** - Extracts beatmap backgrounds and embeds them as album art.
+- **Spotify Integration** - Shows which songs are available on Spotify with clickable badges.
 - **Modern Interface** - Clean glassmorphism design built with Avalonia.
 - **Context Actions** - Right-click support to view maps online, open local folders, or export backgrounds.
 - **Incremental Scanning** - Only scans for new beatmap folders on subsequent launches.
@@ -79,12 +80,34 @@
 - **Audio Tagging**: TagLibSharp
 - **Audio Playback**: MiniAudio
 
+## Development
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/kaanreal/osu-tag.git
+cd osu-tag
+
+# Set Spotify API credentials (optional - for Spotify integration)
+export SPOTIFY_CLIENT_ID="your_client_id"
+export SPOTIFY_CLIENT_SECRET="your_client_secret"
+
+# Build and run
+cd src/osu!tag
+dotnet build
+dotnet run
+```
+
+## Credits
+
+- **Spotify Search Logic** - Inspired by [osu-find-songs](https://github.com/kaanreal/osu-find-songs)
+
 ## License
 
 MIT License – See LICENSE for details.
 
 ---
-
 
 This was planned to be an simple osu! project but it grew and grew to the point of teaching me things.
 Even if its AI :)

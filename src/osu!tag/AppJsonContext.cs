@@ -10,6 +10,11 @@ namespace Osutag
     [JsonSerializable(typeof(List<MainViewModel.CachedMapData>))]
     [JsonSerializable(typeof(Dictionary<string, object>))]
     [JsonSerializable(typeof(AptabasePayload))]
+    [JsonSerializable(typeof(SpotifyAuthResponse))]
+    [JsonSerializable(typeof(SpotifySearchResponse))]
+    [JsonSerializable(typeof(SpotifyTracksContainer))]
+    [JsonSerializable(typeof(SpotifyTrack))]
+    [JsonSerializable(typeof(SpotifyExternalUrls))]
     internal partial class AppJsonContext : JsonSerializerContext
     {
     }
@@ -30,5 +35,42 @@ namespace Osutag
         
         [JsonPropertyName("Props")]
         public Dictionary<string, object>? Props { get; set; }
+    }
+
+    // Spotify API response types
+    public class SpotifyAuthResponse
+    {
+        [JsonPropertyName("access_token")]
+        public string AccessToken { get; set; } = "";
+        
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
+    }
+
+    public class SpotifySearchResponse
+    {
+        [JsonPropertyName("tracks")]
+        public SpotifyTracksContainer? Tracks { get; set; }
+    }
+
+    public class SpotifyTracksContainer
+    {
+        [JsonPropertyName("items")]
+        public List<SpotifyTrack>? Items { get; set; }
+    }
+
+    public class SpotifyTrack
+    {
+        [JsonPropertyName("external_urls")]
+        public SpotifyExternalUrls ExternalUrls { get; set; } = new();
+        
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = "";
+    }
+
+    public class SpotifyExternalUrls
+    {
+        [JsonPropertyName("spotify")]
+        public string Spotify { get; set; } = "";
     }
 }
