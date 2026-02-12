@@ -319,10 +319,24 @@ namespace Osutag.ViewModels
         public string? OverrideTitle { get; set; }
         public string? OverrideArtist { get; set; }
         public string? OverrideCoverPath { get; set; }
+        public string? CoverPath { get; set; }
         public float PlaybackRate { get; set; } = 1.0f;
         public float PitchSemitones { get; set; } = 0.0f;
         public bool MaintainPitch { get; set; } = true;
 
+        public Avalonia.Media.Imaging.Bitmap? CoverBitmap
+        {
+            get
+            {
+                var path = OverrideCoverPath ?? CoverPath;
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                {
+                    try { return new Avalonia.Media.Imaging.Bitmap(path); }
+                    catch { }
+                }
+                return MapGroup?.CoverBitmap;
+            }
+        }
     }
 
     public class RelayCommand : ICommand
@@ -1474,7 +1488,8 @@ namespace Osutag.ViewModels
                 { 
                     MapGroup = OverlayMapGroup, 
                     DisplayName = $"{OverlayMapGroup.Artist} - {OverlayMapGroup.Title}",
-                    SubDisplayName = diff.DifficultyName 
+                    SubDisplayName = diff.DifficultyName,
+                    CoverPath = diff.CoverPath
                 };
                 IsBottomBarExpanded = false;
             }
@@ -1514,10 +1529,12 @@ namespace Osutag.ViewModels
 
             // Select
             group.IsSelected = true;
+            var firstDiff = group.Difficulties.FirstOrDefault();
             LastSelectedItem = new SelectedItemInfo 
             { 
                 MapGroup = group, 
-                DisplayName = $"{group.Artist} - {group.Title}" 
+                DisplayName = $"{group.Artist} - {group.Title}",
+                CoverPath = firstDiff?.CoverPath ?? group.CoverPath
             };
             IsBottomBarExpanded = false;
             RefreshSelectedItems();
@@ -2266,7 +2283,7 @@ namespace Osutag.ViewModels
                                     mapGroup.UniqueAudioFiles.Add(new AudioFileItem 
                                     { 
                                         Mp3Path = diff.Mp3Path,
-                                        DisplayName = isMixedPack2 ? diff.DifficultyName : Path.GetFileName(diff.Mp3Path), 
+                                        DisplayName = isMixedPack2 ? diff.DifficultyName : $"{map.Artist} - {map.Title}", 
                                         PreviewTime = diff.PreviewTime
                                     });
                                 }
@@ -2401,6 +2418,7 @@ namespace Osutag.ViewModels
                             AudioFile = null,
                             DisplayName = $"{group.Artist} - {group.Title}",
                             SubDisplayName = diff.DifficultyName,
+                            CoverPath = diff.CoverPath,
                             PlaybackRate = ParseRateMultiplier(diff.Difficulty.Rate)
                         };
                         newSelection.Add(info);
@@ -2417,6 +2435,7 @@ namespace Osutag.ViewModels
                         AudioFile = null,
                         DisplayName = $"{group.Artist} - {group.Title}",
                         SubDisplayName = null,
+                        CoverPath = selectedDiff?.CoverPath,
                         PlaybackRate = selectedDiff != null ? ParseRateMultiplier(selectedDiff.Difficulty.Rate) : 1.0f
                     });
                 }
@@ -2626,7 +2645,7 @@ namespace Osutag.ViewModels
                 {
                     string safeTitle = string.Concat(
                         $"{effArtist} - {effTitle}"
-                            .Where(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '_')
+                            .Where(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '_' || c == '.')
                     ).Trim();
 
                     string mapOutputDir = Path.Combine(config.OutputDir, safeTitle);
