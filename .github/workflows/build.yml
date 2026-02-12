@@ -75,6 +75,10 @@ jobs:
                   SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
                   SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
               run: |
+                  # Export as environment variables for MSBuild
+                  export SPOTIFY_CLIENT_ID="${SPOTIFY_CLIENT_ID}"
+                  export SPOTIFY_CLIENT_SECRET="${SPOTIFY_CLIENT_SECRET}"
+
                   dotnet publish src/osu!tag/Osutag.csproj -c Release -r ${{ matrix.rid }} \
                   --self-contained -p:PublishSingleFile=true \
                   -p:IncludeNativeLibrariesForSelfExtract=true \
