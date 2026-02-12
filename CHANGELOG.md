@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/kaanreal/osu-tag/compare/v2.1.1...v2.2.0) (2026-02-12)
+
+
+### ✨ New Features
+
+* * Add Spotify env-based integration and UI updates ([e575937](https://github.com/kaanreal/osu-tag/commit/e57593726b08766bb465c5b9dd7b00ec3a68a7dc))
+
+
+### 🐞 Bug Fixes
+
+* * Use per-item cover images and UI tweaks ([e575937](https://github.com/kaanreal/osu-tag/commit/e57593726b08766bb465c5b9dd7b00ec3a68a7dc))
+
 ## [2.1.1](https://github.com/kaanreal/osu-tag/compare/v2.1.0...v2.1.1) (2026-02-05)
 
 
