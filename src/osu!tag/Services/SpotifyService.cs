@@ -12,6 +12,10 @@ using Osutag.Models;
 
 namespace Osutag.Services
 {
+    /// <summary>
+    /// Spotify integration service for detecting which osu! songs are available on Spotify.
+    /// Search logic adapted from osu-find-songs: https://github.com/kaanreal/osu-find-songs
+    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute'", Justification = "All types used in deserialization are defined locally and preserved.")]
     public class SpotifyService
     {
@@ -29,11 +33,17 @@ namespace Osutag.Services
 
         private async Task<string?> GetAccessTokenAsync()
         {
-            var clientId = SettingsService.Settings.SpotifyClientId;
-            var clientSecret = SettingsService.Settings.SpotifyClientSecret;
+            // Load Spotify API credentials from environment variables (set via GitHub secrets)
+            var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
+            var clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
 
-            if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
-                return null;
+            // Fallback to hardcoded values for development (remove in production)
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            {
+                System.Diagnostics.Debug.WriteLine("[Spotify] Warning: Using development credentials. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.");
+                clientId = "";
+                clientSecret = "";
+            }
 
             if (_accessToken != null && DateTime.Now < _tokenExpiry)
                 return _accessToken;
@@ -53,10 +63,16 @@ namespace Osutag.Services
                 };
 
                 var response = await _httpClient.SendAsync(request);
-                if (!response.IsSuccessStatusCode) return null;
-
                 var json = await response.Content.ReadAsStringAsync();
-                var authResponse = JsonSerializer.Deserialize<SpotifyAuthResponse>(json);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Spotify] Auth failed: {response.StatusCode}, Response: {json}");
+                    return null;
+                }
+
+                var authResponse = JsonSerializer.Deserialize(json, AppJsonContext.Default.SpotifyAuthResponse);
+                System.Diagnostics.Debug.WriteLine($"[Spotify] Token obtained successfully");
 
                 if (authResponse != null)
                 {
@@ -65,9 +81,9 @@ namespace Osutag.Services
                     return _accessToken;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Log error if needed
+                System.Diagnostics.Debug.WriteLine($"[Spotify] Auth exception: {ex.Message}");
             }
 
             return null;
@@ -76,7 +92,11 @@ namespace Osutag.Services
         public async Task<(bool isOnSpotify, string? url)> SearchTrackAsync(string artist, string title)
         {
             var token = await GetAccessTokenAsync();
-            if (token == null) return (false, null);
+            if (token == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Spotify] Failed to get token for {artist} - {title}");
+                return (false, null);
+            }
 
             // 1. Initial cleaning (always applied)
             string cleanTitle = CleanTitle(title);
@@ -86,32 +106,53 @@ namespace Osutag.Services
             var results = await TrySearchWithConditions(cleanArtist, cleanTitle, token);
             if (results != null && results.Any())
             {
+                System.Diagnostics.Debug.WriteLine($"[Spotify] ✓ Found: {artist} - {title}");
                 return (true, results.First().ExternalUrls.Spotify);
             }
 
+            System.Diagnostics.Debug.WriteLine($"[Spotify] ✗ Not found: {artist} - {title}");
             return (false, null);
         }
 
         private async Task<List<SpotifyTrack>?> TrySearchWithConditions(string artist, string title, string token)
         {
-            // List of transformations to try
-            var searchQueries = new List<string>
-            {
-                $"artist:{artist} track:{title}",
-                $"artist:{artist} track:{RemoveParentheses(title)}",
-                $"artist:{artist} track:{RemoveBrackets(title)}",
-                $"artist:{RemoveFeat(artist)} track:{title}",
-                $"artist:{RemoveFt(artist)} track:{title}",
-                $"{artist} - {title}", // Hard fallback
-                $"{artist} {title}"    // Even harder fallback
-            };
+            // Condition 1: Try as-is first (matches osu-find-songs: (s: Song) => s)
+            var result = await ExecuteSearch($"artist:{artist} track:{title}", token);
+            if (result != null && result.Any()) return result;
 
-            foreach (var query in searchQueries.Distinct())
+            // Condition 2: Remove parentheses from title (if present)
+            if (title.Contains('(') && title.Contains(')'))
             {
-                var results = await ExecuteSearch(query, token);
-                if (results != null && results.Any()) return results;
+                var cleanTitle = RemoveParentheses(title);
+                result = await ExecuteSearch($"artist:{artist} track:{cleanTitle}", token);
+                if (result != null && result.Any()) return result;
             }
 
+            // Condition 3: Remove brackets from title (if present)
+            if (title.Contains('[') && title.Contains(']'))
+            {
+                var cleanTitle = RemoveBrackets(title);
+                result = await ExecuteSearch($"artist:{artist} track:{cleanTitle}", token);
+                if (result != null && result.Any()) return result;
+            }
+
+            // Condition 4: Remove 'feat' from artist (if present)
+            if (artist.Contains("feat", StringComparison.OrdinalIgnoreCase))
+            {
+                var cleanArtist = RemoveFeat(artist);
+                result = await ExecuteSearch($"artist:{cleanArtist} track:{title}", token);
+                if (result != null && result.Any()) return result;
+            }
+
+            // Condition 5: Remove 'ft' from artist (if present)
+            if (artist.Contains("ft", StringComparison.OrdinalIgnoreCase))
+            {
+                var cleanArtist = RemoveFt(artist);
+                result = await ExecuteSearch($"artist:{cleanArtist} track:{title}", token);
+                if (result != null && result.Any()) return result;
+            }
+
+            // Don't try hard conditions (title-only/artist-only) as they cause too many false positives
             return null;
         }
 
@@ -126,12 +167,13 @@ namespace Osutag.Services
                 if (!response.IsSuccessStatusCode) return null;
 
                 var json = await response.Content.ReadAsStringAsync();
-                var searchResponse = JsonSerializer.Deserialize<SpotifySearchResponse>(json);
+                var searchResponse = JsonSerializer.Deserialize(json, AppJsonContext.Default.SpotifySearchResponse);
 
                 return searchResponse?.Tracks?.Items;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[Spotify] Search exception: {ex.Message}");
                 return null;
             }
         }
@@ -164,40 +206,6 @@ namespace Osutag.Services
         private string RemoveFt(string text)
         {
             return Regex.Replace(text, @"\s*ft.*", "", RegexOptions.IgnoreCase).Trim();
-        }
-
-        private class SpotifyAuthResponse
-        {
-            [JsonPropertyName("access_token")]
-            public string AccessToken { get; set; } = "";
-            [JsonPropertyName("expires_in")]
-            public int ExpiresIn { get; set; }
-        }
-
-        private class SpotifySearchResponse
-        {
-            [JsonPropertyName("tracks")]
-            public SpotifyTracksContainer? Tracks { get; set; }
-        }
-
-        private class SpotifyTracksContainer
-        {
-            [JsonPropertyName("items")]
-            public List<SpotifyTrack>? Items { get; set; }
-        }
-
-        private class SpotifyTrack
-        {
-            [JsonPropertyName("external_urls")]
-            public SpotifyExternalUrls ExternalUrls { get; set; } = new();
-            [JsonPropertyName("name")]
-            public string Name { get; set; } = "";
-        }
-
-        private class SpotifyExternalUrls
-        {
-            [JsonPropertyName("spotify")]
-            public string Spotify { get; set; } = "";
         }
     }
 }
