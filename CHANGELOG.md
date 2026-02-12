@@ -6,6 +6,28 @@
 ### ✨ New Features
 
 * * Add Spotify env-based integration and UI updates ([e575937](https://github.com/kaanreal/osu-tag/commit/e57593726b08766bb465c5b9dd7b00ec3a68a7dc))
+* Add Spotify env-based integration and UI updates ([6315f09](https://github.com/kaanreal/osu-tag/commit/6315f093341da3242e2f3f6cfccb1c1040e5562c))
+* Add Spotify env-based integration and UI updates ([a91ff63](https://github.com/kaanreal/osu-tag/commit/a91ff6320fa40c9c25dd3358fade6a676e1b960c))
+
+
+### 🐞 Bug Fixes
+
+* * Use per-item cover images and UI tweaks ([e575937](https://github.com/kaanreal/osu-tag/commit/e57593726b08766bb465c5b9dd7b00ec3a68a7dc))
+* Use per-item cover images and UI tweaks ([6315f09](https://github.com/kaanreal/osu-tag/commit/6315f093341da3242e2f3f6cfccb1c1040e5562c))
+* Use per-item cover images and UI tweaks ([a91ff63](https://github.com/kaanreal/osu-tag/commit/a91ff6320fa40c9c25dd3358fade6a676e1b960c))
+
+
+### 🔧 Under the Hood
+
+* **main:** release 2.2.0 ([#132](https://github.com/kaanreal/osu-tag/issues/132)) ([f259f7a](https://github.com/kaanreal/osu-tag/commit/f259f7a1cb26c4d35e471ef301e9164a7e1c51b4))
+* **main:** release 2.2.0 ([#134](https://github.com/kaanreal/osu-tag/issues/134)) ([1844830](https://github.com/kaanreal/osu-tag/commit/18448307e70fbfe8b5479c3b1df2dcc5109e4f3a))
+
+## [2.2.0](https://github.com/kaanreal/osu-tag/compare/v2.1.1...v2.2.0) (2026-02-12)
+
+
+### ✨ New Features
+
+* * Add Spotify env-based integration and UI updates ([e575937](https://github.com/kaanreal/osu-tag/commit/e57593726b08766bb465c5b9dd7b00ec3a68a7dc))
 * Add Spotify env-based integration and UI updates ([a91ff63](https://github.com/kaanreal/osu-tag/commit/a91ff6320fa40c9c25dd3358fade6a676e1b960c))
 
 
