@@ -153,3 +153,6 @@ UpgradeLog*.htm
 # Mac
 .DS_Store
 *.sln
+
+# Generated files
+**/SpotifyCredentials.g.cs
