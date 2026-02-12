@@ -45,37 +45,9 @@
     <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
   </PropertyGroup>
 
-  <!-- Spotify API credentials (injected from CI secrets) -->
-  <PropertyGroup>
-    <SpotifyClientId Condition="'$(SPOTIFY_CLIENT_ID)' != ''">$(SPOTIFY_CLIENT_ID)</SpotifyClientId>
-    <SpotifyClientId Condition="'$(SpotifyClientId)' == ''"/>
-    <SpotifyClientSecret Condition="'$(SPOTIFY_CLIENT_SECRET)' != ''">$(SPOTIFY_CLIENT_SECRET)</SpotifyClientSecret>
-    <SpotifyClientSecret Condition="'$(SpotifyClientSecret)' == ''"/>
-  </PropertyGroup>
-
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
   </ItemGroup>
-
-  <!-- Generate Spotify credentials file at build time -->
-  <Target Name="GenerateSpotifyCredentials" BeforeTargets="BeforeBuild">
-    <PropertyGroup>
-      <SpotifyCredentialsFile>$(MSBuildProjectDirectory)\SpotifyCredentials.g.cs</SpotifyCredentialsFile>
-      <SpotifyCredentialsContent>
-        <![CDATA[// This file is auto-generated during build. Do not edit manually.
-namespace Osutag.Services
-{
-    internal static class SpotifyCredentials
-    {
-        public const string ClientId = "$(SpotifyClientId)"%3B
-        public const string ClientSecret = "$(SpotifyClientSecret)"%3B
-    }
-}
-]]>
-      </SpotifyCredentialsContent>
-    </PropertyGroup>
-    <WriteLinesToFile File="$(SpotifyCredentialsFile)" Lines="$(SpotifyCredentialsContent)" Overwrite="true" WriteOnlyWhenDifferent="true"/>
-  </Target>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.4"/>

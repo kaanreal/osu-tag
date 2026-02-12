@@ -33,21 +33,12 @@ namespace Osutag.Services
 
         private async Task<string?> GetAccessTokenAsync()
         {
-            // Credentials are compiled-in from CI secrets during build
-            // For local development, they default to empty strings
-            var clientId = SpotifyCredentials.ClientId;
-            var clientSecret = SpotifyCredentials.ClientSecret;
-            
-            // Fall back to environment variables as override (for local testing)
-            if (string.IsNullOrEmpty(clientId))
-                clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
-            if (string.IsNullOrEmpty(clientSecret))
-                clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
+            var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
+            var clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
 
-            // If still empty, credentials are not configured
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
-                System.Diagnostics.Debug.WriteLine("[Spotify] Credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables or configure CI secrets.");
+                System.Diagnostics.Debug.WriteLine("[Spotify] Credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.");
                 return null;
             }
 

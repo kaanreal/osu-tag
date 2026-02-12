@@ -154,5 +154,3 @@ UpgradeLog*.htm
 .DS_Store
 *.sln
 
-# Generated files
-**/SpotifyCredentials.g.cs
