@@ -12,14 +12,14 @@
     <RootNamespace>Osutag</RootNamespace>
     <AssemblyName>Osutag</AssemblyName>
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
-    <Version>2.1.1</Version>
+    <Version>2.2.0</Version>
     <Authors>kaanreal</Authors>
     <Company>kaanreal</Company>
     <Product>osu!tag</Product>
     
     <!-- Spotify API credentials (set during build) -->
-    <SpotifyClientId Condition="'$(SpotifyClientId)' == ''"></SpotifyClientId>
-    <SpotifyClientSecret Condition="'$(SpotifyClientSecret)' == ''"></SpotifyClientSecret>
+    <SpotifyClientId Condition="'$(SpotifyClientId)' == ''"/>
+    <SpotifyClientSecret Condition="'$(SpotifyClientSecret)' == ''"/>
     <DefineConstants>$(DefineConstants);SPOTIFY_CLIENT_ID="$(SpotifyClientId)";SPOTIFY_CLIENT_SECRET="$(SpotifyClientSecret)"</DefineConstants>
     
     <!-- Optimization: Production Stability -->
