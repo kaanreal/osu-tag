@@ -25,6 +25,9 @@ namespace Osutag.Services
         private readonly HttpClient _httpClient;
         private string? _accessToken;
         private DateTime _tokenExpiry = DateTime.MinValue;
+        private readonly SemaphoreSlim _rateLimitSemaphore = new SemaphoreSlim(1, 1);
+        private DateTime _lastRequestTime = DateTime.MinValue;
+        private const int MinRequestDelayMs = 300; // Minimum 300ms between requests (safer)
 
         private SpotifyService()
         {
@@ -36,9 +39,32 @@ namespace Osutag.Services
             var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
             var clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
 
+            // Fallback: Try to read from local config file (for development)
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
-                System.Diagnostics.Debug.WriteLine("[Spotify] Credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables.");
+                try
+                {
+                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    var configPath = System.IO.Path.Combine(baseDir, "spotify-config.json");
+                    
+                    if (System.IO.File.Exists(configPath))
+                    {
+                        var json = await System.IO.File.ReadAllTextAsync(configPath);
+                        var config = JsonSerializer.Deserialize(json, AppJsonContext.Default.SpotifyConfig);
+                        clientId = config?.SpotifyClientId;
+                        clientSecret = config?.SpotifyClientSecret;
+                        System.Diagnostics.Debug.WriteLine($"[Spotify] Loaded credentials from spotify-config.json");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Spotify] Failed to read config file: {ex.Message}");
+                }
+            }
+
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            {
+                System.Diagnostics.Debug.WriteLine("[Spotify] Credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables or create spotify-config.json");
                 return null;
             }
 
@@ -155,13 +181,61 @@ namespace Osutag.Services
 
         private async Task<List<SpotifyTrack>?> ExecuteSearch(string query, string token)
         {
+            // Rate limiting: ensure minimum delay between requests
+            await _rateLimitSemaphore.WaitAsync();
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.spotify.com/v1/search?q={Uri.EscapeDataString(query)}&type=track&limit=1");
+                var timeSinceLastRequest = DateTime.Now - _lastRequestTime;
+                if (timeSinceLastRequest.TotalMilliseconds < MinRequestDelayMs)
+                {
+                    var delayNeeded = MinRequestDelayMs - (int)timeSinceLastRequest.TotalMilliseconds;
+                    await Task.Delay(delayNeeded);
+                }
+
+                var escapedQuery = Uri.EscapeDataString(query);
+                var url = $"https://api.spotify.com/v1/search?q={escapedQuery}&type=track&limit=1";
+                
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await _httpClient.SendAsync(request);
-                if (!response.IsSuccessStatusCode) return null;
+                _lastRequestTime = DateTime.Now;
+                
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    // Check for Retry-After header
+                    if (response.Headers.TryGetValues("Retry-After", out var retryAfterValues))
+                    {
+                        if (int.TryParse(retryAfterValues.First(), out var retryAfterSeconds))
+                        {
+                            // Cap retry time at 60 seconds to avoid extremely long waits
+                            if (retryAfterSeconds > 60)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[Spotify] Rate limited for {retryAfterSeconds}s. Skipping.");
+                                return null;
+                            }
+                            
+                            System.Diagnostics.Debug.WriteLine($"[Spotify] Rate limited. Waiting {retryAfterSeconds}s...");
+                            await Task.Delay(retryAfterSeconds * 1000);
+                            
+                            // Retry the request
+                            request = new HttpRequestMessage(HttpMethod.Get, url);
+                            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                            response = await _httpClient.SendAsync(request);
+                            _lastRequestTime = DateTime.Now;
+                        }
+                    }
+                    else
+                    {
+                        await Task.Delay(2000);
+                        return null;
+                    }
+                }
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    return null;
+                }
 
                 var json = await response.Content.ReadAsStringAsync();
                 var searchResponse = JsonSerializer.Deserialize(json, AppJsonContext.Default.SpotifySearchResponse);
@@ -172,6 +246,10 @@ namespace Osutag.Services
             {
                 System.Diagnostics.Debug.WriteLine($"[Spotify] Search exception: {ex.Message}");
                 return null;
+            }
+            finally
+            {
+                _rateLimitSemaphore.Release();
             }
         }
 

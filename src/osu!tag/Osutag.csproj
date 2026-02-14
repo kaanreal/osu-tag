@@ -12,7 +12,7 @@
     <RootNamespace>Osutag</RootNamespace>
     <AssemblyName>Osutag</AssemblyName>
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
-    <Version>2.2.0</Version>
+    <Version>2.1.1</Version>
     <Authors>kaanreal</Authors>
     <Company>kaanreal</Company>
     <Product>osu!tag</Product>
@@ -47,6 +47,11 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy Spotify config if it exists (for local development) -->
+    <None Include="spotify-config.json" Condition="Exists('spotify-config.json')" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>

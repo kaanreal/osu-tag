@@ -1302,44 +1302,41 @@ namespace Osutag.ViewModels
 
         private async Task FetchSpotifyStatusForAllAsync()
         {
-            // Only run if credentials are set
-            // Spotify API credentials are now hardcoded in SpotifyService
             var groupsToProcess = _allMapGroups.Where(g => !g.IsOnSpotify).ToList();
             System.Diagnostics.Debug.WriteLine($"[Spotify] Starting fetch for {groupsToProcess.Count} tracks");
             if (!groupsToProcess.Any()) return;
 
-            // Process in batches to avoid overwhelming the API
-            const int batchSize = 5;
-            for (int i = 0; i < groupsToProcess.Count; i += batchSize)
+            // Process sequentially to avoid rate limiting (Spotify has strict limits)
+            int successCount = 0;
+            for (int i = 0; i < groupsToProcess.Count; i++)
             {
-                var batch = groupsToProcess.Skip(i).Take(batchSize);
-                var tasks = batch.Select(async group =>
+                var group = groupsToProcess[i];
+                var (isOnSpotify, url) = await SpotifyService.Instance.SearchTrackAsync(group.Artist, group.Title);
+                if (isOnSpotify)
                 {
-                    var (isOnSpotify, url) = await SpotifyService.Instance.SearchTrackAsync(group.Artist, group.Title);
-                    if (isOnSpotify)
+                    successCount++;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        group.IsOnSpotify = true;
+                        group.SpotifyUrl = url;
+                        
+                        // Also update difficulties
+                        foreach (var diff in group.Difficulties)
                         {
-                            group.IsOnSpotify = true;
-                            group.SpotifyUrl = url;
-                            
-                            // Also update difficulties
-                            foreach (var diff in group.Difficulties)
-                            {
-                                diff.Difficulty.IsOnSpotify = true;
-                                diff.Difficulty.SpotifyUrl = url;
-                            }
-                        });
-                    }
-                });
-
-                await Task.WhenAll(tasks);
-                // Save cache periodically
-                if (i % 20 == 0) SaveMapCache();
+                            diff.Difficulty.IsOnSpotify = true;
+                            diff.Difficulty.SpotifyUrl = url;
+                        }
+                    });
+                }
                 
-                await Task.Delay(100); // Brief delay between batches
+                // Save cache periodically
+                if (i > 0 && i % 20 == 0)
+                {
+                    SaveMapCache();
+                }
             }
 
+            System.Diagnostics.Debug.WriteLine($"[Spotify] Complete: {successCount}/{groupsToProcess.Count} tracks found on Spotify");
             SaveMapCache();
         }
 

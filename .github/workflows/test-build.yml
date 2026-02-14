@@ -1,0 +1,41 @@
+name: Test Build
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build:
+        strategy:
+            matrix:
+                include:
+                    - os: windows-latest
+                      rid: win-x64
+                    - os: macos-latest
+                      rid: osx-arm64
+                    - os: ubuntu-latest
+                      rid: linux-x64
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: "8.0"
+
+            - name: Publish
+              shell: bash
+              env:
+                  SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+                  SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+              run: |
+                  dotnet publish src/osu!tag/Osutag.csproj -c Release -r ${{ matrix.rid }} \
+                  --self-contained -p:PublishSingleFile=true \
+                  -p:IncludeNativeLibrariesForSelfExtract=true \
+                  -p:Version=0.0.0-test \
+                  -o publish
+
+                  if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+                    mv publish/Osutag.exe "publish/osu!tag.exe"
+                  else
+                    mv publish/Osutag "publish/osu!tag"
+                  fi
