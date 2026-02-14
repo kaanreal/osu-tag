@@ -16,6 +16,7 @@ namespace Osutag
     [JsonSerializable(typeof(SpotifyTrack))]
     [JsonSerializable(typeof(SpotifyExternalUrls))]
     [JsonSerializable(typeof(SpotifyConfig))]
+    [JsonSerializable(typeof(SpotifySearchResult))]
     internal partial class AppJsonContext : JsonSerializerContext
     {
     }
@@ -83,5 +84,18 @@ namespace Osutag
         
         [JsonPropertyName("SpotifyClientSecret")]
         public string? SpotifyClientSecret { get; set; }
+    }
+
+    // Spotify search result from backend API
+    public class SpotifySearchResult
+    {
+        [JsonPropertyName("found")]
+        public bool Found { get; set; }
+        
+        [JsonPropertyName("url")]
+        public string? Url { get; set; }
+        
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
     }
 }
