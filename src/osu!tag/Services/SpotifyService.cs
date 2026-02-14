@@ -5,16 +5,15 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using Osutag.Models;
 
 namespace Osutag.Services
 {
     /// <summary>
     /// Spotify integration service for detecting which osu! songs are available on Spotify.
-    /// Search logic adapted from osu-find-songs: https://github.com/kaanreal/osu-find-songs
+    /// Uses direct Spotify API with rate limiting and multiple credential sources.
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute'", Justification = "All types used in deserialization are defined locally and preserved.")]
     public class SpotifyService
@@ -24,10 +23,12 @@ namespace Osutag.Services
 
         private readonly HttpClient _httpClient;
         private string? _accessToken;
-        private DateTime _tokenExpiry = DateTime.MinValue;
-        private readonly SemaphoreSlim _rateLimitSemaphore = new SemaphoreSlim(1, 1);
+        private DateTime _tokenExpiry;
+        
+        // Rate limiting
+        private readonly SemaphoreSlim _rateLimitSemaphore = new(1, 1);
         private DateTime _lastRequestTime = DateTime.MinValue;
-        private const int MinRequestDelayMs = 300; // Minimum 300ms between requests (safer)
+        private const int MinRequestDelayMs = 300; // 300ms between requests
 
         private SpotifyService()
         {
@@ -39,7 +40,18 @@ namespace Osutag.Services
             var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
             var clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
 
-            // Fallback: Try to read from local config file (for development)
+            // Fallback 1: Try compile-time embedded credentials
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            {
+                if (!string.IsNullOrEmpty(SpotifyCredentials.ClientId) && !string.IsNullOrEmpty(SpotifyCredentials.ClientSecret))
+                {
+                    clientId = SpotifyCredentials.ClientId;
+                    clientSecret = SpotifyCredentials.ClientSecret;
+                    System.Diagnostics.Debug.WriteLine("[Spotify] Using embedded credentials");
+                }
+            }
+
+            // Fallback 2: Try to read from local config file (for development)
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
                 try
