@@ -61,6 +61,13 @@ namespace Osutag.Views
             set => SetValue(DiscordRpcEnabledProperty, value);
         }
 
+        public static readonly StyledProperty<bool> SpotifyLookupEnabledProperty = AvaloniaProperty.Register<SettingsWindow, bool>(nameof(SpotifyLookupEnabled));
+        public bool SpotifyLookupEnabled
+        {
+            get => GetValue(SpotifyLookupEnabledProperty);
+            set => SetValue(SpotifyLookupEnabledProperty, value);
+        }
+
         public static readonly StyledProperty<bool> DynamicBackgroundEnabledProperty = AvaloniaProperty.Register<SettingsWindow, bool>(nameof(DynamicBackgroundEnabled));
         public bool DynamicBackgroundEnabled
         {
@@ -387,6 +394,7 @@ namespace Osutag.Views
             SortByMostPlayed = SettingsService.Settings.SortByMostPlayed;
             TelemetryEnabled = SettingsService.Settings.TelemetryEnabled;
             DiscordRpcEnabled = SettingsService.Settings.DiscordRpcEnabled;
+            SpotifyLookupEnabled = SettingsService.Settings.SpotifyLookupEnabled;
             CheckForUpdates = SettingsService.Settings.CheckForUpdates;
             PreviewVolume = SettingsService.Settings.PreviewVolume;
             SelectedTheme = SettingsService.Settings.ThemeColor;
@@ -406,6 +414,7 @@ namespace Osutag.Views
                 SettingsService.Settings.SortByMostPlayed = SortByMostPlayed;
                 SettingsService.Settings.TelemetryEnabled = TelemetryEnabled;
                 SettingsService.Settings.DiscordRpcEnabled = DiscordRpcEnabled;
+                SettingsService.Settings.SpotifyLookupEnabled = SpotifyLookupEnabled;
                 SettingsService.Settings.CheckForUpdates = CheckForUpdates;
                 SettingsService.Settings.PreviewVolume = PreviewVolume;
                 SettingsService.Settings.ThemeColor = SelectedTheme;

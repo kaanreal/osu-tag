@@ -15,8 +15,9 @@ namespace Osutag
     [JsonSerializable(typeof(SpotifyTracksContainer))]
     [JsonSerializable(typeof(SpotifyTrack))]
     [JsonSerializable(typeof(SpotifyExternalUrls))]
-    [JsonSerializable(typeof(SpotifyConfig))]
     [JsonSerializable(typeof(SpotifySearchResult))]
+    [JsonSerializable(typeof(SupabaseConfig))]
+    [JsonSerializable(typeof(SupabaseSpotifySearchRequest))]
     internal partial class AppJsonContext : JsonSerializerContext
     {
     }
@@ -76,16 +77,6 @@ namespace Osutag
         public string Spotify { get; set; } = "";
     }
 
-    // Spotify configuration for local development
-    public class SpotifyConfig
-    {
-        [JsonPropertyName("SpotifyClientId")]
-        public string? SpotifyClientId { get; set; }
-        
-        [JsonPropertyName("SpotifyClientSecret")]
-        public string? SpotifyClientSecret { get; set; }
-    }
-
     // Spotify search result from backend API
     public class SpotifySearchResult
     {
@@ -97,5 +88,23 @@ namespace Osutag
         
         [JsonPropertyName("name")]
         public string? Name { get; set; }
+    }
+
+    public class SupabaseConfig
+    {
+        [JsonPropertyName("SupabaseUrl")]
+        public string? SupabaseUrl { get; set; }
+
+        [JsonPropertyName("SupabaseAnonKey")]
+        public string? SupabaseAnonKey { get; set; }
+    }
+
+    public class SupabaseSpotifySearchRequest
+    {
+        [JsonPropertyName("artist")]
+        public string Artist { get; set; } = "";
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = "";
     }
 }

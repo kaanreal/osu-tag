@@ -1302,7 +1302,28 @@ namespace Osutag.ViewModels
 
         private async Task FetchSpotifyStatusForAllAsync()
         {
-            var groupsToProcess = _allMapGroups.Where(g => !g.IsOnSpotify).ToList();
+            if (!Services.SettingsService.Settings.SpotifyLookupEnabled)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    foreach (var group in _allMapGroups)
+                    {
+                        if (!group.IsOnSpotify && string.IsNullOrEmpty(group.SpotifyUrl)) continue;
+                        group.IsOnSpotify = false;
+                        group.SpotifyUrl = null;
+                        foreach (var diff in group.Difficulties)
+                        {
+                            diff.Difficulty.IsOnSpotify = false;
+                            diff.Difficulty.SpotifyUrl = null;
+                        }
+                    }
+                });
+                return;
+            }
+
+            var groupsToProcess = _allMapGroups
+                .Where(g => !g.IsOnSpotify || string.IsNullOrEmpty(g.SpotifyUrl))
+                .ToList();
             System.Diagnostics.Debug.WriteLine($"[Spotify] Starting fetch for {groupsToProcess.Count} tracks");
             if (!groupsToProcess.Any()) return;
 
@@ -1312,7 +1333,7 @@ namespace Osutag.ViewModels
             {
                 var group = groupsToProcess[i];
                 var (isOnSpotify, url) = await SpotifyService.Instance.SearchTrackAsync(group.Artist, group.Title);
-                if (isOnSpotify)
+                if (isOnSpotify && !string.IsNullOrEmpty(url))
                 {
                     successCount++;
                     await Dispatcher.UIThread.InvokeAsync(() =>
@@ -1325,6 +1346,19 @@ namespace Osutag.ViewModels
                         {
                             diff.Difficulty.IsOnSpotify = true;
                             diff.Difficulty.SpotifyUrl = url;
+                        }
+                    });
+                }
+                else if (group.IsOnSpotify && string.IsNullOrEmpty(url))
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        group.IsOnSpotify = false;
+                        group.SpotifyUrl = null;
+                        foreach (var diff in group.Difficulties)
+                        {
+                            diff.Difficulty.IsOnSpotify = false;
+                            diff.Difficulty.SpotifyUrl = null;
                         }
                     });
                 }
@@ -1756,8 +1790,8 @@ namespace Osutag.ViewModels
                     PreviewTime = g.PreviewTime,
                     BeatmapSetId = g.BeatmapSetId,
                     DirectoryPath = g.DirectoryPath,
-                    IsOnSpotify = g.IsOnSpotify,
-                    SpotifyUrl = g.SpotifyUrl,
+                    IsOnSpotify = g.IsOnSpotify && !string.IsNullOrEmpty(g.SpotifyUrl),
+                    SpotifyUrl = string.IsNullOrEmpty(g.SpotifyUrl) ? null : g.SpotifyUrl,
                     Difficulties = g.Difficulties.Select(d => new CachedDifficulty
                     {
                         DifficultyName = d.DifficultyName,
@@ -1768,8 +1802,8 @@ namespace Osutag.ViewModels
                         Title = d.Title,
                         CoverPath = d.CoverPath,
                         PreviewTime = d.Difficulty.PreviewTime,
-                        IsOnSpotify = d.Difficulty.IsOnSpotify,
-                        SpotifyUrl = d.Difficulty.SpotifyUrl
+                        IsOnSpotify = d.Difficulty.IsOnSpotify && !string.IsNullOrEmpty(d.Difficulty.SpotifyUrl),
+                        SpotifyUrl = string.IsNullOrEmpty(d.Difficulty.SpotifyUrl) ? null : d.Difficulty.SpotifyUrl
                     }).ToList()
                 }).ToList();
 
@@ -1784,6 +1818,7 @@ namespace Osutag.ViewModels
             var groups = new List<MapItemGroup>();
             try
             {
+                var spotifyEnabled = Services.SettingsService.Settings.SpotifyLookupEnabled;
                 var cachePath = GetCacheFilePath();
                 if (!File.Exists(cachePath))
                     return groups;
@@ -1814,8 +1849,8 @@ namespace Osutag.ViewModels
                         PreviewTime = cached.PreviewTime,
                         BeatmapSetId = cached.BeatmapSetId,
                         DirectoryPath = cached.DirectoryPath,
-                        IsOnSpotify = cached.IsOnSpotify,
-                        SpotifyUrl = cached.SpotifyUrl,
+                        IsOnSpotify = spotifyEnabled && cached.IsOnSpotify && !string.IsNullOrEmpty(cached.SpotifyUrl),
+                        SpotifyUrl = spotifyEnabled && !string.IsNullOrEmpty(cached.SpotifyUrl) ? cached.SpotifyUrl : null,
                         OpenBeatmapUrlCommand = OpenBeatmapUrlCommand,
                         OpenDirectoryCommand = OpenDirectoryCommand,
                         ExportBackgroundCommand = ExportBackgroundCommand,
@@ -1879,8 +1914,8 @@ namespace Osutag.ViewModels
                             Title = d.Title,
                             CoverPath = d.CoverPath,
                             PreviewTime = d.PreviewTime,
-                            IsOnSpotify = d.IsOnSpotify,
-                            SpotifyUrl = d.SpotifyUrl
+                            IsOnSpotify = spotifyEnabled && d.IsOnSpotify && !string.IsNullOrEmpty(d.SpotifyUrl),
+                            SpotifyUrl = spotifyEnabled && !string.IsNullOrEmpty(d.SpotifyUrl) ? d.SpotifyUrl : null
                         };
 
                         // FOR CHILDREN: If it's a mixed pack, the "Title" metadata is often generic (e.g. "Pack Name")

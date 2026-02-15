@@ -76,8 +76,6 @@ jobs:
                   --self-contained -p:PublishSingleFile=true \
                   -p:IncludeNativeLibrariesForSelfExtract=true \
                   -p:Version=${{ steps.release_notes.outputs.VERSION }} \
-                  -p:SpotifyClientId="${{ secrets.SPOTIFY_CLIENT_ID }}" \
-                  -p:SpotifyClientSecret="${{ secrets.SPOTIFY_CLIENT_SECRET }}" \
                   -o publish
 
                   if [[ "${{ matrix.os }}" == "windows-latest" ]]; then

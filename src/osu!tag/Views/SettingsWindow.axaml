@@ -165,6 +165,10 @@
 
                                 <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
 
+                                <CheckBox Content="Enable Spotify lookup" IsChecked="{Binding SpotifyLookupEnabled}"/>
+
+                                <Rectangle Height="1" Fill="#24292F" Opacity="0.5"/>
+
                                 <CheckBox Content="Enable Discord Rich Presence" IsChecked="{Binding DiscordRpcEnabled}"/>
                                 <CheckBox Content="Share anonymous usage statistics" IsChecked="{Binding TelemetryEnabled}"/>
 

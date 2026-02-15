@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -24,6 +25,15 @@ namespace Osutag.Services
         private readonly HttpClient _httpClient;
         private string? _accessToken;
         private DateTime _tokenExpiry;
+
+        private string? _supabaseUrl;
+        private string? _supabaseAnonKey;
+        private bool _supabaseConfigLoaded;
+
+        // Hardcoded Supabase config (publishable anon key + URL).
+        // This is public by design; do not put service keys here.
+        private const string HardcodedSupabaseUrl = "https://dpnfdszjftefgnosqpdc.supabase.co";
+        private const string HardcodedSupabaseAnonKey = "sb_publishable_5Ray9CgUvQS0sAyLx-Ww3w_W6OeVURy";
         
         // Rate limiting
         private readonly SemaphoreSlim _rateLimitSemaphore = new(1, 1);
@@ -35,48 +45,80 @@ namespace Osutag.Services
             _httpClient = new HttpClient();
         }
 
+        private void EnsureSupabaseConfigLoaded()
+        {
+            if (_supabaseConfigLoaded) return;
+
+            _supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
+            _supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY");
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl)) _supabaseUrl = HardcodedSupabaseUrl;
+            if (string.IsNullOrWhiteSpace(_supabaseAnonKey)) _supabaseAnonKey = HardcodedSupabaseAnonKey;
+
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_supabaseAnonKey))
+            {
+                System.Diagnostics.Debug.WriteLine("[Spotify] Supabase not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY or provide supabase-config.json");
+            }
+
+            _supabaseConfigLoaded = true;
+        }
+
+        private async Task<(bool isOnSpotify, string? url)?> SearchViaSupabaseAsync(string artist, string title)
+        {
+            EnsureSupabaseConfigLoaded();
+            if (string.IsNullOrWhiteSpace(_supabaseUrl) || string.IsNullOrWhiteSpace(_supabaseAnonKey))
+                return null;
+
+            try
+            {
+                var endpoint = _supabaseUrl.TrimEnd('/');
+                if (!endpoint.Contains("/functions/", StringComparison.OrdinalIgnoreCase))
+                {
+                    endpoint = $"{endpoint}/functions/v1/spotify-search";
+                }
+                var payload = new SupabaseSpotifySearchRequest
+                {
+                    Artist = artist,
+                    Title = title
+                };
+
+                var json = JsonSerializer.Serialize(payload, AppJsonContext.Default.SupabaseSpotifySearchRequest);
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseAnonKey);
+                request.Headers.Add("apikey", _supabaseAnonKey);
+
+                var response = await _httpClient.SendAsync(request);
+                var responseJson = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Spotify] Supabase function failed: {response.StatusCode}, Response: {responseJson}");
+                    return null;
+                }
+
+                var result = JsonSerializer.Deserialize(responseJson, AppJsonContext.Default.SpotifySearchResult);
+                if (result == null) return (false, null);
+                if (!result.Found || string.IsNullOrWhiteSpace(result.Url)) return (false, null);
+
+                return (true, result.Url);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Spotify] Supabase search exception: {ex.Message}");
+                return null;
+            }
+        }
+
         private async Task<string?> GetAccessTokenAsync()
         {
             var clientId = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_ID");
             var clientSecret = Environment.GetEnvironmentVariable("SPOTIFY_CLIENT_SECRET");
 
-            // Fallback 1: Try compile-time embedded credentials
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
-                if (!string.IsNullOrEmpty(SpotifyCredentials.ClientId) && !string.IsNullOrEmpty(SpotifyCredentials.ClientSecret))
-                {
-                    clientId = SpotifyCredentials.ClientId;
-                    clientSecret = SpotifyCredentials.ClientSecret;
-                    System.Diagnostics.Debug.WriteLine("[Spotify] Using embedded credentials");
-                }
-            }
-
-            // Fallback 2: Try to read from local config file (for development)
-            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
-            {
-                try
-                {
-                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    var configPath = System.IO.Path.Combine(baseDir, "spotify-config.json");
-                    
-                    if (System.IO.File.Exists(configPath))
-                    {
-                        var json = await System.IO.File.ReadAllTextAsync(configPath);
-                        var config = JsonSerializer.Deserialize(json, AppJsonContext.Default.SpotifyConfig);
-                        clientId = config?.SpotifyClientId;
-                        clientSecret = config?.SpotifyClientSecret;
-                        System.Diagnostics.Debug.WriteLine($"[Spotify] Loaded credentials from spotify-config.json");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[Spotify] Failed to read config file: {ex.Message}");
-                }
-            }
-
-            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
-            {
-                System.Diagnostics.Debug.WriteLine("[Spotify] Credentials not configured. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables or create spotify-config.json");
+                System.Diagnostics.Debug.WriteLine("[Spotify] Credentials not configured. Supabase is required for Spotify lookups.");
                 return null;
             }
 
@@ -126,6 +168,12 @@ namespace Osutag.Services
 
         public async Task<(bool isOnSpotify, string? url)> SearchTrackAsync(string artist, string title)
         {
+            var supabaseResult = await SearchViaSupabaseAsync(artist, title);
+            if (supabaseResult.HasValue)
+            {
+                return supabaseResult.Value;
+            }
+
             var token = await GetAccessTokenAsync();
             if (token == null)
             {
