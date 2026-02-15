@@ -82,6 +82,7 @@ namespace Osutag.Services
         public string SkipUpdateVersion { get; set; } = "";
         public bool TelemetryEnabled { get; set; } = true;
         public bool DiscordRpcEnabled { get; set; } = true;
+        public bool SpotifyLookupEnabled { get; set; } = true;
         public string AnonymousUserId { get; set; } = "";
         public bool DynamicBackgroundEnabled { get; set; } = false;
         public string OsuPath { get; set; } = "";

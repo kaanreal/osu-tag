@@ -12,15 +12,10 @@
     <RootNamespace>Osutag</RootNamespace>
     <AssemblyName>Osutag</AssemblyName>
     <ApplicationIcon>Assets/app.ico</ApplicationIcon>
-    <Version>2.2.0</Version>
+    <Version>2.1.1</Version>
     <Authors>kaanreal</Authors>
     <Company>kaanreal</Company>
     <Product>osu!tag</Product>
-    
-    <!-- Spotify API credentials (set during build) -->
-    <SpotifyClientId Condition="'$(SpotifyClientId)' == ''"/>
-    <SpotifyClientSecret Condition="'$(SpotifyClientSecret)' == ''"/>
-    <DefineConstants>$(DefineConstants);SPOTIFY_CLIENT_ID="$(SpotifyClientId)";SPOTIFY_CLIENT_SECRET="$(SpotifyClientSecret)"</DefineConstants>
     
     <!-- Optimization: Production Stability -->
     <PublishTrimmed>true</PublishTrimmed>
@@ -56,8 +51,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Copy Spotify config if it exists (for local development) -->
-    <None Include="spotify-config.json" Condition="Exists('spotify-config.json')" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 
   <ItemGroup>
