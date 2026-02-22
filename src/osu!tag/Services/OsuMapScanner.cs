@@ -216,6 +216,10 @@ namespace Osutag.Services
                         diffCoverPath = bgPath;
                 }
 
+                // Fall back to map-level cover if this difficulty doesn't specify its own
+                if (diffCoverPath == null)
+                    diffCoverPath = coverPath;
+
                 // Extract PreviewTime from diff metadata or fallback to primary
                 int diffPreviewTime = -1;
                 if (diffMetadata.TryGetValue("PreviewTime", out var diffPreviewStr) &&

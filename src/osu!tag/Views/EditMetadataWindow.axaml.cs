@@ -32,7 +32,7 @@ namespace Osutag.Views
         {
             if (ViewModel == null) return;
 
-            if (e.PropertyName == nameof(EditMetadataViewModel.PlaybackRate) || 
+            if (e.PropertyName == nameof(EditMetadataViewModel.PlaybackRate) ||
                 e.PropertyName == nameof(EditMetadataViewModel.MaintainPitch))
             {
                 AudioService.Instance.UpdatePlaybackState((float)ViewModel.PlaybackRate, ViewModel.MaintainPitch);
@@ -115,14 +115,14 @@ namespace Osutag.Views
                 // Visual crop was roughly 400x400 output usually, but let's stick to high res
                 // The logical crop is returned in original image pixels.
                 // We want to save a high-quality square.
-                
+
                 var processor = new Services.ImageProcessor();
                 processor.ProcessCoverWithCrop(
-                    ViewModel.ActiveCoverPath, 
-                    outputPath, 
-                    cropWin.CropX, 
-                    cropWin.CropY, 
-                    cropWin.CropSize, 
+                    ViewModel.ActiveCoverPath,
+                    outputPath,
+                    cropWin.CropX,
+                    cropWin.CropY,
+                    cropWin.CropSize,
                     600, 600); // Save as 600x600 square
 
                 ViewModel.ActiveCoverPath = outputPath;
@@ -131,26 +131,46 @@ namespace Osutag.Views
 
         private void Save_Click(object? sender, RoutedEventArgs e)
         {
-             if (ViewModel == null) return;
+            if (ViewModel == null) return;
 
-             var item = ViewModel.OriginalItem;
-             item.OverrideTitle = string.IsNullOrWhiteSpace(ViewModel.OverrideTitle) ? null : ViewModel.OverrideTitle;
-             item.OverrideArtist = string.IsNullOrWhiteSpace(ViewModel.OverrideArtist) ? null : ViewModel.OverrideArtist;
-             item.PlaybackRate = (float)ViewModel.PlaybackRate;
-             item.PitchSemitones = (float)ViewModel.PitchSemitones;
-             item.MaintainPitch = ViewModel.MaintainPitch;
-             
-             // If cover path changed from original, set it
-             // Simple check: if active path is different from what would be default
-             if (!string.IsNullOrEmpty(ViewModel.ActiveCoverPath))
-             {
-                 item.OverrideCoverPath = ViewModel.ActiveCoverPath;
-             }
+            var item = ViewModel.OriginalItem;
+            item.OverrideTitle = string.IsNullOrWhiteSpace(ViewModel.OverrideTitle) ? null : ViewModel.OverrideTitle;
+            item.OverrideArtist = string.IsNullOrWhiteSpace(ViewModel.OverrideArtist) ? null : ViewModel.OverrideArtist;
+            item.PlaybackRate = (float)ViewModel.PlaybackRate;
+            item.PitchSemitones = (float)ViewModel.PitchSemitones;
+            item.MaintainPitch = ViewModel.MaintainPitch;
 
-             // Stop preview on save
-             AudioService.Instance.Stop();
+            // If cover path changed from original, set it
+            if (!string.IsNullOrEmpty(ViewModel.ActiveCoverPath))
+            {
+                item.OverrideCoverPath = ViewModel.ActiveCoverPath;
+            }
 
-             Close();
+            // --- Persistence ---
+            // Push back to the source object so it survives RefreshSelectedItems()
+            if (item.SourceDifficulty != null)
+            {
+                item.SourceDifficulty.OverrideTitle = item.OverrideTitle;
+                item.SourceDifficulty.OverrideArtist = item.OverrideArtist;
+                item.SourceDifficulty.OverrideRate = item.PlaybackRate;
+                item.SourceDifficulty.OverridePitch = item.PitchSemitones;
+                item.SourceDifficulty.OverrideMaintainPitch = item.MaintainPitch;
+                item.SourceDifficulty.OverrideCoverPath = item.OverrideCoverPath;
+            }
+            else if (item.MapGroup != null)
+            {
+                item.MapGroup.OverrideTitle = item.OverrideTitle;
+                item.MapGroup.OverrideArtist = item.OverrideArtist;
+                item.MapGroup.OverrideRate = item.PlaybackRate;
+                item.MapGroup.OverridePitch = item.PitchSemitones;
+                item.MapGroup.OverrideMaintainPitch = item.MaintainPitch;
+                item.MapGroup.OverrideCoverPath = item.OverrideCoverPath;
+            }
+
+            // Stop preview on save
+            AudioService.Instance.Stop();
+
+            Close();
         }
 
         private void Cancel_Click(object? sender, RoutedEventArgs e)

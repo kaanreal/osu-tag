@@ -87,8 +87,8 @@ namespace Osutag.Controls
             if (_inputBox != null)
             {
                 _textSubscription = _inputBox.GetObservable(TextBox.TextProperty).Subscribe(new SimpleObserver<string?>(OnTextChanged));
-                
-                this.GetObservable(TextProperty).Subscribe(new SimpleObserver<string?>(text => 
+
+                this.GetObservable(TextProperty).Subscribe(new SimpleObserver<string?>(text =>
                 {
                     if (_inputBox != null && _inputBox.Text != text)
                     {
@@ -125,96 +125,62 @@ namespace Osutag.Controls
 
             // Update visible chars
             UpdateCharacters(newText);
-            
+
             _lastText = newText;
             SetCurrentValue(TextProperty, newText);
         }
 
         private void UpdateCharacters(string newText)
         {
-            // Simple Diffing
-            // If newText is longer, we typed something
-            // If shorter, we deleted something.
-            
-            // This naive implementation rebuilds/moves characters based on index.
-            // For a robust implementation, we would try to track identity, but index is okay for simple typing.
-            
-            // 1. Handle Deletions (Falling Animation)
-            if (newText.Length < _activeCharacters.Count)
+            // Robust reconciliation: Ensure _activeCharacters matches newText exactly in order.
+
+            // 1. Remove characters from _activeCharacters that don't match the new text at their position
+            // OR if they are beyond the new text length.
+            for (int i = _activeCharacters.Count - 1; i >= 0; i--)
             {
-                // Find where the change happened
-                int diffIndex = 0;
-                while (diffIndex < newText.Length && newText[diffIndex] == _activeCharacters[diffIndex].Char)
+                bool shouldRemove = false;
+                if (i >= newText.Length)
                 {
-                    diffIndex++;
+                    shouldRemove = true;
+                }
+                else if (_activeCharacters[i].Char != newText[i])
+                {
+                    // This position changed (e.g. paste over)
+                    shouldRemove = true;
                 }
 
-                // Any characters after this point might have shifted, but the one at diffIndex is definitely gone/changed
-                // In a multi-character delete, we might lose multiple.
-                int countToRemove = _activeCharacters.Count - newText.Length;
-                
-                for (int i = 0; i < countToRemove; i++)
+                if (shouldRemove)
                 {
-                    if (diffIndex < _activeCharacters.Count)
-                    {
-                        var charToRemove = _activeCharacters[diffIndex];
-                        _activeCharacters.RemoveAt(diffIndex);
-                        AnimateFall(charToRemove);
-                    }
-                }
-            }
-            // 2. Handle Additions (Pop-in Animation)
-            else if (newText.Length > _activeCharacters.Count)
-            {
-                 int diffIndex = 0;
-                while (diffIndex < _lastText.Length && diffIndex < newText.Length && newText[diffIndex] == _lastText[diffIndex])
-                {
-                    diffIndex++;
-                }
-
-                // Insert new characters
-                int countToAdd = newText.Length - _activeCharacters.Count;
-                for (int i = 0; i < countToAdd; i++)
-                {
-                    int index = diffIndex + i;
-                    char c = newText[index];
-                    
-                    var visualChar = new VisualCharacter
-                    {
-                        Char = c,
-                        Control = CreateCharacterControl(c)
-                    };
-
-                    if (index >= _activeCharacters.Count)
-                        _activeCharacters.Add(visualChar);
-                    else
-                        _activeCharacters.Insert(index, visualChar);
-
-                    _textCanvas?.Children.Add(visualChar.Control);
-                    AnimatePopIn(visualChar);
-                }
-            }
-            // 3. Handle same length (Replace) - rare in simple typing, usually pasteOver
-            else
-            {
-                // Just update chars
-                for (int i = 0; i < newText.Length; i++)
-                {
-                    if (_activeCharacters[i].Char != newText[i])
-                    {
-                         var oldChar = _activeCharacters[i];
-                         AnimateFall(oldChar);
-                         
-                         var newCharControl = CreateCharacterControl(newText[i]);
-                         var newVisual = new VisualCharacter { Char = newText[i], Control = newCharControl };
-                          _activeCharacters[i] = newVisual;
-                          _textCanvas?.Children.Add(newCharControl);
-                          AnimatePopIn(newVisual);
-                    }
+                    var charToRemove = _activeCharacters[i];
+                    _activeCharacters.RemoveAt(i);
+                    AnimateFall(charToRemove);
                 }
             }
 
-            // 4. Update Positions for all active characters
+            // 2. Insert missing characters
+            for (int i = 0; i < newText.Length; i++)
+            {
+                // If we have a character at this index, it must be correct due to step 1.
+                if (i < _activeCharacters.Count)
+                {
+                    // Already correct, skip
+                    continue;
+                }
+
+                // Need to add this character
+                char c = newText[i];
+                var visualChar = new VisualCharacter
+                {
+                    Char = c,
+                    Control = CreateCharacterControl(c)
+                };
+
+                _activeCharacters.Add(visualChar);
+                _textCanvas?.Children.Add(visualChar.Control);
+                AnimatePopIn(visualChar);
+            }
+
+            // 3. Update Positions for all active characters
             UpdatePositions(newText);
         }
 
@@ -241,38 +207,38 @@ namespace Osutag.Controls
 
         private void UpdatePositions(string text)
         {
-             // We need to measure where each character SHOULD be.
-             if (_inputBox == null) return;
-             
-             text ??= "";             
-             var typeface = new Typeface(_inputBox.FontFamily, _inputBox.FontStyle, _inputBox.FontWeight, _inputBox.FontStretch);
+            // We need to measure where each character SHOULD be.
+            if (_inputBox == null) return;
 
-             // Single TextLayout for both width calculation and hit testing (was creating 2)
-             var textLayout = new TextLayout(text, typeface, this.FontSize, Brushes.Black);
-             double totalWidth = textLayout.Width;
-             double startOffset = 0;
+            text ??= "";
+            var typeface = new Typeface(_inputBox.FontFamily, _inputBox.FontStyle, _inputBox.FontWeight, _inputBox.FontStretch);
 
-             if (HorizontalContentAlignment == HorizontalAlignment.Center)
-             {
-                 startOffset = (_inputBox.Bounds.Width - totalWidth) / 2;
-                 if (startOffset < 0) startOffset = 0; // Left align if overflow
-             }
-             
-             for (int i = 0; i < _activeCharacters.Count; i++)
-             {
-                 if (i >= text.Length) break;
-                 
-                 // Get position of character i
-                 var hitTest = textLayout.HitTestTextPosition(i);
-                 
+            // Single TextLayout for both width calculation and hit testing (was creating 2)
+            var textLayout = new TextLayout(text, typeface, this.FontSize, Brushes.Black);
+            double totalWidth = textLayout.Width;
+            double startOffset = 0;
+
+            if (HorizontalContentAlignment == HorizontalAlignment.Center)
+            {
+                startOffset = (_inputBox.Bounds.Width - totalWidth) / 2;
+                if (startOffset < 0) startOffset = 0; // Left align if overflow
+            }
+
+            for (int i = 0; i < _activeCharacters.Count; i++)
+            {
+                if (i >= text.Length) break;
+
+                // Get position of character i
+                var hitTest = textLayout.HitTestTextPosition(i);
+
                 // Add Padding logic to match underlying TextBox
                 double x = startOffset + hitTest.X + _inputBox.Padding.Left;
-                
+
                 // Calculate vertical centering using the SAME font properties as the InputBox
                 // to ensure the hidden text and visual text share identical baselines.
                 double verticalOffset = (_inputBox.Bounds.Height - textLayout.Height) / 2;
                 if (double.IsNaN(verticalOffset) || verticalOffset < 0) verticalOffset = 0;
-                
+
                 // CRITICAL SYNC: Match the InputBox's internal text alignment
                 // We align the invisible text by pushing it down with padding.
                 if (Math.Abs(_inputBox.Padding.Top - verticalOffset) > 0.01)
@@ -287,43 +253,43 @@ namespace Osutag.Controls
                     Canvas.SetLeft(_activeCharacters[i].Control, x);
                     Canvas.SetTop(_activeCharacters[i].Control, verticalOffset);
                 }
-             }
+            }
 
-             // Handle empty text case to ensure Caret is still centered
-             if (text.Length == 0)
-             {
-                 var textLayoutEmpty = new TextLayout(" ", typeface, this.FontSize, Brushes.Black);
-                 double verticalOffset = (_inputBox.Bounds.Height - textLayoutEmpty.Height) / 2;
-                 if (double.IsNaN(verticalOffset) || verticalOffset < 0) verticalOffset = 0;
+            // Handle empty text case to ensure Caret is still centered
+            if (text.Length == 0)
+            {
+                var textLayoutEmpty = new TextLayout(" ", typeface, this.FontSize, Brushes.Black);
+                double verticalOffset = (_inputBox.Bounds.Height - textLayoutEmpty.Height) / 2;
+                if (double.IsNaN(verticalOffset) || verticalOffset < 0) verticalOffset = 0;
 
-                 if (Math.Abs(_inputBox.Padding.Top - verticalOffset) > 0.01)
-                 {
-                     _inputBox.Padding = new Thickness(_inputBox.Padding.Left, verticalOffset, _inputBox.Padding.Right, _inputBox.Padding.Bottom);
-                 }
-             }
+                if (Math.Abs(_inputBox.Padding.Top - verticalOffset) > 0.01)
+                {
+                    _inputBox.Padding = new Thickness(_inputBox.Padding.Left, verticalOffset, _inputBox.Padding.Right, _inputBox.Padding.Bottom);
+                }
+            }
         }
 
         private void AnimatePopIn(VisualCharacter vc)
         {
-             if (!(vc.Control.RenderTransform is TransformGroup tg) || tg.Children.Count < 3) return;
-             var scaleTransform = tg.Children[0] as ScaleTransform;
-             var rotateTransform = tg.Children[2] as RotateTransform;
+            if (!(vc.Control.RenderTransform is TransformGroup tg) || tg.Children.Count < 3) return;
+            var scaleTransform = tg.Children[0] as ScaleTransform;
+            var rotateTransform = tg.Children[2] as RotateTransform;
 
-             if (scaleTransform == null || rotateTransform == null) return;
-             
-             // Random slight rotation for playfulness (using shared Random to avoid allocations)
-             double startAngle = SharedRandom.Next(-5, 5);
+            if (scaleTransform == null || rotateTransform == null) return;
 
-             var animation = new Animation
-             {
-                 Duration = PopInDuration,
-                 Easing = CachedBackEaseOut, // Cached easing instance
-                 Children = 
+            // Random slight rotation for playfulness (using shared Random to avoid allocations)
+            double startAngle = SharedRandom.Next(-5, 5);
+
+            var animation = new Animation
+            {
+                Duration = PopInDuration,
+                Easing = CachedBackEaseOut, // Cached easing instance
+                Children =
                  {
                      new KeyFrame
                      {
                          Cue = new Cue(0),
-                         Setters = 
+                         Setters =
                          {
                              new Setter(ScaleTransform.ScaleXProperty, 0.0),
                              new Setter(ScaleTransform.ScaleYProperty, 0.0),
@@ -333,7 +299,7 @@ namespace Osutag.Controls
                      new KeyFrame
                      {
                          Cue = new Cue(1),
-                         Setters = 
+                         Setters =
                          {
                              new Setter(ScaleTransform.ScaleXProperty, 1.0),
                              new Setter(ScaleTransform.ScaleYProperty, 1.0),
@@ -341,33 +307,33 @@ namespace Osutag.Controls
                          }
                      }
                  }
-             };
-             animation.RunAsync(vc.Control);
+            };
+            animation.RunAsync(vc.Control);
         }
 
         private void AnimateFall(VisualCharacter vc)
         {
             // Detach from main list logic, but keep in Canvas until animation done
             var control = vc.Control;
-            
+
             // Bring to front
             control.ZIndex = 1000;
 
             // Randomize fall direction slightly (using shared Random to avoid allocations)
             double rotateTo = SharedRandom.Next(-180, 180); // More dramatic rotation
             double moveX = SharedRandom.Next(-100, 100);    // Scatter more
-            
+
             var animation = new Animation
             {
                 Duration = FallDuration, // Cached duration
                 Easing = CachedCubicEaseIn, // Cached easing instance
-                FillMode = FillMode.Forward, 
-                Children = 
+                FillMode = FillMode.Forward,
+                Children =
                 {
                     new KeyFrame
                     {
                         Cue = new Cue(1),
-                        Setters = 
+                        Setters =
                         {
                             new Setter(TranslateTransform.YProperty, 800.0), // Fall way down (off screen)
                             new Setter(TranslateTransform.XProperty, moveX),
@@ -378,9 +344,9 @@ namespace Osutag.Controls
                 }
             };
 
-            animation.RunAsync(control).ContinueWith(_ => 
+            animation.RunAsync(control).ContinueWith(_ =>
             {
-                Dispatcher.UIThread.InvokeAsync(() => 
+                Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     _textCanvas?.Children.Remove(control);
                 });

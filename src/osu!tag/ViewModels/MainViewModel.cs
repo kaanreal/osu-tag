@@ -49,12 +49,27 @@ namespace Osutag.ViewModels
 
         public required string DifficultyName { get; set; }
         public required OsuMapDifficulty Difficulty { get; set; }
-        
+
         // Display properties for Overlay
         public string? Title { get; set; }
         public string? Artist { get; set; }
         public string MetadataString => Difficulty.Rate ?? "1.0x";
         public string AudioFilename => System.IO.Path.GetFileName(Difficulty.Mp3Path);
+
+        private bool _isOnSpotify;
+        public bool IsOnSpotify
+        {
+            get => _isOnSpotify;
+            set => SetProperty(ref _isOnSpotify, value);
+        }
+
+        private string? _spotifyUrl;
+        public string? SpotifyUrl
+        {
+            get => _spotifyUrl;
+            set => SetProperty(ref _spotifyUrl, value);
+        }
+
         public string? CoverPath
         {
             get => _coverPath;
@@ -99,7 +114,7 @@ namespace Osutag.ViewModels
             try
             {
                 var bitmap = await Services.ImageCacheService.Instance.GetImageAsync(currentPath);
-                
+
                 // Must dispatch to UI thread
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -120,6 +135,14 @@ namespace Osutag.ViewModels
         public double RandomAngle { get; } = (_rng.NextDouble() * 16.0) - 8.0; // -8 to 8 degrees
         public double RandomOffsetX { get; } = (_rng.NextDouble() * 30.0) - 15.0; // -15 to 15 px
         public double RandomOffsetY { get; } = (_rng.NextDouble() * 30.0) - 15.0; // -15 to 15 px
+
+        // Permanent Overrides
+        public string? OverrideTitle { get; set; }
+        public string? OverrideArtist { get; set; }
+        public string? OverrideCoverPath { get; set; }
+        public float? OverrideRate { get; set; }
+        public float? OverridePitch { get; set; }
+        public bool? OverrideMaintainPitch { get; set; }
     }
 
     public class MapItemGroup : ObservableObject
@@ -207,7 +230,7 @@ namespace Osutag.ViewModels
             try
             {
                 var bitmap = await Services.ImageCacheService.Instance.GetImageAsync(currentPath);
-                
+
                 // Must dispatch to UI thread
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -234,7 +257,7 @@ namespace Osutag.ViewModels
         public ICommand? ExportBackgroundCommand { get; set; }
         public ObservableCollection<DifficultyItem> Difficulties { get; } = new();
         public ObservableCollection<AudioFileItem> UniqueAudioFiles { get; } = new();
-        
+
         private bool _isOnSpotify;
         public bool IsOnSpotify
         {
@@ -249,6 +272,13 @@ namespace Osutag.ViewModels
             set => SetProperty(ref _spotifyUrl, value);
         }
 
+        // Permanent Overrides
+        public string? OverrideTitle { get; set; }
+        public string? OverrideArtist { get; set; }
+        public string? OverrideCoverPath { get; set; }
+        public float? OverrideRate { get; set; }
+        public float? OverridePitch { get; set; }
+        public bool? OverrideMaintainPitch { get; set; }
         public ICommand? OpenSpotifyUrlCommand { get; set; }
 
         // Randomization for Shuffle Animation
@@ -310,9 +340,25 @@ namespace Osutag.ViewModels
     /// <summary>
     /// Represents a selected item in the selection panel.
     /// </summary>
-    public class SelectedItemInfo
+    public class SelectedItemInfo : ObservableObject
     {
+        private bool _isOnSpotify;
+        private string? _spotifyUrl;
+
+        public bool IsOnSpotify
+        {
+            get => _isOnSpotify;
+            set => SetProperty(ref _isOnSpotify, value);
+        }
+
+        public string? SpotifyUrl
+        {
+            get => _spotifyUrl;
+            set => SetProperty(ref _spotifyUrl, value);
+        }
+
         public MapItemGroup? MapGroup { get; set; }
+        public DifficultyItem? SourceDifficulty { get; set; }
         public AudioFileItem? AudioFile { get; set; }
         public required string DisplayName { get; set; }
         public string? SubDisplayName { get; set; }
@@ -470,7 +516,7 @@ namespace Osutag.ViewModels
         public ObservableCollection<object> SelectedItems
         {
             get => _selectedItems;
-            set 
+            set
             {
                 if (SetProperty(ref _selectedItems, value))
                 {
@@ -517,7 +563,7 @@ namespace Osutag.ViewModels
         public bool IsFolderSelectionVisible
         {
             get => _isFolderSelectionVisible;
-            set 
+            set
             {
                 if (SetProperty(ref _isFolderSelectionVisible, value))
                 {
@@ -530,7 +576,7 @@ namespace Osutag.ViewModels
         public bool IsInitialLoadDone
         {
             get => _isInitialLoadDone;
-            set 
+            set
             {
                 if (SetProperty(ref _isInitialLoadDone, value))
                 {
@@ -543,7 +589,7 @@ namespace Osutag.ViewModels
         public bool IsStartingUp
         {
             get => _isStartingUp;
-            set 
+            set
             {
                 if (SetProperty(ref _isStartingUp, value))
                 {
@@ -555,8 +601,10 @@ namespace Osutag.ViewModels
 
         public bool ShowMainOverlay => IsStartingUp || IsFolderSelectionVisible || IsScanning || IsLoadingMore || (IsProcessing && !IsBottomBarExpanded);
 
-        public string CurrentLoadingTitle {
-            get {
+        public string CurrentLoadingTitle
+        {
+            get
+            {
                 if (IsStartingUp) return "Starting Up...";
                 if (IsFolderSelectionVisible) return "Welcome to osu!tag";
                 if (IsScanning) return "Scanning Songs...";
@@ -571,7 +619,7 @@ namespace Osutag.ViewModels
         public bool IsWindows => PlatformService.IsWindows;
         public string AppVersion => "v" + Osutag.Services.AppVersion.Current;
         public bool IsCompanellaSupported => PlatformService.IsWindows;
-        
+
         // Update Properties
         private bool _isUpdateAvailable;
         public bool IsUpdateAvailable
@@ -588,7 +636,7 @@ namespace Osutag.ViewModels
         }
 
         public ICommand OpenUpdateWindowCommand { get; }
-        
+
         private string _companellaStatus = "Scanning...";
         public string CompanellaStatus
         {
@@ -684,7 +732,7 @@ namespace Osutag.ViewModels
         public bool IsSearching
         {
             get => _isSearching;
-            set 
+            set
             {
                 if (SetProperty(ref _isSearching, value))
                 {
@@ -821,7 +869,7 @@ namespace Osutag.ViewModels
         public int ProgressPercentage
         {
             get => _progressPercentage;
-            set 
+            set
             {
                 if (SetProperty(ref _progressPercentage, value))
                 {
@@ -1000,9 +1048,9 @@ namespace Osutag.ViewModels
                 // Force UI clear to prevent "one stack" layout glitch
                 // This ensures ItemsRepeater resets its state before the new sorted list arrives
                 IsSearching = true; // Shows loading state if bound
-                MapGroups = new ObservableCollection<MapItemGroup>(); 
+                MapGroups = new ObservableCollection<MapItemGroup>();
                 await Task.Delay(1); // Yield to UI thread to allow layout update
-                
+
                 await LoadCompanellaPlayCounts();
                 await FilterMapsAsync();
             }
@@ -1026,7 +1074,7 @@ namespace Osutag.ViewModels
             }
 
             IsLoadingMore = true;
-            
+
             try
             {
                 // Brief delay for smooth transition
@@ -1059,20 +1107,20 @@ namespace Osutag.ViewModels
                 // Unset Group Selection
                 if (info.SubDisplayName == null) // It's a whole group
                 {
-                     if (info.MapGroup.IsSelected)
-                         ToggleMapSelection(info.MapGroup);
+                    if (info.MapGroup.IsSelected)
+                        ToggleMapSelection(info.MapGroup);
                 }
                 else // It's a specific difficulty
                 {
-                    var diff = info.MapGroup.Difficulties.FirstOrDefault(d => 
+                    var diff = info.MapGroup.Difficulties.FirstOrDefault(d =>
                         d.DifficultyName == info.SubDisplayName); // Or check ID if we had one
-                    
+
                     if (diff != null && diff.IsSelected)
                     {
                         // Logic from SelectDifficulty: "diff.IsSelected = !diff.IsSelected"
                         // We just want to set it to false.
                         diff.IsSelected = false;
-                        
+
                         // Update group partial state
                         var anySelected = info.MapGroup.Difficulties.Any(d => d.IsSelected);
                         info.MapGroup.SetIsSelectedWithoutPropagation(anySelected);
@@ -1082,11 +1130,11 @@ namespace Osutag.ViewModels
                 }
             }
         }
-        
+
         private async void EditItem(SelectedItemInfo? info)
         {
             if (info == null) return;
-            
+
             var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
             if (topLevel != null)
             {
@@ -1096,19 +1144,19 @@ namespace Osutag.ViewModels
                     DataContext = vm
                 };
                 await win.ShowDialog(topLevel);
-                
+
                 // Refresh list if needed (to update display name if title changed?)
                 // Since DisplayName is set on selection, if override changes, 
                 // we might want to update DisplayName to reflect 'OverrideTitle'.
                 // Ideally SelectedItemInfo.DisplayName should be property with notification, or we update it here.
-                
+
                 if (!string.IsNullOrEmpty(info.OverrideTitle))
                 {
                     info.DisplayName = info.OverrideTitle;
                     // Force refresh of the collection to update UI?
                     // ObservableCollection doesn't detect property changes inside items unless they implement INotifyPropertyChanged
                     // SelectedItemInfo doesn't implement INPC currently.
-                    
+
                     // Hack: Toggle property or replace item
                     var index = SelectedItems.IndexOf(info);
                     if (index >= 0)
@@ -1238,7 +1286,7 @@ namespace Osutag.ViewModels
             {
                 using var stream = await _bgService.GetBlurredBackgroundStreamAsync(nextPath);
                 if (stream == null) return;
-                
+
                 var nextBitmap = new Bitmap(stream);
                 string? color;
 
@@ -1246,7 +1294,7 @@ namespace Osutag.ViewModels
                 {
                     CurrentBackground = nextBitmap;
                     BackgroundOpacity = 1.0;
-                    
+
                     // Immediate theme apply for first load
                     color = _bgService.ExtractDominantColor(nextPath);
                     if (!string.IsNullOrEmpty(color)) App.ApplyTheme(color);
@@ -1254,30 +1302,30 @@ namespace Osutag.ViewModels
                 else
                 {
                     NextBackground = nextBitmap;
-                    
+
                     // Start cross-fade: FADE IN NEXT on top of CURRENT
                     NextBackgroundOpacity = 1.0;
-                    
+
                     // Wait half the transition time
                     await Task.Delay(750);
-                    
+
                     // Apply theme color midway
                     color = _bgService.ExtractDominantColor(nextPath);
                     if (!string.IsNullOrEmpty(color))
                     {
                         App.ApplyTheme(color);
                     }
-                    
+
                     // Wait for the rest of the transition
                     await Task.Delay(750);
-                    
+
                     // Commit swap ATOMICALLY
                     CurrentBackground = nextBitmap;
-                    
+
                     // Crucial: Set opacities to final state instantly to prevent flicker
                     BackgroundOpacity = 1.0;
                     NextBackgroundOpacity = 0.0;
-                    
+
                     // Clear next only after opacities are set
                     NextBackground = null;
                 }
@@ -1313,9 +1361,16 @@ namespace Osutag.ViewModels
                         group.SpotifyUrl = null;
                         foreach (var diff in group.Difficulties)
                         {
+                            diff.IsOnSpotify = false;
+                            diff.SpotifyUrl = null;
                             diff.Difficulty.IsOnSpotify = false;
                             diff.Difficulty.SpotifyUrl = null;
                         }
+                    }
+                    foreach (var item in SelectedItems.OfType<SelectedItemInfo>())
+                    {
+                        item.IsOnSpotify = false;
+                        item.SpotifyUrl = null;
                     }
                 });
                 return;
@@ -1333,36 +1388,49 @@ namespace Osutag.ViewModels
             {
                 var group = groupsToProcess[i];
                 var (isOnSpotify, url) = await SpotifyService.Instance.SearchTrackAsync(group.Artist, group.Title);
-                if (isOnSpotify && !string.IsNullOrEmpty(url))
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    successCount++;
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    if (isOnSpotify && !string.IsNullOrEmpty(url))
                     {
+                        successCount++;
                         group.IsOnSpotify = true;
                         group.SpotifyUrl = url;
-                        
-                        // Also update difficulties
+
                         foreach (var diff in group.Difficulties)
                         {
+                            diff.IsOnSpotify = true;
+                            diff.SpotifyUrl = url;
                             diff.Difficulty.IsOnSpotify = true;
                             diff.Difficulty.SpotifyUrl = url;
                         }
-                    });
-                }
-                else if (group.IsOnSpotify && string.IsNullOrEmpty(url))
-                {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+
+                        // Update any matching selected items
+                        foreach (var item in SelectedItems.OfType<SelectedItemInfo>().Where(it => it.MapGroup == group))
+                        {
+                            item.IsOnSpotify = true;
+                            item.SpotifyUrl = url;
+                        }
+                    }
+                    else if (group.IsOnSpotify)
                     {
                         group.IsOnSpotify = false;
                         group.SpotifyUrl = null;
                         foreach (var diff in group.Difficulties)
                         {
+                            diff.IsOnSpotify = false;
+                            diff.SpotifyUrl = null;
                             diff.Difficulty.IsOnSpotify = false;
                             diff.Difficulty.SpotifyUrl = null;
                         }
-                    });
-                }
-                
+                        foreach (var item in SelectedItems.OfType<SelectedItemInfo>().Where(it => it.MapGroup == group))
+                        {
+                            item.IsOnSpotify = false;
+                            item.SpotifyUrl = null;
+                        }
+                    }
+                });
+
                 // Save cache periodically
                 if (i > 0 && i % 20 == 0)
                 {
@@ -1383,7 +1451,7 @@ namespace Osutag.ViewModels
 
             // Start the initialization sequence
             IsStartingUp = true;
-            
+
             // Start FFmpeg setup in background - non-blocking
             _ = EnsureFFmpegReadyAsync();
             // Auto-scan for Companella on Windows
@@ -1410,7 +1478,7 @@ namespace Osutag.ViewModels
             }
 
             IsStartingUp = false;
-            
+
             // Fetch GitHub stars after startup
             _ = FetchGithubStarsAsync();
         }
@@ -1432,7 +1500,7 @@ namespace Osutag.ViewModels
             IsSoundAvailable = false;
             IsFFmpegDownloading = true;
             FFmpegStatusMessage = "Downloading FFmpeg for audio previews...";
-            
+
             try
             {
                 var progress = new Progress<double>(p =>
@@ -1499,15 +1567,15 @@ namespace Osutag.ViewModels
             // If the group was already selected (maybe another diff), we keep it selected but update LastSelectedItem?
             // Or does selecting one diff imply the group is "partially" selected?
             // For now, let's treat the Group as Selected if at least one diff is selected.
-            
+
             diff.IsSelected = !diff.IsSelected; // Toggle
-            
+
             // Play audio preview if selecting (and it's a valid audio file)
             if (diff.IsSelected && !string.IsNullOrEmpty(diff.Difficulty.Mp3Path))
             {
                 AudioService.Instance.PlayPreview(diff.Difficulty.Mp3Path, diff.Difficulty.PreviewTime);
             }
-            
+
             // Update group selection state based on children
             // Use the new method to avoid triggering the "Select All" logic down to children again
             var anySelected = OverlayMapGroup.Difficulties.Any(d => d.IsSelected);
@@ -1515,18 +1583,18 @@ namespace Osutag.ViewModels
 
             if (diff.IsSelected)
             {
-                LastSelectedItem = new SelectedItemInfo 
-                { 
-                    MapGroup = OverlayMapGroup, 
+                LastSelectedItem = new SelectedItemInfo
+                {
+                    MapGroup = OverlayMapGroup,
                     DisplayName = $"{OverlayMapGroup.Artist} - {OverlayMapGroup.Title}",
                     SubDisplayName = diff.DifficultyName,
                     CoverPath = diff.CoverPath
                 };
                 IsBottomBarExpanded = false;
             }
-            
+
             RefreshSelectedItems();
-            
+
             // Optional: Close overlay after selection? User might want to select multiple.
             // "select individually for conversion" implies multiple choice.
             // Let's keep overlay open.
@@ -1553,7 +1621,7 @@ namespace Osutag.ViewModels
                 {
                     diff.IsSelected = false;
                 }
-                
+
                 RefreshSelectedItems();
                 return;
             }
@@ -1561,9 +1629,9 @@ namespace Osutag.ViewModels
             // Select
             group.IsSelected = true;
             var firstDiff = group.Difficulties.FirstOrDefault();
-            LastSelectedItem = new SelectedItemInfo 
-            { 
-                MapGroup = group, 
+            LastSelectedItem = new SelectedItemInfo
+            {
+                MapGroup = group,
                 DisplayName = $"{group.Artist} - {group.Title}",
                 CoverPath = firstDiff?.CoverPath ?? group.CoverPath
             };
@@ -1590,7 +1658,7 @@ namespace Osutag.ViewModels
                     _createBackups = SettingsService.Settings.CreateBackups;
                     OnPropertyChanged(nameof(ProcessCovers));
                     OnPropertyChanged(nameof(CreateBackups));
-                    
+
                     // Only refresh list if sorting rules changed (Strict check)
                     bool sortChanged = oldSort != SettingsService.Settings.SortByMostPlayed;
                     bool pathChanged = !string.Equals(oldPath ?? "", SettingsService.Settings.CompanellaPath ?? "", StringComparison.OrdinalIgnoreCase);
@@ -1856,20 +1924,20 @@ namespace Osutag.ViewModels
                         ExportBackgroundCommand = ExportBackgroundCommand,
                         OpenSpotifyUrlCommand = OpenSpotifyUrlCommand
                     };
-                    
+
                     // Smart Check: Check if all difficulties share the same metadata
                     var distinctTitles = cached.Difficulties.Select(d => d.Title).Where(t => !string.IsNullOrEmpty(t)).Distinct().ToList();
                     var distinctArtists = cached.Difficulties.Select(d => d.Artist).Where(a => !string.IsNullOrEmpty(a)).Distinct().ToList();
                     var distinctMp3s = cached.Difficulties.Select(d => d.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
-                    
+
                     // Logic:
                     // 1. If Metadata varies -> Mixed Pack (Compilation)
                     // 2. If Metadata is constant BUT Audio varies AND Artist is "Various Artists" -> Mixed Pack (Lazy Compilation)
                     // (We check for "Various Artists" to avoid flagging "Rate Packs" like Quadraphinix as Mixed Packs, since they have multiple MP3s but same Artist)
-                    
+
                     bool metadataVaries = distinctTitles.Count > 1 || distinctArtists.Count > 1;
                     bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a?.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) == true);
-                    
+
                     bool isMixedPack = metadataVaries || isVariousArtistsPack;
 
                     if (isMixedPack)
@@ -1881,20 +1949,20 @@ namespace Osutag.ViewModels
                         {
                             if (!string.IsNullOrEmpty(cached.DirectoryPath))
                             {
-                                 var dirName = Path.GetFileName(cached.DirectoryPath);
-                                 // Clean up leading ID if present (e.g. "12345 Artist - Title")
-                                 var cleanName = Regex.Replace(dirName, @"^\d+\s+", "");
-                                 
-                                 // User wants to remove the Artist from the title string (Format: "Artist - Title")
-                                 // Split by " - " and take the rest
-                                 var parts = cleanName.Split(new[] { " - " }, 2, StringSplitOptions.None);
-                                 if (parts.Length > 1)
-                                 {
-                                     cleanName = parts[1];
-                                 }
+                                var dirName = Path.GetFileName(cached.DirectoryPath);
+                                // Clean up leading ID if present (e.g. "12345 Artist - Title")
+                                var cleanName = Regex.Replace(dirName, @"^\d+\s+", "");
 
-                                 mapGroup.Title = cleanName;
-                                 mapGroup.Artist = "Various Artists"; 
+                                // User wants to remove the Artist from the title string (Format: "Artist - Title")
+                                // Split by " - " and take the rest
+                                var parts = cleanName.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                                if (parts.Length > 1)
+                                {
+                                    cleanName = parts[1];
+                                }
+
+                                mapGroup.Title = cleanName;
+                                mapGroup.Artist = "Various Artists";
                             }
                         }
                     }
@@ -1927,8 +1995,8 @@ namespace Osutag.ViewModels
                             DifficultyName = d.DifficultyName,
                             Difficulty = diff,
                             // IsSelected = false by default to prevent "select all" behavior for stacks
-                            Title = displayTitle, 
-                            Artist = d.Artist ?? cached.Artist, 
+                            Title = displayTitle,
+                            Artist = d.Artist ?? cached.Artist,
                             CoverPath = d.CoverPath ?? cached.CoverPath
                         });
                     }
@@ -1950,7 +2018,7 @@ namespace Osutag.ViewModels
                         });
                     }
 
-                if (mapGroup.Difficulties.Count > 0)
+                    if (mapGroup.Difficulties.Count > 0)
                     {
                         FinalizeMapGroupMetadata(mapGroup);
                         groups.Add(mapGroup);
@@ -2040,7 +2108,7 @@ namespace Osutag.ViewModels
 
                 // For smart scan, filter out already scanned folders using saved timestamps
                 var scannedInfo = smartScanEnabled ? GetScannedFoldersInfo() : new Dictionary<string, long>();
-                
+
                 // If smart scan is enabled but we have no maps loaded (e.g. cache failed or first run),
                 // we must force a scan of all folders to populate the list.
                 // Clearing scannedInfo forces the filter below to treat all folders as new.
@@ -2218,7 +2286,7 @@ namespace Osutag.ViewModels
                 {
                     var groups = new List<MapItemGroup>();
                     // Group by Directory Path to keep mappacks together even if metadata differs
-                    var groupedMaps = maps.GroupBy(m => 
+                    var groupedMaps = maps.GroupBy(m =>
                     {
                         try
                         {
@@ -2230,7 +2298,7 @@ namespace Osutag.ViewModels
                                 if (!string.IsNullOrEmpty(dir)) return dir;
                             }
                         }
-                        catch 
+                        catch
                         {
                             // Fallback on error
                         }
@@ -2262,7 +2330,7 @@ namespace Osutag.ViewModels
                         var distinctTitles2 = allDiffsInGroup.Select(d => d.Title).Where(t => !string.IsNullOrEmpty(t)).Distinct().ToList();
                         var distinctArtists2 = allDiffsInGroup.Select(d => d.Artist).Where(a => !string.IsNullOrEmpty(a)).Distinct().ToList();
                         var distinctMp3s2 = allDiffsInGroup.Select(d => d.Mp3Path).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
-                        
+
                         bool metadataVaries2 = distinctTitles2.Count > 1 || distinctArtists2.Count > 1;
                         bool isVariousArtistsPack2 = distinctMp3s2.Count > 1 && distinctArtists2.Any(a => a?.Equals("Various Artists", StringComparison.OrdinalIgnoreCase) == true);
 
@@ -2274,18 +2342,18 @@ namespace Osutag.ViewModels
                             {
                                 if (!string.IsNullOrEmpty(mapGroup.DirectoryPath))
                                 {
-                                     var dirName = Path.GetFileName(mapGroup.DirectoryPath);
-                                     var cleanName = Regex.Replace(dirName, @"^\d+\s+", "");
-                                     
-                                     // Strip Artist ("Artist - Title")
-                                     var parts = cleanName.Split(new[] { " - " }, 2, StringSplitOptions.None);
-                                     if (parts.Length > 1)
-                                     {
-                                         cleanName = parts[1];
-                                     }
+                                    var dirName = Path.GetFileName(mapGroup.DirectoryPath);
+                                    var cleanName = Regex.Replace(dirName, @"^\d+\s+", "");
 
-                                     mapGroup.Title = cleanName;
-                                     mapGroup.Artist = "Various Artists";
+                                    // Strip Artist ("Artist - Title")
+                                    var parts = cleanName.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                                    if (parts.Length > 1)
+                                    {
+                                        cleanName = parts[1];
+                                    }
+
+                                    mapGroup.Title = cleanName;
+                                    mapGroup.Artist = "Various Artists";
                                 }
                             }
                         }
@@ -2295,27 +2363,27 @@ namespace Osutag.ViewModels
                         {
                             foreach (var diff in map.Difficulties)
                             {
-                                 var displayTitle = isMixedPack2 ? diff.DifficultyName : map.Title;
+                                var displayTitle = isMixedPack2 ? diff.DifficultyName : map.Title;
 
-                                 mapGroup.Difficulties.Add(new DifficultyItem
-                                 {
-                                     DifficultyName = diff.DifficultyName,
-                                     Difficulty = diff,
-                                     Title = displayTitle,
-                                     Artist = map.Artist,
-                                     CoverPath = map.CoverPath
-                                 });
+                                mapGroup.Difficulties.Add(new DifficultyItem
+                                {
+                                    DifficultyName = diff.DifficultyName,
+                                    Difficulty = diff,
+                                    Title = displayTitle,
+                                    Artist = map.Artist,
+                                    CoverPath = map.CoverPath
+                                });
                             }
-                            
+
                             // Also add unique MP3s to the separate tracking set
                             foreach (var diff in map.Difficulties)
                             {
                                 if (!string.IsNullOrEmpty(diff.Mp3Path) && !mapGroup.UniqueAudioFiles.Any(a => a.Mp3Path == diff.Mp3Path))
                                 {
-                                    mapGroup.UniqueAudioFiles.Add(new AudioFileItem 
-                                    { 
+                                    mapGroup.UniqueAudioFiles.Add(new AudioFileItem
+                                    {
                                         Mp3Path = diff.Mp3Path,
-                                        DisplayName = isMixedPack2 ? diff.DifficultyName : $"{map.Artist} - {map.Title}", 
+                                        DisplayName = isMixedPack2 ? diff.DifficultyName : $"{map.Artist} - {map.Title}",
                                         PreviewTime = diff.PreviewTime
                                     });
                                 }
@@ -2346,7 +2414,7 @@ namespace Osutag.ViewModels
 
                 // Apply filter - this only loads first 50 items to UI
                 await FilterMapsAsync();
-                
+
                 _ = Task.Run(() => FetchSpotifyStatusForAllAsync());
 
                 if (smartScanEnabled && maps.Count > 0)
@@ -2364,7 +2432,7 @@ namespace Osutag.ViewModels
                 {
                     await Task.Run(() => SaveMapCache());
                 }
-                
+
                 await Task.Delay(300); // Allow initial cards to render
                 IsInitialLoadDone = true;
             }
@@ -2447,12 +2515,22 @@ namespace Osutag.ViewModels
                         var info = new SelectedItemInfo
                         {
                             MapGroup = group,
+                            SourceDifficulty = diff,
                             AudioFile = null,
                             DisplayName = $"{group.Artist} - {group.Title}",
                             SubDisplayName = diff.DifficultyName,
                             CoverPath = diff.CoverPath,
-                            PlaybackRate = ParseRateMultiplier(diff.Difficulty.Rate)
+                            PlaybackRate = diff.OverrideRate ?? ParseRateMultiplier(diff.Difficulty.Rate),
+                            OverrideTitle = diff.OverrideTitle,
+                            OverrideArtist = diff.OverrideArtist,
+                            OverrideCoverPath = diff.OverrideCoverPath,
+                            PitchSemitones = diff.OverridePitch ?? 0f,
+                            MaintainPitch = diff.OverrideMaintainPitch ?? true
                         };
+
+                        if (!string.IsNullOrEmpty(info.OverrideTitle))
+                            info.DisplayName = info.OverrideTitle;
+
                         newSelection.Add(info);
                     }
                 }
@@ -2460,21 +2538,32 @@ namespace Osutag.ViewModels
                 {
                     // For single maps, try to find a selected difficulty or at least one with a rate
                     var selectedDiff = group.Difficulties.FirstOrDefault(d => d.IsSelected) ?? group.Difficulties.FirstOrDefault();
-                    
-                    newSelection.Add(new SelectedItemInfo
+
+                    var info = new SelectedItemInfo
                     {
                         MapGroup = group,
+                        SourceDifficulty = selectedDiff,
                         AudioFile = null,
                         DisplayName = $"{group.Artist} - {group.Title}",
                         SubDisplayName = null,
-                        CoverPath = selectedDiff?.CoverPath,
-                        PlaybackRate = selectedDiff != null ? ParseRateMultiplier(selectedDiff.Difficulty.Rate) : 1.0f
-                    });
+                        CoverPath = group.OverrideCoverPath ?? selectedDiff?.CoverPath,
+                        PlaybackRate = group.OverrideRate ?? (selectedDiff != null ? ParseRateMultiplier(selectedDiff.Difficulty.Rate) : 1.0f),
+                        OverrideTitle = group.OverrideTitle,
+                        OverrideArtist = group.OverrideArtist,
+                        OverrideCoverPath = group.OverrideCoverPath,
+                        PitchSemitones = group.OverridePitch ?? 0f,
+                        MaintainPitch = group.OverrideMaintainPitch ?? true
+                    };
+
+                    if (!string.IsNullOrEmpty(info.OverrideTitle))
+                        info.DisplayName = info.OverrideTitle;
+
+                    newSelection.Add(info);
                 }
             }
 
             SelectedItems = new ObservableCollection<object>(newSelection);
-            
+
             // Manage LastSelectedItem to prevent stale/incorrect collapsed state details
             if (SelectedCount == 0)
             {
@@ -2506,7 +2595,7 @@ namespace Osutag.ViewModels
                 {
                     diff.IsSelected = false;
                 }
-                
+
                 // Update group selection state
                 bool anySelected = item.MapGroup.Difficulties.Any(d => d.IsSelected);
                 item.MapGroup.SetIsSelectedWithoutPropagation(anySelected);
@@ -2628,14 +2717,14 @@ namespace Osutag.ViewModels
                 var (group, diff, diffName) = itemsToConvert[i];
 
                 ProgressPercentage = (int)((i + 1.0) / itemsToConvert.Count * 100);
-                
+
                 // Determine effective metadata (Separated from UI Display Title)
                 // Heuristic: If it's a compilation pack (different songs), use Version as Title. 
                 // If it's a rate pack (same song), use the song Title.
-                
+
                 string effArtist = !string.IsNullOrEmpty(diff.Artist) ? diff.Artist : group.Artist;
                 string diffTitle = !string.IsNullOrEmpty(diff.Title) ? diff.Title : group.Title; // The raw title from .osu (often the song name)
-                
+
                 // Detection: Is this specific difficulty part of a "Mixed Pack"?
                 // Match the logic from ScanMapsAsync exactly:
                 var distinctTitles = group.Difficulties.Select(d => d.Difficulty.Title).Where(t => !string.IsNullOrEmpty(t)).Distinct().ToList();
@@ -2644,31 +2733,31 @@ namespace Osutag.ViewModels
 
                 bool metadataVaries = distinctTitles.Count > 1 || distinctArtists.Count > 1;
                 bool isVariousArtistsPack = distinctMp3s.Count > 1 && distinctArtists.Any(a => a != null && a.Equals("Various Artists", StringComparison.OrdinalIgnoreCase));
-                
+
                 bool isMixedPack = metadataVaries || isVariousArtistsPack;
-                
-                string effTitle = diffTitle; 
+
+                string effTitle = diffTitle;
                 if (isMixedPack && !string.IsNullOrEmpty(diffName))
                 {
                     // For mixed packs, use the Version (diffName) as the Title
                     effTitle = diffName;
                 }
 
-                string? effCoverPath = !string.IsNullOrEmpty(diff.CoverPath) && File.Exists(diff.CoverPath) 
-                    ? diff.CoverPath 
-                    : group.CoverPath;
+                string? effCoverPath = !string.IsNullOrEmpty(diff.CoverPath) && File.Exists(diff.CoverPath)
+                    ? diff.CoverPath
+                    : (!string.IsNullOrEmpty(group.CoverPath) && File.Exists(group.CoverPath) ? group.CoverPath : null);
                 int effPreviewTime = diff.PreviewTime > 0 ? diff.PreviewTime : group.PreviewTime;
 
                 // CHECK FOR MANUAL OVERRIDES (From SelectedItemInfo)
-                var selectedInfo = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info => 
-                    info.MapGroup == group && 
+                var selectedInfo = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info =>
+                    info.MapGroup == group &&
                     (string.IsNullOrEmpty(info.SubDisplayName) || info.SubDisplayName == diffName));
 
                 if (selectedInfo != null)
                 {
-                     if (!string.IsNullOrEmpty(selectedInfo.OverrideTitle)) effTitle = selectedInfo.OverrideTitle;
-                     if (!string.IsNullOrEmpty(selectedInfo.OverrideArtist)) effArtist = selectedInfo.OverrideArtist;
-                     if (!string.IsNullOrEmpty(selectedInfo.OverrideCoverPath)) effCoverPath = selectedInfo.OverrideCoverPath;
+                    if (!string.IsNullOrEmpty(selectedInfo.OverrideTitle)) effTitle = selectedInfo.OverrideTitle;
+                    if (!string.IsNullOrEmpty(selectedInfo.OverrideArtist)) effArtist = selectedInfo.OverrideArtist;
+                    if (!string.IsNullOrEmpty(selectedInfo.OverrideCoverPath)) effCoverPath = selectedInfo.OverrideCoverPath;
                 }
 
                 ProgressMessage = $"{i + 1}/{itemsToConvert.Count}: {effArtist} - {effTitle}";
@@ -2687,7 +2776,7 @@ namespace Osutag.ViewModels
                     if (ProcessCovers && !string.IsNullOrEmpty(effCoverPath) && File.Exists(effCoverPath))
                     {
                         coverOutput = Path.Combine(mapOutputDir, "cover.jpg");
-                        
+
                         // Heuristic: If cover path contains "crops" (our manual crop folder), assume it's already perfect 1:1
                         // Just copy it or process lightly (don't upscale to 3000 if it's small)
                         bool isManualCrop = effCoverPath.Contains("crops") && effCoverPath.Contains("osu!tag");
@@ -2702,27 +2791,34 @@ namespace Osutag.ViewModels
                             // Standard processing (Crop center + Resize to 3000x3000)
                             imageProcessor.ProcessCover(effCoverPath, coverOutput, 3000, 3000);
                         }
+
+                        // If processing failed silently, reset coverOutput
+                        if (!File.Exists(coverOutput))
+                            coverOutput = null;
                     }
 
                     string mp3Output = Path.Combine(mapOutputDir, $"{safeTitle}.mp3");
-                    
-                    float rate = ParseRateMultiplier(diff.Rate);
+
+                    // For stacks (multi-audio packs), each difficulty has its own audio file
+                    // already at the intended rate - don't apply rate change again.
+                    // Only auto-detect rate for single-audio maps where all diffs share one file.
+                    float rate = group.IsStack ? 1.0f : ParseRateMultiplier(diff.Rate);
                     bool maintainPitch = false;
                     float pitchSemitones = 0.0f;
 
                     // Manual override check
-                    var selectedInfoForAudio = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info => 
-                        info.MapGroup == group && 
+                    var selectedInfoForAudio = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info =>
+                        info.MapGroup == group &&
                         (string.IsNullOrEmpty(info.SubDisplayName) || info.SubDisplayName == diffName));
-                    
+
                     if (selectedInfoForAudio != null)
                     {
                         // Apply override if rate differs OR if we have specific pitch settings
                         // For Rate Packs, if user didn't touch anything, rate follows diff.
                         // If user moved slider, SelectedItemInfo reflects that.
                         if (Math.Abs(selectedInfoForAudio.PlaybackRate - 1.0f) > 0.001f)
-                           rate = selectedInfoForAudio.PlaybackRate;
-                           
+                            rate = selectedInfoForAudio.PlaybackRate;
+
                         maintainPitch = selectedInfoForAudio.MaintainPitch;
                         pitchSemitones = selectedInfoForAudio.PitchSemitones;
                     }
@@ -2731,7 +2827,7 @@ namespace Osutag.ViewModels
                     // 1. Rate != 1.0
                     // 2. PitchSemitones != 0
                     // 3. User explicit request via checkbox? (Implied by maintainPitch=true usually requiring processing if rate != 1)
-                    
+
                     bool needsProcessing = Math.Abs(rate - 1.0f) > 0.001f || Math.Abs(pitchSemitones) > 0.001f;
 
                     if (needsProcessing)
@@ -2754,7 +2850,7 @@ namespace Osutag.ViewModels
                     }
                     else
                     {
-                         File.Copy(diff.Mp3Path, mp3Output, true);
+                        File.Copy(diff.Mp3Path, mp3Output, true);
                     }
 
                     var osuMap = new OsuMap
@@ -2767,7 +2863,9 @@ namespace Osutag.ViewModels
                         PreviewTime = effPreviewTime
                     };
 
-                    mp3Tagger.TagMp3(mp3Output, osuMap, coverOutput);
+                    // Use processed cover if it was created, otherwise fall back to original cover for embedding
+                    string? tagCover = coverOutput ?? effCoverPath;
+                    mp3Tagger.TagMp3(mp3Output, osuMap, tagCover);
 
                     // Update Discord RPC
                     DiscordRpcService.UpdateStatus("converting", i + 1);
@@ -2861,7 +2959,7 @@ namespace Osutag.ViewModels
             try
             {
                 string companellaPath = PlatformService.GetDefaultCompanellaPath();
-                
+
                 if (Directory.Exists(companellaPath))
                 {
                     CompanellaStatus = $"Found Companella data at {companellaPath}";
@@ -2892,7 +2990,7 @@ namespace Osutag.ViewModels
         private void OpenBeatmapUrl(MapItemGroup? group)
         {
             if (group == null) return;
-            
+
             string url;
             if (group.BeatmapSetId > 0)
             {
@@ -2915,16 +3013,16 @@ namespace Osutag.ViewModels
         private void OpenDirectory(MapItemGroup? group)
         {
             if (group == null) return;
-            
+
             // Try explicit path, fallback to finding via difficulties
             var path = group.DirectoryPath;
             if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             {
-                 var diff = group.Difficulties.FirstOrDefault();
-                 if (diff != null && !string.IsNullOrEmpty(diff.Difficulty.OsuFilePath))
-                 {
-                     path = Path.GetDirectoryName(diff.Difficulty.OsuFilePath);
-                 }
+                var diff = group.Difficulties.FirstOrDefault();
+                if (diff != null && !string.IsNullOrEmpty(diff.Difficulty.OsuFilePath))
+                {
+                    path = Path.GetDirectoryName(diff.Difficulty.OsuFilePath);
+                }
             }
 
             if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
@@ -2971,13 +3069,13 @@ namespace Osutag.ViewModels
                 catch { /* Ignore save errors */ }
             }
         }
-        
+
         private async Task CheckUpdatesOnStartup()
         {
             try
             {
                 var updateInfo = await Task.Run(() => UpdateService.Instance.CheckForUpdatesAsync());
-                
+
                 // Update UI on main thread
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -3000,21 +3098,21 @@ namespace Osutag.ViewModels
 
         private async void OpenUpdateWindow()
         {
-             // Use cached result if valid, else re-check or use what we have
-             // For now just re-check to ensure we get the latest info object
-             var updateInfo = await UpdateService.Instance.CheckForUpdatesAsync();
-             if (updateInfo != null)
-             {
-                 // Even if not strictly newer, allow opening if manually triggered? 
-                 // But this is usually triggered by "New Update" badge, so it implies newer.
-                 
-                 var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
-                 if (topLevel != null)
-                 {
-                     var updateWin = new Views.UpdateWindow(updateInfo);
-                     await updateWin.ShowDialog(topLevel);
-                 }
-             }
+            // Use cached result if valid, else re-check or use what we have
+            // For now just re-check to ensure we get the latest info object
+            var updateInfo = await UpdateService.Instance.CheckForUpdatesAsync();
+            if (updateInfo != null)
+            {
+                // Even if not strictly newer, allow opening if manually triggered? 
+                // But this is usually triggered by "New Update" badge, so it implies newer.
+
+                var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop ? desktop.MainWindow : null;
+                if (topLevel != null)
+                {
+                    var updateWin = new Views.UpdateWindow(updateInfo);
+                    await updateWin.ShowDialog(topLevel);
+                }
+            }
         }
     }
 }
