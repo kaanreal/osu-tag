@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.1](https://github.com/kaanreal/osu-tag/compare/v2.2.0...v2.2.1) (2026-02-22)
+
+
+### 🐞 Bug Fixes
+
+* Fixed cover art issues ([4dc8ad5](https://github.com/kaanreal/osu-tag/commit/4dc8ad5e2a7f1e6e315b5e4cfb0dbc8219e05970))
+* Fixed metadata issues ([4dc8ad5](https://github.com/kaanreal/osu-tag/commit/4dc8ad5e2a7f1e6e315b5e4cfb0dbc8219e05970))
+* Fixed search bar issues ([4dc8ad5](https://github.com/kaanreal/osu-tag/commit/4dc8ad5e2a7f1e6e315b5e4cfb0dbc8219e05970))
+
 ## [2.2.0](https://github.com/kaanreal/osu-tag/compare/v2.1.1...v2.2.0) (2026-02-15)
 
 
