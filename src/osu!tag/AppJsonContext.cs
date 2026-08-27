@@ -10,14 +10,6 @@ namespace Osutag
     [JsonSerializable(typeof(List<MainViewModel.CachedMapData>))]
     [JsonSerializable(typeof(Dictionary<string, object>))]
     [JsonSerializable(typeof(AptabasePayload))]
-    [JsonSerializable(typeof(SpotifyAuthResponse))]
-    [JsonSerializable(typeof(SpotifySearchResponse))]
-    [JsonSerializable(typeof(SpotifyTracksContainer))]
-    [JsonSerializable(typeof(SpotifyTrack))]
-    [JsonSerializable(typeof(SpotifyExternalUrls))]
-    [JsonSerializable(typeof(SpotifySearchResult))]
-    [JsonSerializable(typeof(SupabaseConfig))]
-    [JsonSerializable(typeof(SupabaseSpotifySearchRequest))]
     internal partial class AppJsonContext : JsonSerializerContext
     {
     }
@@ -40,71 +32,4 @@ namespace Osutag
         public Dictionary<string, object>? Props { get; set; }
     }
 
-    // Spotify API response types
-    public class SpotifyAuthResponse
-    {
-        [JsonPropertyName("access_token")]
-        public string AccessToken { get; set; } = "";
-        
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; set; }
-    }
-
-    public class SpotifySearchResponse
-    {
-        [JsonPropertyName("tracks")]
-        public SpotifyTracksContainer? Tracks { get; set; }
-    }
-
-    public class SpotifyTracksContainer
-    {
-        [JsonPropertyName("items")]
-        public List<SpotifyTrack>? Items { get; set; }
-    }
-
-    public class SpotifyTrack
-    {
-        [JsonPropertyName("external_urls")]
-        public SpotifyExternalUrls ExternalUrls { get; set; } = new();
-        
-        [JsonPropertyName("name")]
-        public string Name { get; set; } = "";
-    }
-
-    public class SpotifyExternalUrls
-    {
-        [JsonPropertyName("spotify")]
-        public string Spotify { get; set; } = "";
-    }
-
-    // Spotify search result from backend API
-    public class SpotifySearchResult
-    {
-        [JsonPropertyName("found")]
-        public bool Found { get; set; }
-        
-        [JsonPropertyName("url")]
-        public string? Url { get; set; }
-        
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-    }
-
-    public class SupabaseConfig
-    {
-        [JsonPropertyName("SupabaseUrl")]
-        public string? SupabaseUrl { get; set; }
-
-        [JsonPropertyName("SupabaseAnonKey")]
-        public string? SupabaseAnonKey { get; set; }
-    }
-
-    public class SupabaseSpotifySearchRequest
-    {
-        [JsonPropertyName("artist")]
-        public string Artist { get; set; } = "";
-
-        [JsonPropertyName("title")]
-        public string Title { get; set; } = "";
-    }
 }

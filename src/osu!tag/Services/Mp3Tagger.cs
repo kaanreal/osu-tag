@@ -14,7 +14,7 @@ namespace Osutag.Services
         {
             try
             {
-                // Force ID3v2.3 for compatibility (Windows/macOS/Spotify don't read v2.4 reliably)
+                // Force ID3v2.3 for broad player compatibility.
                 TagLib.Id3v2.Tag.DefaultVersion = 3;
                 TagLib.Id3v2.Tag.ForceDefaultVersion = true;
 

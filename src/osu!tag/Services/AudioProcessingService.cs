@@ -19,9 +19,19 @@ namespace Osutag.Services
         /// <param name="outputPath">Path for output audio file</param>
         /// <param name="rate">Playback rate multiplier (e.g., 1.5 for 150% speed)</param>
         /// <param name="pitchSemitones">Additional pitch shift in semitones (not currently used)</param>
-        /// <param name="maintainPitch">If true, changes tempo without pitch. If false, changes both (Nightcore)</param>
-        public static void ProcessAudio(string inputPath, string outputPath, float rate, float pitchSemitones, bool maintainPitch)
+        /// <param name="maintainPitch">Preserves pitch at all rates. If false, pitch follows the playback rate.</param>
+        /// <param name="cutStartSeconds">Optional source position at which to start the output.</param>
+        /// <param name="cutEndSeconds">Optional source position at which to end the output.</param>
+        public static void ProcessAudio(string inputPath, string outputPath, float rate, float pitchSemitones, bool maintainPitch,
+            float? cutStartSeconds = null, float? cutEndSeconds = null)
         {
+            if (cutStartSeconds is < 0 || cutEndSeconds is < 0 ||
+                (cutEndSeconds.HasValue && cutStartSeconds.HasValue && cutEndSeconds.Value <= cutStartSeconds.Value) ||
+                (cutEndSeconds.HasValue && !cutStartSeconds.HasValue && cutEndSeconds.Value <= 0))
+            {
+                throw new ArgumentException("The MP3 trim end must be greater than its start.");
+            }
+
             // Get FFmpeg path
             if (FFmpegHelper.IsDownloading)
             {
@@ -29,31 +39,30 @@ namespace Osutag.Services
             }
             var ffmpegPath = FFmpegHelper.GetFFmpegPathAsync(null).GetAwaiter().GetResult();
 
-            // Build the filter chain based on settings
-            string audioFilter;
-            
-            if (maintainPitch)
+            // Build the filter chain based on settings. Pitch is preserved by
+            // default, including at 0.25x. The natural playback-rate path is
+            // only used when the user explicitly enables pitch shifting.
+            var audioFilter = BuildRateFilter(rate, maintainPitch);
+
+            if (cutStartSeconds.HasValue || cutEndSeconds.HasValue)
             {
-                // Tempo change without pitch change (Double Time / Half Time)
-                // atempo only supports 0.5 to 2.0, so chain multiple filters for extreme values
-                audioFilter = BuildAtempoFilter(rate);
-            }
-            else
-            {
-                // Speed change WITH pitch change (Nightcore effect)
-                // asetrate changes sample rate (which changes pitch+speed), then aresample restores to 44100
-                var newSampleRate = (int)(44100 * rate);
-                audioFilter = $"asetrate={newSampleRate},aresample=44100";
+                var trimStart = cutStartSeconds ?? 0;
+                var trimFilter = cutEndSeconds.HasValue
+                    ? $"atrim=start={trimStart.ToString("0.###", CultureInfo.InvariantCulture)}:end={cutEndSeconds.Value.ToString("0.###", CultureInfo.InvariantCulture)}"
+                    : $"atrim=start={trimStart.ToString("0.###", CultureInfo.InvariantCulture)}";
+                audioFilter = $"{trimFilter},asetpts=PTS-STARTPTS,{audioFilter}";
             }
 
             // Build FFmpeg arguments
             var args = new StringBuilder();
             args.Append($"-y "); // Overwrite output
             args.Append($"-i \"{inputPath}\" ");
+            args.Append($"-vn -map_metadata 0 ");
             args.Append($"-filter:a \"{audioFilter}\" ");
             args.Append($"-acodec libmp3lame ");
-            args.Append($"-b:a 192k ");
-            args.Append($"-ar 44100 "); // Ensure consistent sample rate
+            // Use the highest broadly compatible MP3 bitrate and preserve the
+            // source sample rate unless a pitch filter intentionally changes it.
+            args.Append($"-b:a 320k -write_xing 1 ");
             args.Append($"\"{outputPath}\"");
 
             var psi = new ProcessStartInfo
@@ -99,42 +108,43 @@ namespace Osutag.Services
         }
 
         /// <summary>
-        /// Builds an atempo filter chain for the given rate.
-        /// atempo only supports values between 0.5 and 2.0, so we chain multiple filters.
+        /// Builds the rate filter used by both export and preview.
+        ///
+        /// Normal and extreme pitch-preserving rates use chained atempo filters
+        /// (atempo supports 0.5x-2x per stage). The natural playback-rate path
+        /// is reserved for the explicit pitch toggle.
         /// </summary>
-        private static string BuildAtempoFilter(float rate)
+        private static string BuildRateFilter(float rate, bool maintainPitch)
         {
-            // For rates within normal range, single filter is fine
-            if (rate >= 0.5f && rate <= 2.0f)
-            {
-                return $"atempo={rate.ToString("0.000", CultureInfo.InvariantCulture)}";
-            }
+            if (!maintainPitch)
+                return BuildNaturalRateFilter(rate);
 
-            // For extreme rates, chain multiple atempo filters
             var filters = new StringBuilder();
             var currentRate = rate;
 
-            while (currentRate > 2.0f || currentRate < 0.5f)
+            while (currentRate > 2.0f)
             {
-                if (currentRate > 2.0f)
-                {
-                    if (filters.Length > 0) filters.Append(',');
-                    filters.Append("atempo=2.0");
-                    currentRate /= 2.0f;
-                }
-                else if (currentRate < 0.5f)
-                {
-                    if (filters.Length > 0) filters.Append(',');
-                    filters.Append("atempo=0.5");
-                    currentRate /= 0.5f;
-                }
+                if (filters.Length > 0) filters.Append(',');
+                filters.Append("atempo=2.0");
+                currentRate /= 2.0f;
             }
 
-            // Add the final adjustment
+            while (currentRate < 0.5f)
+            {
+                if (filters.Length > 0) filters.Append(',');
+                filters.Append("atempo=0.5");
+                currentRate /= 0.5f;
+            }
+
             if (filters.Length > 0) filters.Append(',');
             filters.Append($"atempo={currentRate.ToString("0.000", CultureInfo.InvariantCulture)}");
-
             return filters.ToString();
+        }
+
+        private static string BuildNaturalRateFilter(float rate)
+        {
+            var sampleRate = Math.Max(1, (int)Math.Round(44100f * rate));
+            return $"asetrate={sampleRate},aresample=44100:resampler=soxr:precision=28";
         }
     }
 }

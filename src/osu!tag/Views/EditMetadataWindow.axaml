@@ -87,7 +87,7 @@
                                 </Grid>
                                 
                                 <Grid ColumnDefinitions="*,60">
-                                    <Slider Grid.Column="0" Value="{Binding PlaybackRate}" Minimum="0.5" Maximum="2.0" 
+                                    <Slider Grid.Column="0" Value="{Binding PlaybackRate}" Minimum="0.25" Maximum="2.0"
                                             TickFrequency="0.05" IsSnapToTickEnabled="True"
                                             VerticalAlignment="Center" Margin="0,0,20,0"/>
                                     <Button Grid.Column="1" Classes="Primary" Width="50" Height="50" CornerRadius="25" Click="PreviewRate_Click" ToolTip.Tip="Preview Audio">
@@ -103,6 +103,55 @@
                                                    Foreground="{Binding IsPitchShiftEnabled, Converter={StaticResource BoolToLinkedColorConverter}}"/>
                                     </ToggleButton>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MP3 Trim Section -->
+                        <Border Background="#1A1F2B" CornerRadius="16" Padding="20">
+                            <StackPanel Spacing="16">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="Trim audio" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" FontSize="14"/>
+                                        <TextBlock Text="Select the section to export" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsTrimEnabled, Mode=TwoWay}"
+                                                  VerticalAlignment="Center" ToolTip.Tip="Enable MP3 trim"/>
+                                </Grid>
+
+                                <StackPanel IsEnabled="{Binding IsTrimEnabled}" Spacing="12">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                        <StackPanel Width="42" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="IN" FontSize="10" FontWeight="Black" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="{Binding CutStartLabel}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                        <Slider x:Name="TrimStartSlider" Grid.Column="1" Value="{Binding CutStartSecondsValue, Mode=TwoWay}" Minimum="0"
+                                                Maximum="{Binding AudioDurationSeconds}" TickFrequency="1" Margin="12,0" VerticalAlignment="Center"
+                                                ToolTip.Tip="Drag the in point" ValueChanged="TrimSlider_ValueChanged"/>
+                                        <Border Grid.Column="2" Width="2" Height="24" CornerRadius="1"
+                                                Background="{DynamicResource AccentBrush}" Opacity="0.75"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                        <StackPanel Width="42" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="OUT" FontSize="10" FontWeight="Black" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="{Binding CutEndLabel}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                        <Slider x:Name="TrimEndSlider" Grid.Column="1" Value="{Binding CutEndSecondsValue, Mode=TwoWay}" Minimum="0"
+                                                Maximum="{Binding AudioDurationSeconds}" TickFrequency="1" Margin="12,0" VerticalAlignment="Center"
+                                                ToolTip.Tip="Drag the out point" ValueChanged="TrimSlider_ValueChanged"/>
+                                        <Border Grid.Column="2" Width="2" Height="24" CornerRadius="1"
+                                                Background="{DynamicResource AccentBrush}" Opacity="0.75"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Selected range" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding SelectedRangeLabel, StringFormat='{}{0} selected'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Track length" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding AudioDurationLabel, StringFormat='{}{0} total'}" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                    </Grid>
+                                </StackPanel>
+                                <TextBlock Text="{Binding CutError}" IsVisible="{Binding HasCutError}"
+                                           FontSize="11" Foreground="#FF7A7A" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 

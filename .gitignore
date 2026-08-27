@@ -156,6 +156,4 @@ UpgradeLog*.htm
 
 # Secrets for local act testing
 .secrets
-run-with-spotify.ps1
-spotify-config.json
 

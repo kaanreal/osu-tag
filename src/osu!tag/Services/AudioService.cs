@@ -16,13 +16,14 @@ namespace Osutag.Services
         public static AudioService Instance => _instance ??= new AudioService();
 
         private Process? _ffplayProcess;
-        private CancellationTokenSource? _durationCts;
         private CancellationTokenSource? _debounceCts;
+        private CancellationTokenSource? _previewCts;
         private readonly object _lock = new();
 
         // State for live updates
         private string? _lastPath;
         private int _lastStartTimeMs;
+        private int? _lastDurationMs;
         private float _lastRate = 1.0f;
         private bool _lastMaintainPitch = true;
         private readonly Stopwatch _playStopwatch = new();
@@ -62,7 +63,7 @@ namespace Osutag.Services
         /// <param name="startTimeMs">Start offset in milliseconds</param>
         /// <param name="durationMs">Duration to play (optional)</param>
         /// <param name="rate">Playback speed multiplier (e.g. 1.5)</param>
-        /// <param name="maintainPitch">If true, pitch is preserved (Double Time). If false, pitch changes with speed (Nightcore).</param>
+        /// <param name="maintainPitch">Preserves pitch at all rates. If false, pitch follows the playback rate.</param>
         public void PlayPreview(string path, int startTimeMs, int? durationMs = null, float rate = 1.0f, bool maintainPitch = true) 
         {
             PlayPreviewInternal(path, startTimeMs, durationMs, rate, maintainPitch, true);
@@ -74,10 +75,18 @@ namespace Osutag.Services
 
             if (!File.Exists(path)) return;
 
+            CancellationTokenSource previewCts;
+            lock (_lock)
+            {
+                _previewCts = new CancellationTokenSource();
+                previewCts = _previewCts;
+            }
+
             if (resetState)
             {
                 _lastPath = path;
                 _lastStartTimeMs = startTimeMs;
+                _lastDurationMs = durationMs;
                 _lastRate = rate;
                 _lastMaintainPitch = maintainPitch;
             }
@@ -86,8 +95,11 @@ namespace Osutag.Services
 
             Task.Run(async () =>
             {
+                var token = previewCts.Token;
                 try
                 {
+                    token.ThrowIfCancellationRequested();
+
                     // Locate FFplay (downloads if missing)
                     if (FFmpegHelper.IsDownloading)
                     {
@@ -106,33 +118,23 @@ namespace Osutag.Services
                         return;
                     }
 
-                    // Build audio filter
-                    string audioFilter;
-                    if (maintainPitch)
-                    {
-                        // Tempo change without pitch (atempo)
-                        audioFilter = BuildAtempoFilter(rate);
-                    }
-                    else
-                    {
-                        // Speed change with pitch (Nightcore)
-                        var newRate = (int)(44100 * rate);
-                        audioFilter = $"asetrate={newRate},aresample=44100";
-                    }
+                    token.ThrowIfCancellationRequested();
 
+                    // Keep preview processing identical to the export path.
+                    // Pitch remains unchanged at 0.25x unless the pitch toggle
+                    // is enabled explicitly.
                     // FFplay volume: 0-100 -> 0.0-1.0
                     var volumeNorm = (_volume / 100.0).ToString("0.00", CultureInfo.InvariantCulture);
-                    audioFilter += $",volume={volumeNorm}";
+                    // Keep the requested source range inside the filter graph. Putting
+                    // -ss after -i would seek the already-processed output and can
+                    // discard most (or all) of a slowed-down preview.
+                    var startSec = Math.Max(0, startTimeMs) / 1000.0;
+                    var trimFilter = durationMs.HasValue
+                        ? $"atrim=start={startSec.ToString("0.###", CultureInfo.InvariantCulture)}:duration={(durationMs.Value / 1000.0).ToString("0.###", CultureInfo.InvariantCulture)},asetpts=PTS-STARTPTS"
+                        : $"atrim=start={startSec.ToString("0.###", CultureInfo.InvariantCulture)},asetpts=PTS-STARTPTS";
+                    var audioFilter = $"{trimFilter},{BuildRateFilter(rate, maintainPitch)},volume={volumeNorm}";
 
-                    // Build arguments
-                    var startSec = startTimeMs / 1000.0;
-                    var args = $"-nodisp -autoexit -loglevel quiet -ss {startSec.ToString("0.000", CultureInfo.InvariantCulture)} -i \"{path}\" -af \"{audioFilter}\"";
-
-                    if (durationMs.HasValue)
-                    {
-                        var durationSec = durationMs.Value / 1000.0;
-                        args = $"-nodisp -autoexit -loglevel quiet -ss {startSec.ToString("0.000", CultureInfo.InvariantCulture)} -t {durationSec.ToString("0.000", CultureInfo.InvariantCulture)} -i \"{path}\" -af \"{audioFilter}\"";
-                    }
+                    var args = $"-nodisp -autoexit -loglevel quiet -vn -i \"{path}\" -af \"{audioFilter}\"";
 
                     var psi = new ProcessStartInfo
                     {
@@ -146,6 +148,9 @@ namespace Osutag.Services
 
                     lock (_lock)
                     {
+                        if (token.IsCancellationRequested)
+                            return;
+
                         _ffplayProcess = new Process { StartInfo = psi };
                         _ffplayProcess.Start();
                         _playStopwatch.Restart();
@@ -154,10 +159,10 @@ namespace Osutag.Services
                     // Handle auto-stop after duration
                     if (durationMs.HasValue)
                     {
-                        _durationCts = new CancellationTokenSource();
                         try
                         {
-                            await Task.Delay(durationMs.Value, _durationCts.Token).ConfigureAwait(false);
+                            var playbackDurationMs = (int)Math.Clamp(durationMs.Value / Math.Max(rate, 0.01f), 1, int.MaxValue);
+                            await Task.Delay(playbackDurationMs, token).ConfigureAwait(false);
                             Stop();
                         }
                         catch (TaskCanceledException) { }
@@ -169,7 +174,19 @@ namespace Osutag.Services
                 }
                 finally
                 {
-                    IsLoading = false;
+                    var isCurrentPreview = false;
+                    lock (_lock)
+                    {
+                        if (ReferenceEquals(_previewCts, previewCts))
+                        {
+                            _previewCts = null;
+                            previewCts.Dispose();
+                            isCurrentPreview = true;
+                        }
+                    }
+
+                    if (isCurrentPreview)
+                        IsLoading = false;
                 }
             });
         }
@@ -207,7 +224,7 @@ namespace Osutag.Services
                         _playStopwatch.Reset(); // Wait for actual process start to restart
                     }
 
-                    PlayPreviewInternal(_lastPath, currentPos, null, rate, maintainPitch, false);
+                    PlayPreviewInternal(_lastPath, currentPos, _lastDurationMs, rate, maintainPitch, false);
                 }
                 catch (TaskCanceledException) { }
                 catch (Exception ex)
@@ -219,12 +236,14 @@ namespace Osutag.Services
 
         public void Stop()
         {
+            CancellationTokenSource? canceledPreview;
             lock (_lock)
             {
-                _durationCts?.Cancel();
-                _durationCts = null;
                 _debounceCts?.Cancel();
                 _debounceCts = null;
+                canceledPreview = _previewCts;
+                _previewCts?.Cancel();
+                _previewCts = null;
 
                 _playStopwatch.Stop();
                 _playStopwatch.Reset();
@@ -243,37 +262,43 @@ namespace Osutag.Services
                 _ffplayProcess?.Dispose();
                 _ffplayProcess = null;
             }
+
+            canceledPreview?.Dispose();
+            IsLoading = false;
         }
 
 
-        private static string BuildAtempoFilter(float rate)
+        private static string BuildRateFilter(float rate, bool maintainPitch)
         {
-            if (rate >= 0.5f && rate <= 2.0f)
-                return $"atempo={rate.ToString("0.000", CultureInfo.InvariantCulture)}";
+            if (!maintainPitch)
+                return BuildNaturalRateFilter(rate);
 
             var filters = new System.Text.StringBuilder();
             var currentRate = rate;
 
-            while (currentRate > 2.0f || currentRate < 0.5f)
+            while (currentRate > 2.0f)
             {
-                if (currentRate > 2.0f)
-                {
-                    if (filters.Length > 0) filters.Append(',');
-                    filters.Append("atempo=2.0");
-                    currentRate /= 2.0f;
-                }
-                else if (currentRate < 0.5f)
-                {
-                    if (filters.Length > 0) filters.Append(',');
-                    filters.Append("atempo=0.5");
-                    currentRate /= 0.5f;
-                }
+                if (filters.Length > 0) filters.Append(',');
+                filters.Append("atempo=2.0");
+                currentRate /= 2.0f;
+            }
+
+            while (currentRate < 0.5f)
+            {
+                if (filters.Length > 0) filters.Append(',');
+                filters.Append("atempo=0.5");
+                currentRate /= 0.5f;
             }
 
             if (filters.Length > 0) filters.Append(',');
             filters.Append($"atempo={currentRate.ToString("0.000", CultureInfo.InvariantCulture)}");
-
             return filters.ToString();
+        }
+
+        private static string BuildNaturalRateFilter(float rate)
+        {
+            var sampleRate = Math.Max(1, (int)Math.Round(44100f * rate));
+            return $"asetrate={sampleRate},aresample=44100:resampler=soxr:precision=28";
         }
 
         public void Dispose()

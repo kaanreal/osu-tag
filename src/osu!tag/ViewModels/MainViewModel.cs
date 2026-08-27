@@ -56,20 +56,6 @@ namespace Osutag.ViewModels
         public string MetadataString => Difficulty.Rate ?? "1.0x";
         public string AudioFilename => System.IO.Path.GetFileName(Difficulty.Mp3Path);
 
-        private bool _isOnSpotify;
-        public bool IsOnSpotify
-        {
-            get => _isOnSpotify;
-            set => SetProperty(ref _isOnSpotify, value);
-        }
-
-        private string? _spotifyUrl;
-        public string? SpotifyUrl
-        {
-            get => _spotifyUrl;
-            set => SetProperty(ref _spotifyUrl, value);
-        }
-
         public string? CoverPath
         {
             get => _coverPath;
@@ -143,6 +129,8 @@ namespace Osutag.ViewModels
         public float? OverrideRate { get; set; }
         public float? OverridePitch { get; set; }
         public bool? OverrideMaintainPitch { get; set; }
+        public float? OverrideCutStartSeconds { get; set; }
+        public float? OverrideCutEndSeconds { get; set; }
     }
 
     public class MapItemGroup : ObservableObject
@@ -258,20 +246,6 @@ namespace Osutag.ViewModels
         public ObservableCollection<DifficultyItem> Difficulties { get; } = new();
         public ObservableCollection<AudioFileItem> UniqueAudioFiles { get; } = new();
 
-        private bool _isOnSpotify;
-        public bool IsOnSpotify
-        {
-            get => _isOnSpotify;
-            set => SetProperty(ref _isOnSpotify, value);
-        }
-
-        private string? _spotifyUrl;
-        public string? SpotifyUrl
-        {
-            get => _spotifyUrl;
-            set => SetProperty(ref _spotifyUrl, value);
-        }
-
         // Permanent Overrides
         public string? OverrideTitle { get; set; }
         public string? OverrideArtist { get; set; }
@@ -279,7 +253,8 @@ namespace Osutag.ViewModels
         public float? OverrideRate { get; set; }
         public float? OverridePitch { get; set; }
         public bool? OverrideMaintainPitch { get; set; }
-        public ICommand? OpenSpotifyUrlCommand { get; set; }
+        public float? OverrideCutStartSeconds { get; set; }
+        public float? OverrideCutEndSeconds { get; set; }
 
         // Randomization for Shuffle Animation
         private static readonly Random _rng = new();
@@ -342,21 +317,6 @@ namespace Osutag.ViewModels
     /// </summary>
     public class SelectedItemInfo : ObservableObject
     {
-        private bool _isOnSpotify;
-        private string? _spotifyUrl;
-
-        public bool IsOnSpotify
-        {
-            get => _isOnSpotify;
-            set => SetProperty(ref _isOnSpotify, value);
-        }
-
-        public string? SpotifyUrl
-        {
-            get => _spotifyUrl;
-            set => SetProperty(ref _spotifyUrl, value);
-        }
-
         public MapItemGroup? MapGroup { get; set; }
         public DifficultyItem? SourceDifficulty { get; set; }
         public AudioFileItem? AudioFile { get; set; }
@@ -369,6 +329,8 @@ namespace Osutag.ViewModels
         public float PlaybackRate { get; set; } = 1.0f;
         public float PitchSemitones { get; set; } = 0.0f;
         public bool MaintainPitch { get; set; } = true;
+        public float? CutStartSeconds { get; set; }
+        public float? CutEndSeconds { get; set; }
 
         public Avalonia.Media.Imaging.Bitmap? CoverBitmap
         {
@@ -1145,6 +1107,10 @@ namespace Osutag.ViewModels
                 };
                 await win.ShowDialog(topLevel);
 
+                // Persist metadata, rate, and trim overrides immediately so an
+                // edited MP3 keeps its settings across app restarts.
+                SaveMapCache();
+
                 // Refresh list if needed (to update display name if title changed?)
                 // Since DisplayName is set on selection, if override changes, 
                 // we might want to update DisplayName to reflect 'OverrideTitle'.
@@ -1191,7 +1157,6 @@ namespace Osutag.ViewModels
         public ICommand OpenDirectoryCommand { get; }
         public ICommand ExportBackgroundCommand { get; }
         public ICommand OpenSupporterUrlCommand { get; }
-        public ICommand OpenSpotifyUrlCommand { get; }
 
         public MainViewModel()
         {
@@ -1225,7 +1190,6 @@ namespace Osutag.ViewModels
             OpenDirectoryCommand = new RelayCommand(param => OpenDirectory(param as MapItemGroup));
             ExportBackgroundCommand = new RelayCommand(param => ExportBackground(param as MapItemGroup));
             OpenUpdateWindowCommand = new RelayCommand(_ => OpenUpdateWindow());
-            OpenSpotifyUrlCommand = new RelayCommand(OpenSpotifyUrl);
             OpenGithubCommand = new RelayCommand(_ => OpenGithub());
 
             // Initialize Dynamic Background
@@ -1334,112 +1298,6 @@ namespace Osutag.ViewModels
             {
                 System.Diagnostics.Debug.WriteLine($"CycleBackground failed: {ex.Message}");
             }
-        }
-
-        private void OpenSpotifyUrl(object? parameter)
-        {
-            string? url = null;
-            if (parameter is MapItemGroup group) url = group.SpotifyUrl;
-            else if (parameter is string s) url = s;
-
-            if (!string.IsNullOrEmpty(url))
-            {
-                PlatformService.OpenUrl(url);
-            }
-        }
-
-        private async Task FetchSpotifyStatusForAllAsync()
-        {
-            if (!Services.SettingsService.Settings.SpotifyLookupEnabled)
-            {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    foreach (var group in _allMapGroups)
-                    {
-                        if (!group.IsOnSpotify && string.IsNullOrEmpty(group.SpotifyUrl)) continue;
-                        group.IsOnSpotify = false;
-                        group.SpotifyUrl = null;
-                        foreach (var diff in group.Difficulties)
-                        {
-                            diff.IsOnSpotify = false;
-                            diff.SpotifyUrl = null;
-                            diff.Difficulty.IsOnSpotify = false;
-                            diff.Difficulty.SpotifyUrl = null;
-                        }
-                    }
-                    foreach (var item in SelectedItems.OfType<SelectedItemInfo>())
-                    {
-                        item.IsOnSpotify = false;
-                        item.SpotifyUrl = null;
-                    }
-                });
-                return;
-            }
-
-            var groupsToProcess = _allMapGroups
-                .Where(g => !g.IsOnSpotify || string.IsNullOrEmpty(g.SpotifyUrl))
-                .ToList();
-            System.Diagnostics.Debug.WriteLine($"[Spotify] Starting fetch for {groupsToProcess.Count} tracks");
-            if (!groupsToProcess.Any()) return;
-
-            // Process sequentially to avoid rate limiting (Spotify has strict limits)
-            int successCount = 0;
-            for (int i = 0; i < groupsToProcess.Count; i++)
-            {
-                var group = groupsToProcess[i];
-                var (isOnSpotify, url) = await SpotifyService.Instance.SearchTrackAsync(group.Artist, group.Title);
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    if (isOnSpotify && !string.IsNullOrEmpty(url))
-                    {
-                        successCount++;
-                        group.IsOnSpotify = true;
-                        group.SpotifyUrl = url;
-
-                        foreach (var diff in group.Difficulties)
-                        {
-                            diff.IsOnSpotify = true;
-                            diff.SpotifyUrl = url;
-                            diff.Difficulty.IsOnSpotify = true;
-                            diff.Difficulty.SpotifyUrl = url;
-                        }
-
-                        // Update any matching selected items
-                        foreach (var item in SelectedItems.OfType<SelectedItemInfo>().Where(it => it.MapGroup == group))
-                        {
-                            item.IsOnSpotify = true;
-                            item.SpotifyUrl = url;
-                        }
-                    }
-                    else if (group.IsOnSpotify)
-                    {
-                        group.IsOnSpotify = false;
-                        group.SpotifyUrl = null;
-                        foreach (var diff in group.Difficulties)
-                        {
-                            diff.IsOnSpotify = false;
-                            diff.SpotifyUrl = null;
-                            diff.Difficulty.IsOnSpotify = false;
-                            diff.Difficulty.SpotifyUrl = null;
-                        }
-                        foreach (var item in SelectedItems.OfType<SelectedItemInfo>().Where(it => it.MapGroup == group))
-                        {
-                            item.IsOnSpotify = false;
-                            item.SpotifyUrl = null;
-                        }
-                    }
-                });
-
-                // Save cache periodically
-                if (i > 0 && i % 20 == 0)
-                {
-                    SaveMapCache();
-                }
-            }
-
-            System.Diagnostics.Debug.WriteLine($"[Spotify] Complete: {successCount}/{groupsToProcess.Count} tracks found on Spotify");
-            SaveMapCache();
         }
 
         // InitializeAsync will be called from View OnLoaded
@@ -1823,8 +1681,11 @@ namespace Osutag.ViewModels
             public int PreviewTime { get; set; }
             public int BeatmapSetId { get; set; } = -1;
             public string? DirectoryPath { get; set; }
-            public bool IsOnSpotify { get; set; }
-            public string? SpotifyUrl { get; set; }
+            public float? OverrideRate { get; set; }
+            public float? OverridePitch { get; set; }
+            public bool? OverrideMaintainPitch { get; set; }
+            public float? OverrideCutStartSeconds { get; set; }
+            public float? OverrideCutEndSeconds { get; set; }
             public List<CachedDifficulty> Difficulties { get; set; } = new();
         }
 
@@ -1838,8 +1699,11 @@ namespace Osutag.ViewModels
             public string? Title { get; set; }
             public string? CoverPath { get; set; }
             public int PreviewTime { get; set; } = -1;
-            public bool IsOnSpotify { get; set; }
-            public string? SpotifyUrl { get; set; }
+            public float? OverrideRate { get; set; }
+            public float? OverridePitch { get; set; }
+            public bool? OverrideMaintainPitch { get; set; }
+            public float? OverrideCutStartSeconds { get; set; }
+            public float? OverrideCutEndSeconds { get; set; }
         }
 
         private void SaveMapCache()
@@ -1858,8 +1722,11 @@ namespace Osutag.ViewModels
                     PreviewTime = g.PreviewTime,
                     BeatmapSetId = g.BeatmapSetId,
                     DirectoryPath = g.DirectoryPath,
-                    IsOnSpotify = g.IsOnSpotify && !string.IsNullOrEmpty(g.SpotifyUrl),
-                    SpotifyUrl = string.IsNullOrEmpty(g.SpotifyUrl) ? null : g.SpotifyUrl,
+                    OverrideRate = g.OverrideRate,
+                    OverridePitch = g.OverridePitch,
+                    OverrideMaintainPitch = g.OverrideMaintainPitch,
+                    OverrideCutStartSeconds = g.OverrideCutStartSeconds,
+                    OverrideCutEndSeconds = g.OverrideCutEndSeconds,
                     Difficulties = g.Difficulties.Select(d => new CachedDifficulty
                     {
                         DifficultyName = d.DifficultyName,
@@ -1870,8 +1737,11 @@ namespace Osutag.ViewModels
                         Title = d.Title,
                         CoverPath = d.CoverPath,
                         PreviewTime = d.Difficulty.PreviewTime,
-                        IsOnSpotify = d.Difficulty.IsOnSpotify && !string.IsNullOrEmpty(d.Difficulty.SpotifyUrl),
-                        SpotifyUrl = string.IsNullOrEmpty(d.Difficulty.SpotifyUrl) ? null : d.Difficulty.SpotifyUrl
+                        OverrideRate = d.OverrideRate,
+                        OverridePitch = d.OverridePitch,
+                        OverrideMaintainPitch = d.OverrideMaintainPitch,
+                        OverrideCutStartSeconds = d.OverrideCutStartSeconds,
+                        OverrideCutEndSeconds = d.OverrideCutEndSeconds
                     }).ToList()
                 }).ToList();
 
@@ -1886,7 +1756,6 @@ namespace Osutag.ViewModels
             var groups = new List<MapItemGroup>();
             try
             {
-                var spotifyEnabled = Services.SettingsService.Settings.SpotifyLookupEnabled;
                 var cachePath = GetCacheFilePath();
                 if (!File.Exists(cachePath))
                     return groups;
@@ -1917,12 +1786,14 @@ namespace Osutag.ViewModels
                         PreviewTime = cached.PreviewTime,
                         BeatmapSetId = cached.BeatmapSetId,
                         DirectoryPath = cached.DirectoryPath,
-                        IsOnSpotify = spotifyEnabled && cached.IsOnSpotify && !string.IsNullOrEmpty(cached.SpotifyUrl),
-                        SpotifyUrl = spotifyEnabled && !string.IsNullOrEmpty(cached.SpotifyUrl) ? cached.SpotifyUrl : null,
+                        OverrideRate = cached.OverrideRate,
+                        OverridePitch = cached.OverridePitch,
+                        OverrideMaintainPitch = cached.OverrideMaintainPitch,
+                        OverrideCutStartSeconds = cached.OverrideCutStartSeconds,
+                        OverrideCutEndSeconds = cached.OverrideCutEndSeconds,
                         OpenBeatmapUrlCommand = OpenBeatmapUrlCommand,
                         OpenDirectoryCommand = OpenDirectoryCommand,
-                        ExportBackgroundCommand = ExportBackgroundCommand,
-                        OpenSpotifyUrlCommand = OpenSpotifyUrlCommand
+                        ExportBackgroundCommand = ExportBackgroundCommand
                     };
 
                     // Smart Check: Check if all difficulties share the same metadata
@@ -1981,9 +1852,7 @@ namespace Osutag.ViewModels
                             Artist = d.Artist,
                             Title = d.Title,
                             CoverPath = d.CoverPath,
-                            PreviewTime = d.PreviewTime,
-                            IsOnSpotify = spotifyEnabled && d.IsOnSpotify && !string.IsNullOrEmpty(d.SpotifyUrl),
-                            SpotifyUrl = spotifyEnabled && !string.IsNullOrEmpty(d.SpotifyUrl) ? d.SpotifyUrl : null
+                            PreviewTime = d.PreviewTime
                         };
 
                         // FOR CHILDREN: If it's a mixed pack, the "Title" metadata is often generic (e.g. "Pack Name")
@@ -1997,7 +1866,12 @@ namespace Osutag.ViewModels
                             // IsSelected = false by default to prevent "select all" behavior for stacks
                             Title = displayTitle,
                             Artist = d.Artist ?? cached.Artist,
-                            CoverPath = d.CoverPath ?? cached.CoverPath
+                            CoverPath = d.CoverPath ?? cached.CoverPath,
+                            OverrideRate = d.OverrideRate,
+                            OverridePitch = d.OverridePitch,
+                            OverrideMaintainPitch = d.OverrideMaintainPitch,
+                            OverrideCutStartSeconds = d.OverrideCutStartSeconds,
+                            OverrideCutEndSeconds = d.OverrideCutEndSeconds
                         });
                     }
 
@@ -2168,7 +2042,6 @@ namespace Osutag.ViewModels
                     {
                         await LoadCompanellaPlayCounts();
                         await FilterMapsAsync();
-                        _ = Task.Run(() => FetchSpotifyStatusForAllAsync());
                     }
                     IsScanning = false;
                     await Task.Delay(200); // Allow UI to layout
@@ -2415,7 +2288,6 @@ namespace Osutag.ViewModels
                 // Apply filter - this only loads first 50 items to UI
                 await FilterMapsAsync();
 
-                _ = Task.Run(() => FetchSpotifyStatusForAllAsync());
 
                 if (smartScanEnabled && maps.Count > 0)
                 {
@@ -2525,7 +2397,9 @@ namespace Osutag.ViewModels
                             OverrideArtist = diff.OverrideArtist,
                             OverrideCoverPath = diff.OverrideCoverPath,
                             PitchSemitones = diff.OverridePitch ?? 0f,
-                            MaintainPitch = diff.OverrideMaintainPitch ?? true
+                            MaintainPitch = diff.OverrideMaintainPitch ?? true,
+                            CutStartSeconds = diff.OverrideCutStartSeconds,
+                            CutEndSeconds = diff.OverrideCutEndSeconds
                         };
 
                         if (!string.IsNullOrEmpty(info.OverrideTitle))
@@ -2547,12 +2421,15 @@ namespace Osutag.ViewModels
                         DisplayName = $"{group.Artist} - {group.Title}",
                         SubDisplayName = null,
                         CoverPath = group.OverrideCoverPath ?? selectedDiff?.CoverPath,
-                        PlaybackRate = group.OverrideRate ?? (selectedDiff != null ? ParseRateMultiplier(selectedDiff.Difficulty.Rate) : 1.0f),
+                        // Difficulty overrides are a fallback for edits saved by older versions.
+                        PlaybackRate = group.OverrideRate ?? selectedDiff?.OverrideRate ?? (selectedDiff != null ? ParseRateMultiplier(selectedDiff.Difficulty.Rate) : 1.0f),
                         OverrideTitle = group.OverrideTitle,
                         OverrideArtist = group.OverrideArtist,
                         OverrideCoverPath = group.OverrideCoverPath,
                         PitchSemitones = group.OverridePitch ?? 0f,
-                        MaintainPitch = group.OverrideMaintainPitch ?? true
+                        MaintainPitch = group.OverrideMaintainPitch ?? true,
+                        CutStartSeconds = group.OverrideCutStartSeconds ?? selectedDiff?.OverrideCutStartSeconds,
+                        CutEndSeconds = group.OverrideCutEndSeconds ?? selectedDiff?.OverrideCutEndSeconds
                     };
 
                     if (!string.IsNullOrEmpty(info.OverrideTitle))
@@ -2799,45 +2676,69 @@ namespace Osutag.ViewModels
 
                     string mp3Output = Path.Combine(mapOutputDir, $"{safeTitle}.mp3");
 
-                    // For stacks (multi-audio packs), each difficulty has its own audio file
-                    // already at the intended rate - don't apply rate change again.
-                    // Only auto-detect rate for single-audio maps where all diffs share one file.
-                    float rate = group.IsStack ? 1.0f : ParseRateMultiplier(diff.Rate);
-                    bool maintainPitch = false;
+                    // Start with the same defaults used by the edit/preview
+                    // view. The selected item's effective values below are
+                    // authoritative for both stacks and single-audio maps.
+                    float rate = ParseRateMultiplier(diff.Rate);
+                    bool maintainPitch = true;
                     float pitchSemitones = 0.0f;
+                    float? cutStartSeconds = null;
+                    float? cutEndSeconds = null;
 
                     // Manual override check
-                    var selectedInfoForAudio = SelectedItems.Cast<SelectedItemInfo>().FirstOrDefault(info =>
+                    var selectedInfoForAudio = SelectedItems.OfType<SelectedItemInfo>().FirstOrDefault(info =>
                         info.MapGroup == group &&
                         (string.IsNullOrEmpty(info.SubDisplayName) || info.SubDisplayName == diffName));
 
                     if (selectedInfoForAudio != null)
                     {
-                        // Apply override if rate differs OR if we have specific pitch settings
-                        // For Rate Packs, if user didn't touch anything, rate follows diff.
-                        // If user moved slider, SelectedItemInfo reflects that.
-                        if (Math.Abs(selectedInfoForAudio.PlaybackRate - 1.0f) > 0.001f)
-                            rate = selectedInfoForAudio.PlaybackRate;
-
+                        // Keep export exactly in step with the values shown and
+                        // previewed in Edit Metadata. This is especially
+                        // important for rate packs and multi-audio stacks.
+                        rate = selectedInfoForAudio.PlaybackRate;
                         maintainPitch = selectedInfoForAudio.MaintainPitch;
                         pitchSemitones = selectedInfoForAudio.PitchSemitones;
+                        cutStartSeconds = selectedInfoForAudio.CutStartSeconds;
+                        cutEndSeconds = selectedInfoForAudio.CutEndSeconds;
+                    }
+                    else
+                    {
+                        // Selection can be rebuilt while a conversion starts;
+                        // fall back to the persisted override values rather
+                        // than silently changing the audio settings.
+                        var difficultyItem = group.Difficulties.FirstOrDefault(d =>
+                            ReferenceEquals(d.Difficulty, diff) || d.DifficultyName == diffName);
+                        rate = group.OverrideRate ?? difficultyItem?.OverrideRate ?? rate;
+                        maintainPitch = group.OverrideMaintainPitch
+                            ?? difficultyItem?.OverrideMaintainPitch
+                            ?? true;
+                        pitchSemitones = group.OverridePitch ?? difficultyItem?.OverridePitch ?? 0f;
+                        cutStartSeconds = group.OverrideCutStartSeconds ?? difficultyItem?.OverrideCutStartSeconds;
+                        cutEndSeconds = group.OverrideCutEndSeconds ?? difficultyItem?.OverrideCutEndSeconds;
                     }
 
                     // Processing criteria:
-                    // 1. Rate != 1.0
-                    // 2. PitchSemitones != 0
-                    // 3. User explicit request via checkbox? (Implied by maintainPitch=true usually requiring processing if rate != 1)
+                    // 1. A trim range was selected.
+                    // 2. The selected rate differs from normal speed.
+                    // 3. An additional pitch adjustment was requested.
 
-                    bool needsProcessing = Math.Abs(rate - 1.0f) > 0.001f || Math.Abs(pitchSemitones) > 0.001f;
+                    bool needsCutting = cutStartSeconds.HasValue || cutEndSeconds.HasValue;
+                    bool needsProcessing = needsCutting || Math.Abs(rate - 1.0f) > 0.001f || Math.Abs(pitchSemitones) > 0.001f;
 
                     if (needsProcessing)
                     {
                         try
                         {
-                            Services.AudioProcessingService.ProcessAudio(diff.Mp3Path, mp3Output, rate, pitchSemitones, maintainPitch);
+                            Services.AudioProcessingService.ProcessAudio(diff.Mp3Path, mp3Output, rate, pitchSemitones, maintainPitch, cutStartSeconds, cutEndSeconds);
                         }
                         catch (Exception ex)
                         {
+                            if (needsCutting)
+                            {
+                                AddResult("Audio Error", $"Could not trim {Path.GetFileName(diff.Mp3Path)}: {ex.Message}");
+                                continue;
+                            }
+
                             // If DllNotFoundException or similar, it often means native libs missing.
                             // We catch standard Exception to cover BASS errors too.
                             try

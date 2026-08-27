@@ -24,11 +24,12 @@
 - **Batch Export** - Process and tag multiple beatmaps simultaneously.
 - **Metadata Tagging** - Automatically applies ID3 tags including Artist, Title, and Album info.
 - **Cover Art Extraction** - Extracts beatmap backgrounds and embeds them as album art.
-- **Spotify Integration** - Shows which songs are available on Spotify with clickable badges.
 - **Modern Interface** - Clean glassmorphism design built with Avalonia.
 - **Context Actions** - Right-click support to view maps online, open local folders, or export backgrounds.
 - **Incremental Scanning** - Only scans for new beatmap folders on subsequent launches.
 - **Audio Previews** - Preview map audio by hovering over cards.
+- **MP3 Trimming** - Use the visual IN/OUT sliders to export only the section you want.
+- **High-Quality Audio** - Audio transformations are exported at 320 kbps with high-quality resampling.
 - **Path Persistence** - Automatically remembers and loads your Songs folder.
 - **Companella! Integration** - Detects ([Companella!](https://github.com/Leinadix/companella)) for play count statistics.
 - **Update Checker** - Notifies you of new releases on startup.
@@ -73,6 +74,8 @@
 3. **Context Menu** - Right-click any card to view details on the osu! website or open the file location.
 4. **Convert** - Click "Start" to generate the tagged MP3 files.
 
+To trim an MP3, open **Edit Metadata / Crop** for a selected item, enable **Trim audio**, drag the IN/OUT handles while listening to their short cues, preview the range, and save.
+
 ## Tech Stack
 
 - **Framework**: Avalonia UI (.NET 8.0)
@@ -89,19 +92,11 @@
 git clone https://github.com/kaanreal/osu-tag.git
 cd osu-tag
 
-# Set Spotify API credentials (optional - for Spotify integration)
-export SPOTIFY_CLIENT_ID="your_client_id"
-export SPOTIFY_CLIENT_SECRET="your_client_secret"
-
 # Build and run
 cd src/osu!tag
 dotnet build
 dotnet run
 ```
-
-## Credits
-
-- **Spotify Search Logic** - Inspired by [osu-find-songs](https://github.com/kaanreal/osu-find-songs)
 
 ## License
 

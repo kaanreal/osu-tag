@@ -1,8 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Osutag.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -14,10 +17,34 @@ namespace Osutag.Views
 {
     public partial class EditMetadataWindow : Window
     {
+        private readonly DispatcherTimer _trimPreviewTimer;
+        private Slider? _activeTrimSlider;
+        private Slider? _trimStartSlider;
+        private Slider? _trimEndSlider;
+        private bool _trimSliderPressed;
+
         public EditMetadataWindow()
         {
             InitializeComponent();
+            _trimPreviewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
+            _trimPreviewTimer.Tick += TrimPreviewTimer_Tick;
+            // Slider thumbs handle pointer presses themselves. Listen to the
+            // routed events even when the thumb marks them handled so trim
+            // cues still start reliably during a drag.
+            _trimStartSlider = this.FindControl<Slider>("TrimStartSlider");
+            _trimEndSlider = this.FindControl<Slider>("TrimEndSlider");
+            if (_trimStartSlider != null)
+            {
+                _trimStartSlider.AddHandler(InputElement.PointerPressedEvent, TrimSlider_PointerPressed, RoutingStrategies.Bubble, true);
+                _trimStartSlider.AddHandler(InputElement.PointerReleasedEvent, TrimSlider_PointerReleased, RoutingStrategies.Bubble, true);
+            }
+            if (_trimEndSlider != null)
+            {
+                _trimEndSlider.AddHandler(InputElement.PointerPressedEvent, TrimSlider_PointerPressed, RoutingStrategies.Bubble, true);
+                _trimEndSlider.AddHandler(InputElement.PointerReleasedEvent, TrimSlider_PointerReleased, RoutingStrategies.Bubble, true);
+            }
             this.DataContextChanged += EditMetadataWindow_DataContextChanged;
+            this.Closed += (_, _) => StopTrimPreview();
         }
 
         private void EditMetadataWindow_DataContextChanged(object? sender, EventArgs e)
@@ -46,6 +73,14 @@ namespace Osutag.Views
 
         private void OnPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
         {
+            if (e.Handled)
+                return;
+
+            // The window doubles as a custom title bar. Do not steal pointer
+            // presses from controls that need to receive a drag/click.
+            if (e.Source is Slider or Button or TextBox or ToggleSwitch or ToggleButton)
+                return;
+
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 this.BeginMoveDrag(e);
@@ -58,6 +93,8 @@ namespace Osutag.Views
         {
             if (ViewModel == null || string.IsNullOrEmpty(ViewModel.SongPath)) return;
 
+            if (!ViewModel.TryGetCutRange(out var cutStart, out var cutEnd)) return;
+
             // Stop current playback
             AudioService.Instance.Stop();
 
@@ -65,7 +102,104 @@ namespace Osutag.Views
             int previewTime = ViewModel.OriginalItem.MapGroup?.PreviewTime ?? 0;
             if (previewTime <= 0) previewTime = 45000; // Default to 45s if unknown
 
-            AudioService.Instance.PlayPreview(ViewModel.SongPath, previewTime, null, (float)ViewModel.PlaybackRate, ViewModel.MaintainPitch);
+            int? previewDuration = null;
+            if (cutStart.HasValue || cutEnd.HasValue)
+            {
+                previewTime = ToMilliseconds(cutStart ?? 0f);
+                if (cutEnd.HasValue)
+                    previewDuration = Math.Max(1, ToMilliseconds(cutEnd.Value - (cutStart ?? 0f)));
+            }
+
+            AudioService.Instance.PlayPreview(ViewModel.SongPath, previewTime, previewDuration, (float)ViewModel.PlaybackRate, ViewModel.MaintainPitch);
+        }
+
+        private static int ToMilliseconds(float seconds)
+        {
+            return (int)Math.Clamp(Math.Round(seconds * 1000f), 0, int.MaxValue);
+        }
+
+        private void TrimSlider_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is not Slider slider || ViewModel?.IsTrimEnabled != true)
+                return;
+
+            _activeTrimSlider = slider;
+            _trimSliderPressed = true;
+            e.Handled = true;
+            ScheduleTrimPreview();
+        }
+
+        private void TrimSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        {
+            if (sender is not Slider slider || (!_trimSliderPressed && !slider.IsFocused))
+                return;
+
+            _activeTrimSlider = slider;
+            ScheduleTrimPreview();
+        }
+
+        private void TrimSlider_PointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            if (sender is not Slider slider)
+                return;
+
+            _activeTrimSlider = slider;
+            _trimSliderPressed = false;
+            e.Handled = true;
+            ScheduleTrimPreview();
+        }
+
+        private void ScheduleTrimPreview()
+        {
+            _trimPreviewTimer.Stop();
+            _trimPreviewTimer.Start();
+        }
+
+        private void TrimPreviewTimer_Tick(object? sender, EventArgs e)
+        {
+            _trimPreviewTimer.Stop();
+            PreviewTrimSnippet();
+        }
+
+        private void PreviewTrimSnippet()
+        {
+            if (ViewModel == null || !ViewModel.IsTrimEnabled || string.IsNullOrEmpty(ViewModel.SongPath))
+                return;
+
+            if (!ViewModel.TryGetCutRange(out var cutStart, out var cutEnd) || !cutStart.HasValue || !cutEnd.HasValue)
+                return;
+
+            const float cuePlaybackSeconds = 2.25f;
+            var start = cutStart.Value;
+            var end = cutEnd.Value;
+            var rate = Math.Max(0.01f, (float)ViewModel.PlaybackRate);
+            // AudioService interprets duration as source time and scales it by
+            // the rate. Scale the source cue too, so even a 0.25x preview stays
+            // a short, usable listen instead of lasting four times as long.
+            var length = Math.Min(cuePlaybackSeconds * rate, end - start);
+            if (length <= 0)
+                return;
+
+            // When moving the out point, listen immediately before the handle;
+            // when moving the in point, listen immediately after it.
+            var cueStart = ReferenceEquals(_activeTrimSlider, _trimEndSlider)
+                ? Math.Max(start, end - length)
+                : start;
+
+            AudioService.Instance.PlayPreview(
+                ViewModel.SongPath,
+                ToMilliseconds(cueStart),
+                ToMilliseconds(length),
+                rate,
+                ViewModel.MaintainPitch);
+        }
+
+        private void StopTrimPreview()
+        {
+            _trimPreviewTimer.Stop();
+            _trimSliderPressed = false;
+            _activeTrimSlider = null;
+            AudioService.Instance.Stop();
         }
 
         private void ResetPitch_Click(object? sender, RoutedEventArgs e)
@@ -133,12 +267,16 @@ namespace Osutag.Views
         {
             if (ViewModel == null) return;
 
+            if (!ViewModel.TryGetCutRange(out var cutStart, out var cutEnd)) return;
+
             var item = ViewModel.OriginalItem;
             item.OverrideTitle = string.IsNullOrWhiteSpace(ViewModel.OverrideTitle) ? null : ViewModel.OverrideTitle;
             item.OverrideArtist = string.IsNullOrWhiteSpace(ViewModel.OverrideArtist) ? null : ViewModel.OverrideArtist;
             item.PlaybackRate = (float)ViewModel.PlaybackRate;
             item.PitchSemitones = (float)ViewModel.PitchSemitones;
             item.MaintainPitch = ViewModel.MaintainPitch;
+            item.CutStartSeconds = cutStart;
+            item.CutEndSeconds = cutEnd;
 
             // If cover path changed from original, set it
             if (!string.IsNullOrEmpty(ViewModel.ActiveCoverPath))
@@ -148,13 +286,15 @@ namespace Osutag.Views
 
             // --- Persistence ---
             // Push back to the source object so it survives RefreshSelectedItems()
-            if (item.SourceDifficulty != null)
+            if (item.MapGroup?.IsStack == true && item.SourceDifficulty != null)
             {
                 item.SourceDifficulty.OverrideTitle = item.OverrideTitle;
                 item.SourceDifficulty.OverrideArtist = item.OverrideArtist;
                 item.SourceDifficulty.OverrideRate = item.PlaybackRate;
                 item.SourceDifficulty.OverridePitch = item.PitchSemitones;
                 item.SourceDifficulty.OverrideMaintainPitch = item.MaintainPitch;
+                item.SourceDifficulty.OverrideCutStartSeconds = item.CutStartSeconds;
+                item.SourceDifficulty.OverrideCutEndSeconds = item.CutEndSeconds;
                 item.SourceDifficulty.OverrideCoverPath = item.OverrideCoverPath;
             }
             else if (item.MapGroup != null)
@@ -164,11 +304,13 @@ namespace Osutag.Views
                 item.MapGroup.OverrideRate = item.PlaybackRate;
                 item.MapGroup.OverridePitch = item.PitchSemitones;
                 item.MapGroup.OverrideMaintainPitch = item.MaintainPitch;
+                item.MapGroup.OverrideCutStartSeconds = item.CutStartSeconds;
+                item.MapGroup.OverrideCutEndSeconds = item.CutEndSeconds;
                 item.MapGroup.OverrideCoverPath = item.OverrideCoverPath;
             }
 
             // Stop preview on save
-            AudioService.Instance.Stop();
+            StopTrimPreview();
 
             Close();
         }
@@ -176,7 +318,7 @@ namespace Osutag.Views
         private void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             // Stop preview on cancel
-            AudioService.Instance.Stop();
+            StopTrimPreview();
             Close();
         }
     }
